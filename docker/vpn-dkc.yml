@@ -1,0 +1,13 @@
+version: "2.4"
+
+services:
+  vpnserver:
+    image: softethervpn:dev-debian
+    cap_add:
+      - NET_ADMIN
+    volumes:
+    - ./config/vpnserver.conf:/etc/vpnserver/vpn_server.config
+    ports:
+    - 8443:443
+    - 5555:5555
+    command: ["/app/vpnserver/vpnserver", "execsvc", "--foreground"]

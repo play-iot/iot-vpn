@@ -1,12 +1,20 @@
 FROM zero88/ghrd:1.1.2 as stage1
 
 ARG VPN_VERSION="v4.34-9745-beta"
+ARG VPN_BRANCH="stable"
 
 USER root
-ENV LANG en_US.UTF-8
+
+ENV VPN_REPO_STABLE="SoftEtherVPN/SoftEtherVPN_Stable"
+ENV VPN_REPO_DEV="SoftEtherVPN/SoftEtherVPN"
+
 WORKDIR /app
+
 RUN apk add build-base openssl openssl-dev ncurses readline cmake linux-headers
-RUN ghrd -a .*vpnserver-.*-linux-x64.*.tar.gz -x -r $VPN_VERSION -o /tmp SoftEtherVPN/SoftEtherVPN_Stable \
+SHELL ["/bin/bash", "-c"]
+RUN VPN_REPO=$([[ $VPN_BRANCH == "stable" ]] && echo $VPN_REPO_STABLE || echo $VPN_REPO_DEV) \
+    && [[ $VPN_BRANCH == "stable" ]] && opts=(-a .*vpnserver-.*-linux-x64.*.tar.gz -x) || opts=(-s tar) \
+    && ghrd ${opts[@]} -r $VPN_VERSION -o /tmp $VPN_REPO
     && tar -xvzf /tmp/*.tar.gz -C /app \
     && cd /app/vpnserver \
     && yes 1 | make -C ./
@@ -23,5 +31,5 @@ RUN apk add --no-cache tini \
 VOLUME /etc/vpnserver
 EXPOSE 443/tcp
 
-ENTRYPOINT ["/sbin/tini",  "--"]
-CMD ["/bin/sh", "-c", "touch /etc/vpnserver/vpn_server.conf && exec /app/vpnserver/vpnserver execsvc"]
+ENTRYPOINT ["/usr/bin/tini", "-vvv", "--"]
+CMD ["/app/vpnserver/vpnserver", "execsvc", "--foreground"]
