@@ -1,33 +1,33 @@
 #!/usr/bin/env bash
 
 COMMAND="${1:-build}"
-IMAGE="${2:-debian}"
-BRANCH="${3:-rtm}"
-VERSION="$4"
+IMAGE="${2:-slim}"
+EDITION="${3:-rtm}"
+VERSION="${4:-latest}"
 
-if [[ $IMAGE != "alpine" && $IMAGE != "debian" ]]; then
+if [[ $IMAGE != "alpine" && $IMAGE != "slim" ]]; then
     echo "Unsupported image $IMAGE"
     exit 5
 fi
 
-if [[ $BRANCH != "src" && $BRANCH != "rtm" ]]; then
-    echo "Unsupported image $BRANCH"
+if [[ $EDITION != "src" && $EDITION != "rtm" ]]; then
+    echo "Unsupported image $EDITION"
     exit 5
 fi
 
 if [[ -z "$VERSION" ]]; then
-  VERSION=$([[ "$BRANCH" == "rtm" ]] && echo "v4.34-9745-beta" || echo "5.01.9674")
+    VERSION=$([[ "$EDITION" == "rtm" ]] && echo "v4.34-9745-beta" || echo "5.01.9674")
 fi
 
-dockerfile="docker/dockerfile/sevpn.$BRANCH.$IMAGE.Dockerfile"
-tag="softethervpn:dev-$IMAGE-$BRANCH-$VERSION"
+dockerfile="docker/dockerfile/sevpn.$EDITION.$IMAGE.Dockerfile"
+tag="softethervpn:$IMAGE-$EDITION-$VERSION"
 
 if [[ $COMMAND == "build" ]]; then
     docker build -f "$dockerfile" --build-arg VPN_VERSION="$VERSION" -t "$tag" ./docker
 elif [[ $COMMAND == "up" ]]; then
-    cat <<EOT > docker/dev.env
+    cat <<EOT >docker/dev.env
 IMAGE=$IMAGE
-BRANCH=$BRANCH
+EDITION=$EDITION
 VERSION=$VERSION
 EOT
 

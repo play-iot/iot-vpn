@@ -10,11 +10,11 @@ RUN ghrd -a .*vpnserver-.*-linux-x64.*.tar.gz -x -r $VPN_VERSION -o /tmp SoftEth
 # ------------------------------------------------------------------
 FROM debian:10-slim as stage2
 
-WORKDIR /app/vpnserver
-RUN apt-get update -y \
-    && apt-get install build-essential -y
+WORKDIR /app
+RUN apt-get update -y && apt-get install build-essential -y
 COPY --from=stage1 /tmp/* /tmp
 RUN tar -xvzf /tmp/*.tar.gz -C ./ \
+    && cd vpnserver/ \
     && yes 1 | make -C ./
 
 # ------------------------------------------------------------------
@@ -22,8 +22,10 @@ FROM debian:10-slim
 
 WORKDIR /app/vpnserver
 
+ARG VPN_VERSION="5.01.9674"
 ENV TINI_VERSION v0.19.0
 LABEL VPN_VERSION=$VPN_VERSION
+LABEL maintainer="sontt246@gmail.com"
 
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
 
@@ -38,4 +40,4 @@ VOLUME /etc/vpnserver
 EXPOSE 443/tcp 5555/tcp
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["./vpnserver", "execsvc", "--foreground"]
+CMD ["./vpnserver", "execsvc"]
