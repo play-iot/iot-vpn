@@ -17,27 +17,28 @@ COPY --from=stage1 /tmp/* /tmp
 RUN tar -xvzf /tmp/*.tar.gz -C /app/vpnserver --strip-component 1 \
     && CMAKE_FLAGS="-DSKIP_CPU_FEATURES=1" ./configure \
     && make -C tmp
-RUN apt-get install tree \
-    && tree -ah /app/vpnserver
 
 # ------------------------------------------------------------------
 FROM debian:10-slim
 
 WORKDIR /app/vpnserver
-COPY --from=stage2 /app/vpnserver ./
 
 ENV TINI_VERSION v0.19.0
 LABEL VPN_VERSION=$VPN_VERSION
 
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
+RUN apt-get update -y \
+    && apt-get install libreadline-dev libncurses5-dev libssl-dev -y
 
 RUN mkdir -p /etc/vpnserver \
     && touch /etc/vpnserver/vpn_server.conf \
     && ln -sf /etc/vpnserver/vpn_server.config /app/vpnserver/vpn_server.config \
     && chmod +x /usr/bin/tini
 
+COPY --from=stage2 /app/vpnserver/build/* ./
+
 VOLUME /etc/vpnserver
 EXPOSE 443/tcp 5555/tcp
 
-ENTRYPOINT ["/usr/bin/tini", "-vvv", "--"]
-CMD ["/app/vpnserver/vpnserver", "execsvc", "--foreground"]
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["./vpnserver", "execsvc", "--foreground"]

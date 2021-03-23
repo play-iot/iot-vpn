@@ -21,7 +21,6 @@ RUN tar -xvzf /tmp/*.tar.gz -C ./ \
 FROM debian:10-slim
 
 WORKDIR /app/vpnserver
-COPY --from=stage2 /app/vpnserver ./
 
 ENV TINI_VERSION v0.19.0
 LABEL VPN_VERSION=$VPN_VERSION
@@ -33,8 +32,10 @@ RUN mkdir -p /etc/vpnserver \
     && ln -sf /etc/vpnserver/vpn_server.config /app/vpnserver/vpn_server.config \
     && chmod +x /usr/bin/tini
 
+COPY --from=stage2 /app/vpnserver ./
+
 VOLUME /etc/vpnserver
 EXPOSE 443/tcp 5555/tcp
 
-ENTRYPOINT ["/usr/bin/tini", "-vvv", "--"]
-CMD ["/app/vpnserver/vpnserver", "execsvc", "--foreground"]
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["./vpnserver", "execsvc", "--foreground"]

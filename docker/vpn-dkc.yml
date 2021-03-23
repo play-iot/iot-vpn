@@ -2,7 +2,7 @@ version: "2.4"
 
 services:
   vpnserver:
-    image: softethervpn:dev-debian
+    image: softethervpn:dev-${IMAGE}-${BRANCH}-${VERSION}
     cap_add:
       - NET_ADMIN
     volumes:
