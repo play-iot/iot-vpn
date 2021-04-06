@@ -33,3 +33,7 @@ build
 .idea
 
 docker/dev.env
+
+vagrant/**/.vagrant
+vagrant/shared/**
+!vagrant/shared/.gitkeep
