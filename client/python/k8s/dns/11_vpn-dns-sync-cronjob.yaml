@@ -1,0 +1,40 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  namespace: {{NAMESPACE}}
+  name: {{K8S_COMPONENT}}-cronjob
+  labels: 
+    app: {{CUSTOMER_CODE}}-{{K8S_COMPONENT}}
+    role: cronjob
+    component: {{K8S_COMPONENT}}
+spec:
+  schedule: "{{VPN_DNS_SYNC_SCHEDULE}}"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: {{K8S_COMPONENT}}
+              image: {{VPN_DNS_SYNC_IMAGE}}:{{VPN_DNS_SYNC_VERSION}}
+              imagePullPolicy: Always
+              envFrom:
+                - configMapRef:
+                    name: {{K8S_CONFIG_NAME}}
+              env:
+                - name: VPN_SYNC_HUB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{K8S_SECRET_NAME}}
+                      key: hubpwd
+              volumeMounts:
+                - name: cert-key
+                  readOnly: true
+                  mountPath: "/certs"
+          volumes:
+          - name: cert-key
+            secret:
+             secretName: {{K8S_SECRET_NAME}}
+             items:
+               - key: svc
+                 path: svc.json
+          restartPolicy: OnFailure
