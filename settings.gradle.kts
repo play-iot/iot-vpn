@@ -7,5 +7,5 @@
  * in the user manual at https://docs.gradle.org/6.7/userguide/multi_project_builds.html
  */
 
-rootProject.name = "qwe-vpn"
+rootProject.name = "iot-vpn"
 include("manager")

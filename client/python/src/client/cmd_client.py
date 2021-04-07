@@ -56,7 +56,7 @@ class IPResolver:
 
 
 class ClientOpts(VpnDirectory):
-    SERVICE_FILE_TMPL = 'qwevpn.service.tmpl'
+    SERVICE_FILE_TMPL = 'qweio-vpn.service.tmpl'
     VPNCLIENT_ZIP = 'vpnclient.zip'
 
     @property
@@ -77,7 +77,7 @@ class ClientOpts(VpnDirectory):
 
     @property
     def dhcp_lease_file(self):
-        return os.path.join(self.vpn_dir, 'vpn_dhclient.leases')
+        return os.path.join(self.vpn_dir, 'vpn_dhclient.lease')
 
     @property
     def current_acc_file(self):
@@ -460,6 +460,14 @@ def __stop(vpn_opts: ClientOpts):
     executor = VPNClientExecutor(vpn_opts)
     executor.post_exec(log_lvl=logger.INFO)
     executor.ip_resolver().cleanup_vpn_ip(1)
+
+
+@cli.command(name="dns", help="Update VPN DNS", hidden=True)
+@vpn_client_opts
+@dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
+@permission
+def __dns():
+    pass
 
 
 @cli.command(name="tree", help="Tree inside binary", hidden=True)
