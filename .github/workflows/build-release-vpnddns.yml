@@ -68,7 +68,7 @@ jobs:
         uses: zero88/gh-project-context@v1
         with:
           dry: false
-          defaultBranch: master
+          mustSign: true
           tagPrefix: vpnddns/v
           releaseBranchPrefix: release/vpnddns/
           mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/vpnddns/.+$"
