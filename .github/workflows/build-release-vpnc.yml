@@ -57,8 +57,8 @@ jobs:
           git-commit-gpgsign: true
           git-tag-gpgsign: true
           git-push-gpgsign: false
-          gpg-private-key: ${{ secrets.CI_GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.CI_GPG_PASSPHARSE }}
+          gpg-private-key: ${{ secrets.OSS_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.OSS_GPG_PASSPHARSE }}
 
       - name: Project context
         id: context

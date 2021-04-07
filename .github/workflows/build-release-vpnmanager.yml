@@ -41,8 +41,8 @@ jobs:
           git-commit-gpgsign: true
           git-tag-gpgsign: true
           git-push-gpgsign: false
-          gpg-private-key: ${{ secrets.CI_GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.CI_GPG_PASSPHARSE }}
+          gpg-private-key: ${{ secrets.OSS_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.OSS_GPG_PASSPHARSE }}
 
       - name: Project context
         id: context
@@ -70,8 +70,8 @@ jobs:
         if: needs.context.outputs.shouldPublish == 'true'
         with:
           git-user-signingkey: true
-          gpg-private-key: ${{ secrets.CI_GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.CI_GPG_PASSPHARSE }}
+          gpg-private-key: ${{ secrets.OSS_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.OSS_GPG_PASSPHARSE }}
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
@@ -97,7 +97,7 @@ jobs:
         run: |
           args=( -Psigning.gnupg.homeDir=/home/runner/.gnupg \
                  -Psigning.gnupg.keyName=${{ steps.import_gpg.outputs.keyid }} \
-                 -Psigning.gnupg.passphrase=${{ secrets.CI_GPG_PASSPHARSE }} \
+                 -Psigning.gnupg.passphrase=${{ secrets.OSS_GPG_PASSPHARSE }} \
                  -Pnexus.username=${{ github.repository_owner }} \
                  -Pnexus.password=${{ secrets.OSS_GITHUB_TOKEN }} )
           args+=( -Pgithub )
@@ -109,9 +109,9 @@ jobs:
         run: |
           args=( -Psigning.gnupg.homeDir=/home/runner/.gnupg \
                            -Psigning.gnupg.keyName=${{ steps.import_gpg.outputs.keyid }} \
-                           -Psigning.gnupg.passphrase=${{ secrets.CI_GPG_PASSPHARSE }} \
-                           -Pnexus.username=${{ secrets.OSS_SONATYPE_USER }} \
-                           -Pnexus.password=${{ secrets.OSS_SONATYPE_PASSWORD }} )
+                           -Psigning.gnupg.passphrase=${{ secrets.OSS_GPG_PASSPHARSE }} \
+                           -Pnexus.username=${{ secrets.OSS_NEXUS_USER }} \
+                           -Pnexus.password=${{ secrets.OSS_NEXUS_TOKEN }} )
           [[ "${{ needs.context.outputs.isRelease }}" == 'true' ]] && args+=( -Prelease )
           ./gradlew publish "${args[@]}"
 
@@ -176,5 +176,5 @@ jobs:
       - uses: actions/checkout@v2
       - run: |
           ./gradlew closeAndReleaseRepository \
-                            -Pnexus.username=${{ secrets.OSS_SONATYPE_USER }} \
-                            -Pnexus.password=${{ secrets.OSS_SONATYPE_PASSWORD }} || echo 'Need to promote manually'
+                            -Pnexus.username=${{ secrets.OSS_NEXUS_USER }} \
+                            -Pnexus.password=${{ secrets.OSS_NEXUS_TOKEN }} || echo 'Need to promote manually'

@@ -33,7 +33,7 @@ env:
   DOCKER_FOLDER: ./client/python
   DOCKER_USERNAME: zero88
   DOCKER_IMAGE: zero88/qweio-vpnddns
-  GHCR_IMAGE: ghcr.io/zero88/qweio-vpnddns
+  GHCR_IMAGE: ghcr.io/qweio/vpnddns
 
 jobs:
 
@@ -60,8 +60,8 @@ jobs:
           git-commit-gpgsign: true
           git-tag-gpgsign: true
           git-push-gpgsign: false
-          gpg-private-key: ${{ secrets.CI_GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.CI_GPG_PASSPHARSE }}
+          gpg-private-key: ${{ secrets.OSS_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.OSS_GPG_PASSPHARSE }}
 
       - name: Project context
         id: context
@@ -137,7 +137,7 @@ jobs:
         uses: docker/login-action@v1
         with:
           username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ secrets.OSS_GHA_DOCKER_HUB }}
+          password: ${{ secrets.OSS_DOCKER_HUB }}
 
       - name: Docker build
         uses: docker/build-push-action@v2
