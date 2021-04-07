@@ -30,7 +30,7 @@ env:
   PYTHON_VERSION: 3.8.8-slim-buster
   PLATFORMS: linux/amd64
   DOCKER_FILE: docker/dockerfile/vpnddns.Dockerfile
-  DOCKER_CONTEXT: ./client/python
+  DOCKER_FOLDER: ./client/python
   DOCKER_USERNAME: zero88
   DOCKER_IMAGE: zero88/qweio-vpnddns
   GHCR_IMAGE: ghcr.io/zero88/qweio-vpnddns
@@ -90,6 +90,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Tree
+        run: |
+          ls -la ./client
+          ls -la ./client/python
+
       - name: Cache Docker layers
         uses: actions/cache@v2
         with:
@@ -100,6 +105,9 @@ jobs:
 
       - name: Validate cache
         run: |
+          ls -la ./
+          ls -la ./client
+          ls -la ./client/python
           docker buildx imagetools inspect localhost:5000/${{ env.APP_IMAGE }}:buildcache || echo "Not Found"
 
       - name: Docker meta
@@ -134,7 +142,7 @@ jobs:
       - name: Docker build
         uses: docker/build-push-action@v2
         with:
-          context: ${{ env.DOCKER_CONTEXT }}
+          context: ${{ env.DOCKER_FOLDER }}
           file: ${{ env.DOCKER_FILE }}
           platforms: ${{ env.PLATFORMS }}
           build-args: |
