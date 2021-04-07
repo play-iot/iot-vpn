@@ -30,7 +30,7 @@ env:
   PYTHON_VERSION: 3.8.8-slim-buster
   PLATFORMS: linux/amd64
   DOCKER_FILE: docker/dockerfile/vpnddns.Dockerfile
-  DOCKER_CONTEXT: client/python
+  DOCKER_CONTEXT: ./client/python
   DOCKER_USERNAME: zero88
   DOCKER_IMAGE: zero88/qweio-vpnddns
   GHCR_IMAGE: ghcr.io/zero88/qweio-vpnddns

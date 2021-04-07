@@ -30,7 +30,7 @@ env:
   PYTHON_VERSION: 3.7.10-slim-stretch
   PLATFORMS: linux/amd64,linux/arm/v7
   DOCKER_FILE: docker/dockerfile/vpnclient.Dockerfile
-  DOCKER_CONTEXT: client/python
+  DOCKER_CONTEXT: ./client/python
 
 jobs:
 
