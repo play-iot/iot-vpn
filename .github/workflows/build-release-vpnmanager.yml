@@ -1,4 +1,4 @@
-name: build-release
+name: build-vpnmanager
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/*.yml'
       - '*.md'
+      - 'client/**'
       - 'LICENSE'
   pull_request:
     types: [ opened, synchronize, reopened, closed ]

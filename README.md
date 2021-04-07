@@ -14,32 +14,32 @@ QWE VPN solution for IoT
 
 ```bash
 # Build on slim and latest RTM version 
-./docker.sh build
+./docker.vpnserver.sh build
 
 # Build on slim and specific RTM version
-./docker.sh build slim rtm v4.34-9745-beta
+./docker.vpnserver.sh build slim rtm v4.34-9745-beta
 
 # Build on slim and src latest version
-./docker.sh build slim src 
+./docker.vpnserver.sh build slim src 
 
 # Build on slim and specific src version
-./docker.sh build slim src 5.01.9674
+./docker.vpnserver.sh build slim src 5.01.9674
 ```
 
 ### Run
 
 ```bash
 # Up on slim and latest RTM version
-./docker.sh up
+./docker.vpnserver.sh up
 
 # Up on slim and specific RTM version
-./docker.sh up slim rtm v4.34-9745-beta
+./docker.vpnserver.sh up slim rtm v4.34-9745-beta
 
 # Up on slim and src latest version
-./docker.sh up slim src 
+./docker.vpnserver.sh up slim src 
 
 # Up on slim and specific src version
-./docker.sh up slim src 5.01.9674
+./docker.vpnserver.sh up slim src 5.01.9674
 ```
 
 ### Use JSON-RPC

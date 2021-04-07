@@ -1,0 +1,168 @@
+name: build-vpnddns
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened, closed ]
+    branches: [ main, master ]
+    paths:
+      - '.github/workflows/build-release-vpnddns.yml'
+      - 'client/python/index.py'
+      - 'client/python/src/ddns/**'
+      - 'client/python/src/executor/**'
+      - 'client/python/src/utils/**'
+      - '!client/python/*.md'
+      - 'docker/dockerfile/vpnddns.Dockerfile'
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'vpnddns/v*'
+    paths:
+      - '.github/workflows/build-release-vpnddns.yml'
+      - 'client/python/index.py'
+      - 'client/python/src/ddns/**'
+      - 'client/python/src/executor/**'
+      - 'client/python/src/utils/**'
+      - '!client/python/*.md'
+      - 'docker/dockerfile/vpnddns.Dockerfile'
+
+env:
+  APP_IMAGE: qweio-vpnddns
+  PYTHON_VERSION: 3.8.8-slim-buster
+  PLATFORMS: linux/amd64
+  DOCKER_FILE: docker/dockerfile/vpnddns.Dockerfile
+  DOCKER_CONTEXT: client/python
+  DOCKER_USERNAME: zero88
+  DOCKER_IMAGE: zero88/qweio-vpnddns
+  GHCR_IMAGE: ghcr.io/zero88/qweio-vpnddns
+
+jobs:
+
+  context:
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.context.outputs.branch }}
+      shouldBuild: ${{ steps.context.outputs.decision_build }}
+      shouldPublish: ${{ steps.context.outputs.decision_publish }}
+      isRelease: ${{ steps.context.outputs.isTag }}
+      afterRelease: ${{ steps.context.outputs.isAfterMergedReleasePR }}
+      sha: ${{ steps.context.outputs.commitId }}
+      version: ${{ steps.context.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.OSS_GITHUB_TOKEN }}
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v3
+        with:
+          git-user-signingkey: true
+          git-commit-gpgsign: true
+          git-tag-gpgsign: true
+          git-push-gpgsign: false
+          gpg-private-key: ${{ secrets.CI_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.CI_GPG_PASSPHARSE }}
+
+      - name: Project context
+        id: context
+        uses: zero88/gh-project-context@v1
+        with:
+          dry: false
+          defaultBranch: master
+          tagPrefix: vpnddns/v
+          releaseBranchPrefix: release/vpnddns/
+          mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/vpnddns/.+$"
+          patterns: |
+            client/python/src/ddns/version.py::(DDNS_VERSION\s?=\s?)(')([^']+)(')::2
+
+  build:
+    runs-on: ubuntu-latest
+    needs: context
+    if: needs.context.outputs.shouldBuild == 'true'
+    services:
+      registry:
+        image: zero88/gh-registry:latest
+        ports:
+          - 5000:5000
+        options: >-
+          -v /home/runner:/var/lib/registry
+          --name registry
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /home/runner/docker
+          key: ${{ runner.os }}-${{ env.APP_IMAGE }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.APP_IMAGE }}-
+
+      - name: Validate cache
+        run: |
+          docker buildx imagetools inspect localhost:5000/${{ env.APP_IMAGE }}:buildcache || echo "Not Found"
+
+      - name: Docker meta
+        id: docker_meta
+        uses: crazy-max/ghaction-docker-meta@v2
+        with:
+          images: ${{ env.GHCR_IMAGE }},${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+            type=match,pattern=vpnddns-v(.*),group=1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+        with:
+          driver-opts: network=host
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub Registry
+        uses: docker/login-action@v1
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ secrets.OSS_GHA_DOCKER_HUB }}
+
+      - name: Docker build
+        uses: docker/build-push-action@v2
+        with:
+          context: ${{ env.DOCKER_CONTEXT }}
+          file: ${{ env.DOCKER_FILE }}
+          platforms: ${{ env.PLATFORMS }}
+          build-args: |
+            BASE_IMAGE_VERSION=${{ env.PYTHON_VERSION }}
+            APP_VERSION=${{ needs.context.outputs.version }}
+            COMMIT_SHA=${{ needs.context.outputs.sha }}
+          cache-from: type=registry,ref=localhost:5000/${{ env.APP_IMAGE }}:buildcache
+          cache-to: type=registry,ref=localhost:5000/${{ env.APP_IMAGE }}:buildcache,mode=max
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
+          pull: true
+          push: true
+
+      - name: Cleanup Docker build cache if any
+        run: |
+          docker buildx imagetools inspect localhost:5000/${{ env.APP_IMAGE }}:buildcache || echo "Not Found"
+          echo "======================================================"
+          docker buildx prune --filter until=72h --keep-storage 3GB -f
+
+      - name: Create Release
+        if: ${{ needs.context.outputs.isRelease == 'true' }}
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: vpnddns/v${{ needs.context.outputs.version }}
+          name: Release VPN DNS sync v${{ needs.context.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            /tmp/zip/${{ env.APP_IMAGE }}.*.zip

@@ -39,3 +39,7 @@ vagrant/shared/**
 !vagrant/shared/.gitkeep
 
 client/go/**/bin
+client/python/src/debug
+client/**/k8s/**/*.env
+!client/**/k8s/**/.env
+client/**/k8s/**/svc.json
