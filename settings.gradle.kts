@@ -8,4 +8,4 @@
  */
 
 rootProject.name = "qwe-vpn"
-include("app", "core", "spi")
+include("manager")

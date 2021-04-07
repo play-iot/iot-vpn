@@ -37,3 +37,5 @@ docker/dev.env
 vagrant/**/.vagrant
 vagrant/shared/**
 !vagrant/shared/.gitkeep
+
+client/go/**/bin
