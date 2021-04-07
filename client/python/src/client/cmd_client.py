@@ -10,7 +10,7 @@ import click
 import netifaces
 
 import src.utils.logger as logger
-from src.client.dns_resolver import DNSResolver
+from src.client.network_resolver import DNSResolver, IPResolver
 from src.client.version import CLI_VERSION
 from src.executor.shell_executor import SystemHelper
 from src.executor.vpn_cmd_executor import VpnCmdExecutor
@@ -28,35 +28,9 @@ def resource(f):
     return resource_finder(f, os.path.dirname(__file__))
 
 
-class IPResolver:
-
-    def __init__(self, pid_file: str, lease_file: str, log_lvl: int, silent: bool = True):
-        self.log_lvl = log_lvl
-        self.silent = silent
-        self.opts = f'-lf {lease_file} -pf {pid_file} -v'
-
-    def renew_ip(self, nic: str, daemon=False):
-        logger.log(self.log_lvl, 'Lease a new VPN IP...')
-        opt = '-nw' if daemon else '-1'
-        SystemHelper.exec_command(f'dhclient {self.opts} {opt} {nic}', silent=self.silent, log_lvl=self.log_lvl)
-
-    def release_ip(self, nic):
-        logger.log(self.log_lvl, 'Release the current VPN IP...')
-        SystemHelper.exec_command(f'dhclient {self.opts} -r {nic}', silent=self.silent, log_lvl=self.log_lvl)
-
-    def renew_all_ip(self, delay=1):
-        logger.log(self.log_lvl, 'Renew all IPs...')
-        time.sleep(delay)
-        SystemHelper.exec_command(f'dhclient -1 -v', silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
-
-    def cleanup_vpn_ip(self, delay=1):
-        logger.log(self.log_lvl, 'Cleanup all dhclient for VPN...')
-        SystemHelper.ps_kill('dhclient .* vpn_', silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
-        self.renew_all_ip(delay)
-
-
 class ClientOpts(VpnDirectory):
     SERVICE_FILE_TMPL = 'qweio-vpn.service.tmpl'
+    DHCLIENT_HOOK_TMPL = 'dhclient-vpn-hook.tmpl'
     VPNCLIENT_ZIP = 'vpnclient.zip'
 
     @property
@@ -205,22 +179,32 @@ def __download(downloader_opts: DownloaderOpt):
 def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
     def copy_vpn_files(_opts: ClientOpts):
         FileHelper.unpack_archive(resource(ClientOpts.VPNCLIENT_ZIP), _opts.vpn_dir)
-        FileHelper.make_executable([os.path.join(_opts.vpn_dir, p) for p in ('vpnclient', 'vpncmd')])
+        FileHelper.chmod([os.path.join(_opts.vpn_dir, p) for p in ('vpnclient', 'vpncmd')], mode=0o755)
 
     def prepare_vpn_service(_opts: ClientOpts, service_fqn: str):
         FileHelper.copy(resource(ClientOpts.SERVICE_FILE_TMPL), _opts.vpn_dir)
         service_file = os.path.join(_opts.vpn_dir, ClientOpts.SERVICE_FILE_TMPL)
+        FileHelper.chmod(service_file, mode=0o644)
         work_dir, cmd = build_executable_command()
         start_cmd = f'{cmd} start --vpn-dir {_opts.vpn_dir}'
         stop_cmd = f'{cmd} stop --vpn-dir {_opts.vpn_dir}'
-        FileHelper.replace_in_file(service_file, {'{{WORKING_DIR}}': work_dir, '{{PID_FILE}}': vpn_opts.pid_file,
+        FileHelper.replace_in_file(service_file, {'{{WORKING_DIR}}': _opts.vpn_dir, '{{PID_FILE}}': vpn_opts.pid_file,
                                                   '{{START_CMD}}': start_cmd, '{{STOP_CMD}}': stop_cmd})
         FileHelper.copy(service_file, service_fqn)
+
+    def prepare_dhclient_hook(_opts: ClientOpts, service_name: str):
+        FileHelper.copy(resource(ClientOpts.DHCLIENT_HOOK_TMPL), _opts.vpn_dir)
+        hook_file = os.path.join(_opts.vpn_dir, ClientOpts.DHCLIENT_HOOK_TMPL)
+        FileHelper.chmod(hook_file, mode=0o755)
+        work_dir, cmd = build_executable_command()
+        FileHelper.replace_in_file(hook_file, {'{{VPN_CLIENT_CLI}}': cmd})
+        FileHelper.copy(hook_file, f'/etc/dhcp/dhclient-exit-hooks.d/dhclient-{service_name}')
 
     FileHelper.create_folders(vpn_opts.vpn_dir)
     copy_vpn_files(vpn_opts)
     prepare_vpn_service(vpn_opts, unix_service.service_fqn)
-    SystemHelper.create_service(unix_service.service_name)
+    prepare_dhclient_hook(vpn_opts, unix_service.service_name)
+    SystemHelper.create_service(unix_service.raw_name)
 
 
 @cli.command(name="uninstall", help="Stop and disable VPN client and *nix service")
@@ -462,12 +446,19 @@ def __stop(vpn_opts: ClientOpts):
     executor.ip_resolver().cleanup_vpn_ip(1)
 
 
-@cli.command(name="dns", help="Update VPN DNS", hidden=True)
+@cli.command(name="dns", help="Update VPN DNS server", hidden=True)
+@click.argument("nic", type=str, required=True)
+@click.option('-r', '--reason', type=str, required=True, help='DHClient Reason')
+@click.option('-ndns', '--new-domain-name-servers', type=str, required=True, help='New domain name servers')
+@click.option('-odns', '--old-domain-name-servers', type=str, help='Old domain name servers')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @permission
-def __dns():
-    pass
+def __dns(nic: str, reason: str, new_domain_name_servers: str, old_domain_name_servers: str):
+    logger.info(nic)
+    logger.info(reason)
+    logger.info(new_domain_name_servers)
+    logger.info(old_domain_name_servers)
 
 
 @cli.command(name="tree", help="Tree inside binary", hidden=True)

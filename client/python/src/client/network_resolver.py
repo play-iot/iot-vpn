@@ -1,7 +1,9 @@
 import fileinput
 import re
+import time
 
 from src.executor.shell_executor import SystemHelper, ServiceStatus
+from src.utils import logger as logger
 
 
 class DNSResolver:
@@ -66,3 +68,33 @@ class DNSResolver:
     @classmethod
     def __tweak_resolvconf(cls, nic):
         pass
+
+
+class IPResolver:
+
+    def __init__(self, pid_file: str, lease_file: str, log_lvl: int, silent: bool = True):
+        self.log_lvl = log_lvl
+        self.silent = silent
+        self.opts = f'-lf {lease_file} -pf {pid_file} -v'
+
+    def renew_ip(self, nic: str, daemon=False):
+        logger.log(self.log_lvl, 'Lease a new VPN IP...')
+        opt = '-nw' if daemon else '-1'
+        SystemHelper.exec_command(f'dhclient {self.opts} {opt} {nic}', silent=self.silent, log_lvl=self.log_lvl)
+
+    def release_ip(self, nic):
+        logger.log(self.log_lvl, 'Release the current VPN IP...')
+        SystemHelper.exec_command(f'dhclient {self.opts} -r {nic}', silent=self.silent, log_lvl=self.log_lvl)
+
+    def renew_all_ip(self, delay=1):
+        logger.log(self.log_lvl, 'Renew all IPs...')
+        time.sleep(delay)
+        SystemHelper.exec_command(f'dhclient -1 -v', silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
+
+    def cleanup_vpn_ip(self, delay=1):
+        logger.log(self.log_lvl, 'Cleanup all dhclient for VPN...')
+        SystemHelper.ps_kill('dhclient .* vpn_', silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
+        self.renew_all_ip(delay)
+
+    def add_hooks(self):
+        a = '/etc/dhcp/dhclient-exit-hooks.d'

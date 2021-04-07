@@ -66,6 +66,7 @@ def out_dir_opts_factory(file_name):
 class UnixServiceOpts:
     def __init__(self, service_dir, service_name):
         self.service_dir = service_dir
+        self.raw_name = service_name
         self.service_name = service_name + '.service'
         self.service_fqn = os.path.join(self.service_dir, self.service_name)
 

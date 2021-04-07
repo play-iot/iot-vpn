@@ -28,7 +28,8 @@ hs_err_pid*
 .gradle
 
 # Ignore Gradle build output directory
-build
+**/build/
+**/dist/
 
 .idea
 
@@ -44,3 +45,5 @@ client/python/src/debug
 client/**/k8s/**/*.env
 !client/**/k8s/**/.env
 client/**/k8s/**/svc.json
+
+**/*.spec

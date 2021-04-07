@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+#
+# The purpose of this script is updating DNS server and DHCP gateway.
+#
+# This will invoke main VPN client CLI
+
+case $interface in vpn_*)
+    {{VPN_CLIENT_CLI}} -r "$reason" -ndns "$new_domain_name_servers" -odns "$old_domain_name_servers" "$interface"
+esac

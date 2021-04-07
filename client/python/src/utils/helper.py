@@ -104,7 +104,7 @@ class FileHelper(object):
         [os.remove(f) if os.path.isfile(f) else rm_dir(f, recursive) for f in files if os.path.exists(f) and force]
 
     @staticmethod
-    def make_executable(paths: Sequence[str], mode=0o755):
+    def chmod(paths: Sequence[str], mode):
         [os.chmod(p, mode=mode) for p in paths if os.path.exists(p)]
 
     @staticmethod
