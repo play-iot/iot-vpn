@@ -5,14 +5,14 @@ ARG VPN_VERSION="v4.34-9745-beta"
 USER root
 
 WORKDIR /app
-RUN ghrd -a .*vpnserver-.*-linux-x64.*.tar.gz -x -r $VPN_VERSION -o /tmp SoftEtherVPN/SoftEtherVPN_Stable
+RUN ghrd -a .*vpnserver-.*-linux-x64.*.tar.gz -x -r $VPN_VERSION -o /app SoftEtherVPN/SoftEtherVPN_Stable
 
 # ------------------------------------------------------------------
 FROM debian:10-slim as stage2
 
 WORKDIR /app
 RUN apt-get update -y && apt-get install build-essential -y
-COPY --from=stage1 /tmp/* /tmp
+COPY --from=stage1 /app/* /tmp
 RUN tar -xvzf /tmp/*.tar.gz -C ./ \
     && cd vpnserver/ \
     && yes 1 | make -C ./
