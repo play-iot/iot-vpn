@@ -37,6 +37,7 @@ docker/dev.env
 vagrant/**/.vagrant
 vagrant/shared/**
 !vagrant/shared/.gitkeep
+!vagrant/shared/provision_*.sh
 
 client/go/**/bin
 client/python/src/debug
