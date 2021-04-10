@@ -13,26 +13,26 @@ if [ "$RUN" = "yes" ]; then
                 >> /tmp/dhclient-script.debug
 
         # loop over the 4 possible prefixes: (empty), cur_, new_, old_
-for prefix in '' 'cur_' 'new_' 'old_'; do
-        # loop over the DHCP variables passed to dhclient-script
-        for basevar in reason interface medium alias_ip_address \
-                       ip_address host_name network_number subnet_mask \
-                       broadcast_address routers static_routes \
-                       rfc3442_classless_static_routes \
-                       domain_name domain_search domain_name_servers \
-                       netbios_name_servers netbios_scope \
-                       ntp_servers \
-                       ip6_address ip6_prefix ip6_prefixlen \
-                       dhcp6_domain_search dhcp6_name_servers ; do
-                var="${prefix}${basevar}"
-                eval "content=\$$var"
+        for prefix in '' 'cur_' 'new_' 'old_'; do
+                # loop over the DHCP variables passed to dhclient-script
+                for basevar in reason interface medium alias_ip_address \
+                               ip_address host_name network_number subnet_mask \
+                               broadcast_address routers static_routes \
+                               rfc3442_classless_static_routes \
+                               domain_name domain_search domain_name_servers \
+                               netbios_name_servers netbios_scope \
+                               ntp_servers \
+                               ip6_address ip6_prefix ip6_prefixlen \
+                               dhcp6_domain_search dhcp6_name_servers ; do
+                        var="${prefix}${basevar}"
+                        eval "content=\$$var"
 
-                # show only variables with values set
-                if [ -n "${content}" ]; then
-                        echo "$var='${content}'" >> /tmp/dhclient-script.debug
-                fi
+                        # show only variables with values set
+                        if [ -n "${content}" ]; then
+                                echo "$var='${content}'" >> /tmp/dhclient-script.debug
+                        fi
+                done
         done
-done
 
         echo '--------------------------' >> /tmp/dhclient-script.debug
 fi

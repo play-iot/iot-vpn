@@ -6,13 +6,12 @@ import os
 import platform
 import re
 import shutil
-from distutils.dir_util import copy_tree
-from pathlib import Path
-from typing import Sequence, Union, Any, Optional, Iterator, TextIO, Callable
-
 import sys
 import time
+from distutils.dir_util import copy_tree
 from itertools import islice
+from pathlib import Path
+from typing import Sequence, Union, Any, Optional, Iterator, TextIO, Callable
 
 import src.utils.logger as logger
 from src.utils.constants import ErrorCode
@@ -95,21 +94,23 @@ class FileHelper(object):
             json.dump(content, fp, indent=2)
 
     @staticmethod
-    def remove_files(files: list, force=True, recursive=True):
+    def remove_files(files: Union[str, list], force=True, recursive=True):
         def rm_dir(_f, _recursive):
             if not _recursive:
                 raise RuntimeError(f'{_f} is folder, need to enable recursive to cleanup')
             shutil.rmtree(_f, ignore_errors=True)
 
+        files = files if isinstance(files, list) else [files]
         [os.remove(f) if os.path.isfile(f) else rm_dir(f, recursive) for f in files if os.path.exists(f) and force]
 
     @staticmethod
-    def chmod(paths: Sequence[str], mode):
+    def chmod(paths: Union[str, Sequence[str]], mode):
+        paths = [paths] if isinstance(paths, str) else paths
         [os.chmod(p, mode=mode) for p in paths if os.path.exists(p)]
 
     @staticmethod
     def is_exists(path: str):
-        return os.path.exists(path)
+        return Path(path).exists()
 
     @staticmethod
     def read_file_by_line(path: str, line=-1, fallback_if_not_exists=None):
@@ -130,11 +131,11 @@ class FileHelper(object):
         return glob.glob(os.path.join(_dir, glob_path))
 
     @staticmethod
-    def replace_in_file(filename: str, data: dict, backup='.bak', regex=False) -> bool:
+    def replace_in_file(filename: str, replacements: dict, backup='.bak', regex=False) -> bool:
         has_replaced = False
         with fileinput.FileInput(filename, inplace=True, backup=backup) as file:
             for line in file:
-                for k, v in data.items():
+                for k, v in replacements.items():
                     if not regex or re.match(k, line):
                         old = line
                         line = line.replace(k, v) if not regex else re.sub(k, v, line)
@@ -143,7 +144,7 @@ class FileHelper(object):
         return has_replaced
 
     @staticmethod
-    def create_folders(folders: Union[str, list], mode=0o755):
+    def create_folders(folders: Union[str, list], mode=0o644):
         folders = folders if isinstance(folders, list) else [folders]
         [Path(f).mkdir(parents=True, exist_ok=True, mode=mode) for f in folders]
 
@@ -163,11 +164,11 @@ class FileHelper(object):
     @staticmethod
     def copy(file_or_folder: str, to: str):
         p = Path(file_or_folder)
-        t = str(Path(to).absolute())
+        t = Path(to)
         if not p.exists():
             raise RuntimeError(f'Given file {file_or_folder} is not existed')
         if p.is_dir():
-            copy_tree(p, t)
+            copy_tree(str(p.absolute()), str(t.absolute()))
         if p.is_file():
             shutil.copy(p, t)
 

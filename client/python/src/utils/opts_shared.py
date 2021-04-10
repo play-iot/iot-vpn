@@ -64,16 +64,15 @@ def out_dir_opts_factory(file_name):
 
 
 class UnixServiceOpts:
+
     def __init__(self, service_dir, service_name):
         self.service_dir = service_dir
-        self.raw_name = service_name
-        self.service_name = service_name + '.service'
-        self.service_fqn = os.path.join(self.service_dir, self.service_name)
+        self.service_name = service_name
 
 
 def unix_service_opts(func):
-    @click.option('-ds', '--service-dir', type=str, default='/lib/systemd/system', help='Linux Service directory')
-    @click.option('-dn', '--service-name', type=str, default='qweiovpn', help='VPN Service name')
+    @click.option('-dn', '--service-name', type=str, default='qweio-vpn', help='VPN Service name')
+    @click.option('-ds', '--service-dir', type=str, help='Linux Service directory')
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         kwargs['unix_service'] = UnixServiceOpts(kwargs.pop('service_dir'), kwargs.pop('service_name'))

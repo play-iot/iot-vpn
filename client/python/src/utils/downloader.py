@@ -84,7 +84,7 @@ def download(vpn_type: VPNType, opt: DownloaderOpt):
     if not arch:
         logger.error(f'Unsupported platform {opt.platform}')
     _prepare(opt.ghrd_version)
-    FileHelper.remove_files([opt.tmp_dir])
+    FileHelper.remove_files(opt.tmp_dir)
     FileHelper.create_folders(opt.tmp_dir)
     out = _compile(_download_2_unzip(opt.tmp_dir, arch, opt.vpn_version, vpn_type), vpn_type)
     if not opt.no_zip:
@@ -92,7 +92,8 @@ def download(vpn_type: VPNType, opt: DownloaderOpt):
     else:
         FileHelper.copy(out, opt.output_dir)
     if not opt.keep_tmp:
-        FileHelper.remove_files([opt.tmp_dir])
+        FileHelper.remove_files(opt.tmp_dir)
+    logger.done()
 
 
 def downloader_opt_factory(output_dir: str):
