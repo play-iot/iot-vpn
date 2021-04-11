@@ -179,8 +179,7 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
                                   '{{START_CMD}}': f'{cmd} start --vpn-dir {vpn_opts.vpn_dir}',
                                   '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {vpn_opts.vpn_dir}'})
     resolver.ip_resolver.add_hook(resource(ClientOpts.DHCLIENT_HOOK_TMPL), unix_service.service_name,
-                                  {'{{WORKING_DIR}}': vpn_opts.vpn_dir,
-                                   '{{VPN_CLIENT_CLI}}': f'{cmd} --vpn-dir {vpn_opts.vpn_dir}'})
+                                  {'{{WORKING_DIR}}': vpn_opts.vpn_dir, '{{VPN_CLIENT_CLI}}': cmd})
     logger.done()
 
 
@@ -448,7 +447,10 @@ def __stop(vpn_opts: ClientOpts):
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @permission
 def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_domain_name_servers: str, old_domain_name_servers: str):
-    FileHelper.write_file(os.path.join(vpn_opts.runtime_dir, 'alo'),
+    print('come here ================================================')
+    FileHelper.write_file(os.path.join(vpn_opts.runtime_dir, 'vpn_dns'),
+                          nic + '::' + reason + '::' + new_domain_name_servers + '::' + old_domain_name_servers)
+    FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'),
                           nic + '::' + reason + '::' + new_domain_name_servers + '::' + old_domain_name_servers)
 
 

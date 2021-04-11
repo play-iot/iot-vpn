@@ -303,18 +303,18 @@ class DHCPResolver(IPResolver):
         FileHelper.remove_files(hook_file, force=True)
 
     def _to_hook_file(self, service_name: str) -> str:
-        return os.path.join('/etc/dhcp/dhclient-exit-hooks.d', service_name + '.hook')
+        return os.path.join('/etc/dhcp/dhclient-exit-hooks.d', service_name)
 
     def _lease_ip_opt(self, vpn_acc: str, vpn_nic: str, daemon=True) -> str:
         opts = f'-nw' if daemon else '-1'
         opts += f' -lf {self.lease_file} -pf {self.pid_file} -v'
-        opts += f' -cf {self._to_config_file(vpn_acc)}'
+        # opts += f' -cf {self._to_config_file(vpn_acc)}'
         return f'{opts} {vpn_nic}'
 
     def _release_ip_opt(self, vpn_acc: str, vpn_nic: str) -> str:
         opts = '-r'
         opts += f' -lf {self.lease_file} -pf {self.pid_file} -v'
-        opts += f' -cf {self._to_config_file(vpn_acc)}'
+        # opts += f' -cf {self._to_config_file(vpn_acc)}'
         return f'{opts} {vpn_nic}'
 
     def _refresh_all_ip_opt(self):
