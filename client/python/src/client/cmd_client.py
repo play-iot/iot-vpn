@@ -461,9 +461,9 @@ def __stop(vpn_opts: ClientOpts):
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @permission
 def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_name_servers: str, old_name_servers: str):
-    now = datetime.now().strftime("%H:%M:%S")
+    now = datetime.now().isoformat()
     FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'), append=True,
-                          content=f"{now}::{reason}::{nic or ''}::{new_name_servers or ''}::{old_name_servers or ''}")
+                          content=f"{now}::{reason}::{nic or ''}::{new_name_servers or ''}::{old_name_servers or ''}\n")
     logger.info(f'Update DNS with {reason}::{nic}...')
     reason_ = DHCPReason[reason]
     executor = VPNClientExecutor(vpn_opts)
@@ -476,7 +476,8 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_name_servers: str, ol
         if current_acc and vpn_opts.nic_to_account(nic) != current_acc:
             logger.warn(f'NIC[{nic}] does not meet current VPN account')
             sys.exit(0)
-    resolver.dns_resolver.tweak(reason_, new_name_servers, old_name_servers)
+    if resolver.dns_resolver.tweak(reason_, new_name_servers, old_name_servers):
+        resolver.ip_resolver.lease_ip(vpn_opts.nic_to_account(nic), nic, daemon=False)
 
 
 @cli.command(name="tree", help="Tree inside binary", hidden=True)
