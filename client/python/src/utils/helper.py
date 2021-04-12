@@ -127,10 +127,10 @@ class FileHelper(object):
         p = Path(path)
         if not FileHelper.is_symlink(p):
             return None
-        return p.readlink()
+        return os.readlink(str(p.absolute()))
 
     @staticmethod
-    def create_symlink(path: Union[str, Path], link: Union[str, Path], force=True):
+    def create_symlink(path: Union[str, Path], link: Union[str, Path], force=False):
         p = Path(path)
         lk = Path(link)
         if not p.exists():
@@ -237,7 +237,7 @@ class FileHelper(object):
         p = Path(src)
         t = Path(dest)
         if p.is_dir():
-            raise RuntimeError('Unsupported advance copy directory')
+            raise RuntimeError('Unsupported advanced copy directory')
         if t.is_dir():
             raise RuntimeError(f'Destination {dest} is folder')
         if t.exists():
@@ -258,10 +258,14 @@ class FileHelper(object):
         """
         p = Path(src)
         t = Path(dest) if dest else p.parent.joinpath(p.name + '.bak')
-        o = FileHelper.copy_advanced(p, t, force)
+        if FileHelper.is_symlink(p):
+            FileHelper.create_symlink(t, FileHelper.get_target_link(p), force)
+            to = t
+        else:
+            to = FileHelper.copy_advanced(p, t, force)
         if remove:
             os.remove(p)
-        return o
+        return to
 
 
 def check_supported_python_version():
