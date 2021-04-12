@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import os
+import re
 import shutil
 import sys
 import time
@@ -8,7 +9,6 @@ from pathlib import Path
 from typing import Optional
 
 import click
-import netifaces
 
 import src.utils.logger as logger
 from src.client.device_resolver import DeviceResolver, DHCPReason
@@ -98,6 +98,13 @@ class VPNClientExecutor(VpnCmdExecutor):
     def vpn_cmd_opt(self):
         return '/CLIENT localhost /CMD'
 
+    def vpn_status(self, vpn_acc: str):
+        try:
+            status = self.exec_command('AccountStatusGet', params=vpn_acc, silent=True, log_lvl=logger.DEBUG)
+            return awk(next(iter(grep(status, r'Session Status.+', flags=re.MULTILINE)), None), sep='|', pos=1)
+        except:
+            return None
+
     def cleanup_zombie_vpn(self, delay=1, log_lvl=logger.DEBUG):
         time.sleep(delay)
         SystemHelper.ps_kill('vpnclient execsvc', silent=True, log_lvl=log_lvl)
@@ -176,10 +183,10 @@ def __download(downloader_opts: DownloaderOpt):
 @verbose_opts
 @permission
 def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
-    FileHelper.create_folders(Path(vpn_opts.vpn_dir).parent, mode=0o1764)
+    FileHelper.create_folders(Path(vpn_opts.vpn_dir).parent, mode=0o0755)
     FileHelper.unpack_archive(resource(ClientOpts.VPNCLIENT_ZIP), vpn_opts.vpn_dir)
-    FileHelper.create_folders([vpn_opts.vpn_dir, vpn_opts.runtime_dir], mode=0o1764)
-    FileHelper.chmod(vpn_opts.runtime_dir, mode=0o1766)
+    FileHelper.create_folders([vpn_opts.vpn_dir, vpn_opts.runtime_dir], mode=0o0755)
+    FileHelper.chmod(vpn_opts.runtime_dir, mode=0o0755)
     FileHelper.chmod([os.path.join(vpn_opts.vpn_dir, p) for p in ('vpnclient', 'vpncmd')], mode=0o1755)
     _, cmd = build_executable_command()
     resolver = DeviceResolver(vpn_opts.runtime_dir, log_lvl=logger.INFO).probe()
@@ -332,23 +339,17 @@ def __disconnect(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
 @permission
 def __status(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
-    service_status = DeviceResolver(vpn_opts.runtime_dir).probe().unix_service.status(unix_service.service_name)
-    current_acc, vpn_ip, status = executor.find_current_account(), None, None
+    resolver = DeviceResolver(vpn_opts.runtime_dir).probe()
+    service_status = resolver.unix_service.status(unix_service.service_name)
+    current_acc, vpn_ip, vpn_status = executor.find_current_account(), None, None
     if current_acc:
-        try:
-            vpn_ip = netifaces.ifaddresses(ClientOpts.account_to_nic(current_acc))[netifaces.AF_INET]
-        except:
-            vpn_ip = None
-        try:
-            status = executor.exec_command('AccountStatusGet', params=current_acc, silent=True, log_lvl=logger.DEBUG)
-            status = awk(next(iter(grep(status, r'Session Status.+')), None), sep='|', pos=1)
-        except:
-            status = None
+        vpn_ip = resolver.ip_resolver.get_vpn_ip(ClientOpts.account_to_nic(current_acc))
+        vpn_status = executor.vpn_status(current_acc)
 
     logger.info(f'VPN Service        : {unix_service.service_name} - {service_status.value}')
     logger.info(f'Current VPN IP     : {vpn_ip}')
-    logger.info(f'Current VPN Account: {current_acc} - {status}')
-    if not status or not vpn_ip or service_status != service_status.RUNNING:
+    logger.info(f'Current VPN Account: {current_acc} - {vpn_status}')
+    if not vpn_status or not vpn_ip or service_status != service_status.RUNNING:
         sys.exit(ErrorCode.VPN_SERVICE_IS_NOT_WORKING)
 
 
