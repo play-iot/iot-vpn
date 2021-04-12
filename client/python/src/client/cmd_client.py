@@ -460,10 +460,10 @@ def __stop(vpn_opts: ClientOpts):
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @permission
 def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_name_servers: str, old_name_servers: str):
-    print('come here ================================================')
+    now = datetime.now().strftime("%H:%M:%S")
     FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'),
-                          nic + '::' + reason + '::' + new_name_servers + '::' + old_name_servers)
-    logger.info(f'Update DNS by {nic}::{reason}...')
+                          f"{now}::{reason or ''}::{nic or ''}::{new_name_servers or ''}::{old_name_servers or ''}")
+    logger.info(f'Update DNS with {reason}::{nic}...')
     reason_ = DHCPReason[reason]
     if not vpn_opts.is_vpn_nic(nic):
         logger.warn('NIC does not belong to VPN service')
@@ -477,11 +477,7 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_name_servers: str, ol
     if vpn_opts.nic_to_account(nic) != current_acc:
         logger.warn('NIC does not meet current VPN account')
         sys.exit(0)
-    if (reason_ == DHCPReason.RENEW and new_name_servers == old_name_servers
-        and resolver.dns_resolver.is_synced()):
-        logger.debug('Skip generating DNS entry because already synced')
-        return
-    resolver.dns_resolver.tweak(new_name_servers)
+    resolver.dns_resolver.tweak(reason_, new_name_servers, old_name_servers)
 
 
 @cli.command(name="tree", help="Tree inside binary", hidden=True)

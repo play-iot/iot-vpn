@@ -105,7 +105,7 @@ class DNSResolver:
     def __init__(self, cache_dir: str, unix_service: UnixService):
         self.cache_dir = cache_dir
         self.dns_origin_cfg = os.path.join(self.cache_dir, 'resolv.origin.conf')
-        self.dns_vpn_cfg = os.path.join(self.cache_dir, 'resolve.vpn.conf')
+        self.dns_vpn_cfg = os.path.join(self.cache_dir, 'resolv.vpn.conf')
         self.service = unix_service
         self.kind = None
 
@@ -153,9 +153,11 @@ class DNSResolver:
     def __tweak_resolvconf(self, nic):
         pass
 
-    def tweak(self, new_dns: str):
-        nameservers = [f'nameserver {ns}' for ns in new_dns.split(',')[0:2]]
-        if not self.is_synced():
+    def tweak(self, reason: DHCPReason, new_name_servers: str, old_name_servers: str):
+        if reason in [DHCPReason.PREINIT] or (reason == DHCPReason.RENEW and new_name_servers == old_name_servers):
+            logger.debug('Skip generating DNS entry')
+        nameservers = [f'nameserver {ns}' for ns in new_name_servers.split(',')[0:2] if ns]
+        if not FileHelper.is_file_readable(self.dns_origin_cfg):
             FileHelper.backup(DNSResolver.DNS_SYSTEM_FILE, self.dns_origin_cfg, remove=False)
         origins = grep(FileHelper.read_file_by_line(self.dns_origin_cfg), r'nameserver .+')
         nameservers += origins[0:(3 - len(nameservers))]
@@ -169,9 +171,6 @@ class DNSResolver:
         if not FileHelper.is_file_readable(self.dns_origin_cfg):
             return
         FileHelper.copy_advanced(self.dns_origin_cfg, DNSResolver.DNS_SYSTEM_FILE, force=True)
-
-    def is_synced(self):
-        return FileHelper.is_file_readable(self.dns_origin_cfg)
 
 
 class IPResolver(ABC):
