@@ -69,6 +69,11 @@ def build_executable_command():
 class FileHelper(object):
 
     @staticmethod
+    def create_folders(folders: Union[str, Path, list], mode=0o0755):
+        folders = folders if isinstance(folders, list) else [folders]
+        [Path(f).mkdir(parents=True, exist_ok=True, mode=mode) for f in folders]
+
+    @staticmethod
     def create_file(path, mode=0o0664):
         with open(path, 'w') as _:
             os.chmod(path, mode)
@@ -189,11 +194,6 @@ class FileHelper(object):
         return has_replaced
 
     @staticmethod
-    def create_folders(folders: Union[str, list], mode=0o0755):
-        folders = folders if isinstance(folders, list) else [folders]
-        [Path(f).mkdir(parents=True, exist_ok=True, mode=mode) for f in folders]
-
-    @staticmethod
     def unpack_archive(file: str, dest: str):
         shutil.unpack_archive(file, dest)
 
@@ -212,8 +212,12 @@ class FileHelper(object):
         t = Path(dest)
         if not p.exists():
             raise RuntimeError(f'Given file {file_or_folder} is not existed')
-        if t.exists():
-            raise RuntimeError(f'Destination {dest} is existed')
+        if FileHelper.is_dir(t):
+            FileHelper.create_folders(t)
+        else:
+            if t.exists():
+                raise RuntimeError(f'Destination {dest} is existed')
+            FileHelper.create_folders(t.parent)
         if p.is_dir():
             copy_tree(str(p.absolute()), str(t.absolute()))
         else:
