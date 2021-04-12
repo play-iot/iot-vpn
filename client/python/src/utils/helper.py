@@ -134,12 +134,12 @@ class FileHelper(object):
         p = Path(path)
         lk = Path(link)
         if not p.exists():
-            raise RuntimeError('Given file is not existed')
+            raise RuntimeError(f'Given file[{p}] is not existed')
         if lk.exists():
             if FileHelper.is_dir(lk):
-                raise RuntimeError('Given target link is directory')
+                raise RuntimeError(f'Given target link[{lk}] is directory')
             if not force:
-                raise RuntimeError('Given target is existed')
+                raise RuntimeError(f'Given target link[{lk}] is existed')
             os.remove(lk)
         lk.symlink_to(p)
 
@@ -205,7 +205,7 @@ class FileHelper(object):
     def make_archive(folder: Union[str, Path], into: str, name: str = None, _format='zip') -> str:
         to = Path(folder)
         if not FileHelper.is_dir(to):
-            raise RuntimeError('Archive folder is not existed')
+            raise RuntimeError(f'Archive folder[{to}] is not existed')
         name = name or to.name
         into = os.path.join(into, name)
         return shutil.make_archive(into, root_dir=to, base_dir='.', format=_format, logger=logger)
@@ -215,13 +215,13 @@ class FileHelper(object):
         p = Path(file_or_folder)
         t = Path(dest)
         if not p.exists():
-            raise RuntimeError(f'Given file {file_or_folder} is not existed')
+            raise RuntimeError(f'Given path[{file_or_folder}] is not existed')
         if FileHelper.is_dir(t):
             FileHelper.create_folders(t)
         else:
             if t.exists():
                 if not force:
-                    raise RuntimeError(f'Destination {dest} is existed')
+                    raise RuntimeError(f'Destination[{dest}] is existed')
                 FileHelper.remove_files(t)
             FileHelper.create_folders(t.parent)
         if p.is_dir():
@@ -243,10 +243,10 @@ class FileHelper(object):
         if p.is_dir():
             raise RuntimeError('Unsupported advanced copy directory')
         if t.is_dir():
-            raise RuntimeError(f'Destination {dest} is folder')
+            raise RuntimeError(f'Destination[{dest}] is folder')
         if t.exists():
             if not force:
-                raise RuntimeError(f'Destination {dest} is existed')
+                raise RuntimeError(f'Destination[{dest}] is existed')
             os.remove(t)
         return shutil.copy2(p, t, follow_symlinks=True)
 
@@ -263,7 +263,7 @@ class FileHelper(object):
         p = Path(src)
         t = Path(dest) if dest else p.parent.joinpath(p.name + '.bak')
         if FileHelper.is_symlink(p):
-            FileHelper.create_symlink(t, FileHelper.get_target_link(p), force)
+            FileHelper.create_symlink(FileHelper.get_target_link(p), t, force)
             to = t
         else:
             to = FileHelper.copy_advanced(p, t, force)

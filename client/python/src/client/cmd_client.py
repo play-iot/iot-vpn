@@ -465,17 +465,17 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_name_servers: str, ol
                           f"{now}::{reason or ''}::{nic or ''}::{new_name_servers or ''}::{old_name_servers or ''}")
     logger.info(f'Update DNS with {reason}::{nic}...')
     reason_ = DHCPReason[reason]
-    if not vpn_opts.is_vpn_nic(nic):
-        logger.warn('NIC does not belong to VPN service')
-        sys.exit(0)
     executor = VPNClientExecutor(vpn_opts)
     resolver = DeviceResolver(vpn_opts.runtime_dir, log_lvl=logger.INFO, silent=True).probe()
     if reason_ == DHCPReason.STOP:
         resolver.dns_resolver.rollback_origin()
         return
+    if not vpn_opts.is_vpn_nic(nic):
+        logger.warn(f'NIC[{nic}] does not belong to VPN service')
+        sys.exit(0)
     current_acc = executor.find_current_account()
     if vpn_opts.nic_to_account(nic) != current_acc:
-        logger.warn('NIC does not meet current VPN account')
+        logger.warn(f'NIC[{nic}] does not meet current VPN account')
         sys.exit(0)
     resolver.dns_resolver.tweak(reason_, new_name_servers, old_name_servers)
 
