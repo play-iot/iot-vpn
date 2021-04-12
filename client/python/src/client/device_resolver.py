@@ -154,8 +154,9 @@ class DNSResolver:
         pass
 
     def tweak(self, reason: DHCPReason, new_name_servers: str, old_name_servers: str):
-        if reason in [DHCPReason.PREINIT] or (reason == DHCPReason.RENEW and new_name_servers == old_name_servers):
-            logger.debug('Skip generating DNS entry')
+        # if reason in [DHCPReason.PREINIT] or (reason == DHCPReason.RENEW and new_name_servers == old_name_servers):
+        if reason in [DHCPReason.PREINIT]:
+            logger.info(f'Skip generating DNS entry in [{reason.name}]')
             return
         nameservers = [f'nameserver {ns}' for ns in new_name_servers.split(',')[0:2] if ns]
         if not FileHelper.is_file_readable(self.dns_origin_cfg):
@@ -319,8 +320,9 @@ class DHCPResolver(IPResolver):
 
     @staticmethod
     def factory(cache_dir: str, log_lvl: int, silent: bool = True) -> 'IPResolver':
-        if SystemHelper.verify_command(f'{IPResolverType.DHCLIENT.value} --help'):
+        if FileHelper.which(IPResolverType.DHCLIENT.value):
             return DHCPResolver(cache_dir, log_lvl, silent)
+        return None
 
     @property
     def ip_tool(self) -> str:
@@ -400,10 +402,10 @@ class DeviceResolver:
         return self.__dns_resolver
 
     def _service(self, service: UnixService):
-        self.__service = self.__not_null(service, 'init system')
+        self.__service = self.__not_null(service, 'INIT system')
 
     def _ip_resolver(self, resolver: IPResolver):
-        self.__ip_resolver = self.__not_null(resolver, 'ip resolver')
+        self.__ip_resolver = self.__not_null(resolver, 'IP resolver')
 
     def _dns_resolver(self, resolver: DNSResolver):
         self.__dns_resolver = self.__not_null(resolver, 'DNS resolver')
