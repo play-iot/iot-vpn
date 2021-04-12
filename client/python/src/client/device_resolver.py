@@ -155,9 +155,15 @@ class DNSResolver:
     def __tweak_resolvconf(self, nic):
         pass
 
-    def tweak(self, reason: DHCPReason, new_name_servers: str, old_name_servers: str):
+    def is_rollback(self, reason: DHCPReason) -> bool:
+        return reason in [DHCPReason.RELEASE, DHCPReason.STOP, DHCPReason.FAIL]
+
+    def tweak(self, reason: DHCPReason, new_name_servers: str = None, old_name_servers: str = None):
         if reason in [DHCPReason.PREINIT] or (reason == DHCPReason.RENEW and new_name_servers == old_name_servers):
             logger.info(f'Skip generating DNS entry in [{reason.name}]')
+            return
+        if self.is_rollback(reason):
+            self.__restore_origin()
             return
         nameservers = [f'nameserver {ns}' for ns in new_name_servers.split(',')[0:2] if ns]
         if not FileHelper.is_file_readable(self.dns_origin_cfg):
@@ -170,7 +176,7 @@ class DNSResolver:
         FileHelper.create_symlink(self.dns_vpn_cfg, DNSResolver.DNS_SYSTEM_FILE, force=True)
         logger.info(FileHelper.read_file_by_line(DNSResolver.DNS_SYSTEM_FILE))
 
-    def rollback_origin(self):
+    def __restore_origin(self):
         logger.info(f'Restore system DNS config file...')
         if not FileHelper.is_file_readable(self.dns_origin_cfg):
             return

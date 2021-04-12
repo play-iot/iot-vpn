@@ -217,7 +217,7 @@ def __uninstall(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, force: bool
         executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], account, silent=True)
     resolver.unix_service.disable(unix_service, force)
     resolver.ip_resolver.remove_hook(unix_service.service_name)
-    resolver.dns_resolver.rollback_origin()
+    resolver.dns_resolver.tweak(DHCPReason.STOP)
     executor.cleanup_zombie_vpn()
     resolver.ip_resolver.cleanup_vpn_ip()
     resolver.ip_resolver.renew_all_ip()
@@ -462,22 +462,20 @@ def __stop(vpn_opts: ClientOpts):
 @permission
 def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_name_servers: str, old_name_servers: str):
     now = datetime.now().strftime("%H:%M:%S")
-    FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'),
-                          f"{now}::{reason or ''}::{nic or ''}::{new_name_servers or ''}::{old_name_servers or ''}")
+    FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'), append=True,
+                          content=f"{now}::{reason}::{nic or ''}::{new_name_servers or ''}::{old_name_servers or ''}")
     logger.info(f'Update DNS with {reason}::{nic}...')
     reason_ = DHCPReason[reason]
     executor = VPNClientExecutor(vpn_opts)
     resolver = DeviceResolver(vpn_opts.runtime_dir, log_lvl=logger.INFO, silent=True).probe()
-    if reason_ == DHCPReason.STOP:
-        resolver.dns_resolver.rollback_origin()
-        return
-    if not vpn_opts.is_vpn_nic(nic):
-        logger.warn(f'NIC[{nic}] does not belong to VPN service')
-        sys.exit(0)
-    current_acc = executor.find_current_account()
-    if vpn_opts.nic_to_account(nic) != current_acc:
-        logger.warn(f'NIC[{nic}] does not meet current VPN account')
-        sys.exit(0)
+    if not resolver.dns_resolver.is_rollback(reason_):
+        if not vpn_opts.is_vpn_nic(nic):
+            logger.warn(f'NIC[{nic}] does not belong to VPN service')
+            sys.exit(0)
+        current_acc = executor.find_current_account()
+        if current_acc and vpn_opts.nic_to_account(nic) != current_acc:
+            logger.warn(f'NIC[{nic}] does not meet current VPN account')
+            sys.exit(0)
     resolver.dns_resolver.tweak(reason_, new_name_servers, old_name_servers)
 
 

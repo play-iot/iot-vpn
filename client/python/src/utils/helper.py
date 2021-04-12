@@ -79,9 +79,9 @@ class FileHelper(object):
             os.chmod(path, mode)
 
     @staticmethod
-    def write_file(path, content, mode=0o0664, log_lvl=logger.DEBUG):
+    def write_file(path, content, mode=0o0664, append=False, log_lvl=logger.DEBUG):
         logger.log(log_lvl, "Dump to file: " + path)
-        with open(path, 'w+') as fp:
+        with open(path, 'w+' if not append else 'a+') as fp:
             fp.write(content)
             os.chmod(path, mode)
 
