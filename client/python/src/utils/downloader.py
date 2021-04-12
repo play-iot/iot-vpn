@@ -90,7 +90,7 @@ def download(vpn_type: VPNType, opt: DownloaderOpt):
     if not opt.no_zip:
         FileHelper.make_archive(out, opt.output_dir)
     else:
-        FileHelper.copy(out, opt.output_dir)
+        FileHelper.copy(out, opt.output_dir, force=True)
     if not opt.keep_tmp:
         FileHelper.remove_files(opt.tmp_dir)
     logger.done()

@@ -81,7 +81,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         if self.current_pid:
             self.__write_pid_file(logger.down_lvl(log_lvl))
             return
-        FileHelper.remove_files(self.__pid_files(), force=True)
+        FileHelper.remove_files(self.__pid_files())
         logger.log(log_lvl, 'Start VPN Client')
         SystemHelper.exec_command(f'{self.opts.vpnclient} start', log_lvl=logger.down_lvl(log_lvl))
         time.sleep(1)
@@ -93,7 +93,7 @@ class VPNClientExecutor(VpnCmdExecutor):
             return
         logger.log(log_lvl, 'Stop VPN Client')
         SystemHelper.exec_command(f'{self.opts.vpnclient} stop', silent=silent, log_lvl=logger.down_lvl(log_lvl))
-        FileHelper.remove_files(self.opts.pid_file, force=True)
+        FileHelper.remove_files(self.opts.pid_file)
 
     def vpn_cmd_opt(self):
         return '/CLIENT localhost /CMD'
@@ -123,14 +123,15 @@ class VPNClientExecutor(VpnCmdExecutor):
             if pid and pid > 0 and SystemHelper.is_pid_exists(pid):
                 return pid
         except Exception as _:
-            FileHelper.remove_files(pid_file, True)
+            FileHelper.remove_files(pid_file)
         return 0
 
     def _validate(self, silent=False, log_lvl=logger.DEBUG):
         if (FileHelper.is_dir(self.opts.vpn_dir) and FileHelper.is_executable(self.opts.vpnclient)
             and FileHelper.is_executable(self.opts.vpncmd)):
             return True
-        msg = 'Missing VPN client. Might be not yet installed or installation is corrupted. Try "uninstall -f"'
+        _, cmd = build_executable_command()
+        msg = f'Missing VPN client. Might be the installation is corrupted. Use "{cmd} uninstall -f" then try again'
         if silent:
             logger.decrease(log_lvl, msg)
             return False
@@ -143,7 +144,7 @@ class VPNClientExecutor(VpnCmdExecutor):
     def remove_current_account(self) -> str:
         account = self.find_current_account()
         if account:
-            FileHelper.remove_files(self.opts.current_acc_file, True)
+            FileHelper.remove_files(self.opts.current_acc_file)
         return account
 
     def find_current_account(self) -> Optional[str]:
@@ -175,22 +176,22 @@ def __download(downloader_opts: DownloaderOpt):
 @verbose_opts
 @permission
 def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
-    FileHelper.create_folders(str(Path(vpn_opts.vpn_dir).parent.absolute()), mode=0o1764)
+    FileHelper.create_folders(Path(vpn_opts.vpn_dir).parent, mode=0o1764)
     FileHelper.unpack_archive(resource(ClientOpts.VPNCLIENT_ZIP), vpn_opts.vpn_dir)
     FileHelper.create_folders([vpn_opts.vpn_dir, vpn_opts.runtime_dir], mode=0o1764)
     FileHelper.chmod(vpn_opts.runtime_dir, mode=0o1766)
     FileHelper.chmod([os.path.join(vpn_opts.vpn_dir, p) for p in ('vpnclient', 'vpncmd')], mode=0o1755)
     _, cmd = build_executable_command()
-    resolver = DeviceResolver(vpn_opts.runtime_dir).probe()
+    resolver = DeviceResolver(vpn_opts.runtime_dir, log_lvl=logger.INFO).probe()
     resolver.unix_service.create(unix_service, resource(ClientOpts.SERVICE_FILE_TMPL), {
-        '{{WORKING_DIR}}': vpn_opts.vpn_dir, '{{PID_FILE}}': vpn_opts.pid_file,
+        '{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{PID_FILE}}': str(vpn_opts.pid_file),
         '{{VPN_DESC}}': unix_service.service_name,
         '{{START_CMD}}': f'{cmd} start --vpn-dir {vpn_opts.vpn_dir}',
         '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {vpn_opts.vpn_dir}',
-        '{{STOP_POST_CMD}}': f'{cmd} dns {DHCPReason.STOP}'
+        '{{STOP_POST_CMD}}': f'{cmd} dns {DHCPReason.STOP.name}'
     })
     resolver.ip_resolver.add_hook(resource(ClientOpts.DHCLIENT_HOOK_TMPL), unix_service.service_name,
-                                  {'{{WORKING_DIR}}': vpn_opts.vpn_dir, '{{VPN_CLIENT_CLI}}': cmd})
+                                  {'{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{VPN_CLIENT_CLI}}': cmd})
     logger.done()
 
 
@@ -209,6 +210,7 @@ def __uninstall(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, force: bool
         executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], account, silent=True)
     resolver.unix_service.disable(unix_service, force)
     resolver.ip_resolver.remove_hook(unix_service.service_name)
+    resolver.dns_resolver.rollback_origin()
     executor.cleanup_zombie_vpn()
     resolver.ip_resolver.cleanup_vpn_ip()
     resolver.ip_resolver.renew_all_ip()
@@ -234,7 +236,7 @@ def __add(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, server_opts: Serv
           account: str, default: bool, hostname: bool):
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
     resolver = DeviceResolver(vpn_opts.runtime_dir).probe()
-    host_name = executor.generate_host_name(server_opts.hub, auth_opts.user, log_lvl=logger.INFO)
+    host_name = executor.generate_host_name(server_opts.hub, auth_opts.user, log_lvl=logger.DEBUG)
     if hostname:
         SystemHelper.change_host_name(host_name, log_lvl=logger.DEBUG)
     logger.info(f'Setup VPN Client with VPN account {account}...')

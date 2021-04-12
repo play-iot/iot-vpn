@@ -100,7 +100,7 @@ class FileHelper(object):
             json.dump(content, fp, indent=2)
 
     @staticmethod
-    def remove_files(files: Union[str, list], force=True, recursive=True):
+    def remove_files(files: Union[str, Path, list], force=True, recursive=True):
         def rm_dir(_f, _recursive):
             if not _recursive:
                 raise RuntimeError(f'{_f} is folder, need to enable recursive to cleanup')
@@ -168,7 +168,7 @@ class FileHelper(object):
             count = 0
             with open(path, 'r') as fp:
                 if line == -1:
-                    return fp.read().replace('\n', '')
+                    return fp.read()
                 for line in fp:
                     count += 1
                     if count == line:
@@ -207,7 +207,7 @@ class FileHelper(object):
         return shutil.make_archive(into, root_dir=to, base_dir='.', format=_format, logger=logger)
 
     @staticmethod
-    def copy(file_or_folder: Union[str, Path], dest: Union[str, Path]):
+    def copy(file_or_folder: Union[str, Path], dest: Union[str, Path], force=False):
         p = Path(file_or_folder)
         t = Path(dest)
         if not p.exists():
@@ -216,7 +216,9 @@ class FileHelper(object):
             FileHelper.create_folders(t)
         else:
             if t.exists():
-                raise RuntimeError(f'Destination {dest} is existed')
+                if not force:
+                    raise RuntimeError(f'Destination {dest} is existed')
+                FileHelper.remove_files(t)
             FileHelper.create_folders(t.parent)
         if p.is_dir():
             copy_tree(str(p.absolute()), str(t.absolute()))
@@ -292,10 +294,10 @@ def decode_base64(value: str, url_safe=False, without_padding=False, lenient=Fal
         raise
 
 
-def grep(value: str, pattern: str) -> list:
+def grep(value: str, pattern: str, flags=re.VERBOSE) -> list:
     if not value:
         return []
-    return re.findall(pattern, value, flags=re.M)
+    return re.findall(pattern, value, flags=flags)
 
 
 def awk(value: str, sep=' ', pos=-1) -> Optional[Union[str, list]]:
