@@ -11,7 +11,7 @@ import click
 import netifaces
 
 import src.utils.logger as logger
-from src.client.device_resolver import DeviceResolver
+from src.client.device_resolver import DeviceResolver, DHCPReason
 from src.client.version import CLI_VERSION
 from src.executor.shell_executor import SystemHelper
 from src.executor.vpn_cmd_executor import VpnCmdExecutor
@@ -55,8 +55,16 @@ class ClientOpts(VpnDirectory):
         return os.path.join(self.vpn_dir, 'client_log', f'client_{date}.log')
 
     @staticmethod
-    def vpn_nic(account) -> str:
+    def account_to_nic(account: str) -> str:
         return 'vpn_' + account
+
+    @staticmethod
+    def nic_to_account(nic: str) -> str:
+        return nic.replace('vpn_', '', 1)
+
+    @staticmethod
+    def is_vpn_nic(nic: str) -> bool:
+        return nic.startswith('vpn_')
 
 
 class VPNClientExecutor(VpnCmdExecutor):
@@ -119,9 +127,10 @@ class VPNClientExecutor(VpnCmdExecutor):
         return 0
 
     def _validate(self, silent=False, log_lvl=logger.DEBUG):
-        if FileHelper.is_exists(self.opts.vpn_dir) and FileHelper.is_exists(self.opts.vpnclient):
+        if (FileHelper.is_dir(self.opts.vpn_dir) and FileHelper.is_executable(self.opts.vpnclient)
+            and FileHelper.is_executable(self.opts.vpncmd)):
             return True
-        msg = 'Missing VPN client. Might be not yet installed or wrong folder configuration'
+        msg = 'Missing VPN client. Might be not yet installed or installation is corrupted. Try "uninstall -f"'
         if silent:
             logger.decrease(log_lvl, msg)
             return False
@@ -166,18 +175,20 @@ def __download(downloader_opts: DownloaderOpt):
 @verbose_opts
 @permission
 def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
-    FileHelper.create_folders(str(Path(vpn_opts.vpn_dir).parent.absolute()), mode=0o666)
+    FileHelper.create_folders(str(Path(vpn_opts.vpn_dir).parent.absolute()), mode=0o1764)
     FileHelper.unpack_archive(resource(ClientOpts.VPNCLIENT_ZIP), vpn_opts.vpn_dir)
-    FileHelper.create_folders([vpn_opts.vpn_dir, vpn_opts.runtime_dir], mode=0o666)
-    FileHelper.chmod(vpn_opts.runtime_dir, mode=1766)
-    FileHelper.chmod([os.path.join(vpn_opts.vpn_dir, p) for p in ('vpnclient', 'vpncmd')], mode=0o755)
+    FileHelper.create_folders([vpn_opts.vpn_dir, vpn_opts.runtime_dir], mode=0o1764)
+    FileHelper.chmod(vpn_opts.runtime_dir, mode=0o1766)
+    FileHelper.chmod([os.path.join(vpn_opts.vpn_dir, p) for p in ('vpnclient', 'vpncmd')], mode=0o1755)
     _, cmd = build_executable_command()
     resolver = DeviceResolver(vpn_opts.runtime_dir).probe()
-    resolver.unix_service.create(unix_service, resource(ClientOpts.SERVICE_FILE_TMPL),
-                                 {'{{WORKING_DIR}}': vpn_opts.vpn_dir, '{{PID_FILE}}': vpn_opts.pid_file,
-                                  '{{VPN_DESC}}': unix_service.service_name,
-                                  '{{START_CMD}}': f'{cmd} start --vpn-dir {vpn_opts.vpn_dir}',
-                                  '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {vpn_opts.vpn_dir}'})
+    resolver.unix_service.create(unix_service, resource(ClientOpts.SERVICE_FILE_TMPL), {
+        '{{WORKING_DIR}}': vpn_opts.vpn_dir, '{{PID_FILE}}': vpn_opts.pid_file,
+        '{{VPN_DESC}}': unix_service.service_name,
+        '{{START_CMD}}': f'{cmd} start --vpn-dir {vpn_opts.vpn_dir}',
+        '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {vpn_opts.vpn_dir}',
+        '{{STOP_POST_CMD}}': f'{cmd} dns {DHCPReason.STOP}'
+    })
     resolver.ip_resolver.add_hook(resource(ClientOpts.DHCLIENT_HOOK_TMPL), unix_service.service_name,
                                   {'{{WORKING_DIR}}': vpn_opts.vpn_dir, '{{VPN_CLIENT_CLI}}': cmd})
     logger.done()
@@ -191,8 +202,8 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
 @verbose_opts
 @permission
 def __uninstall(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, force: bool = False):
-    resolver = DeviceResolver(vpn_opts.runtime_dir).probe()
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
+    resolver = DeviceResolver(vpn_opts.runtime_dir).probe()
     account = executor.remove_current_account()
     if account:
         executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], account, silent=True)
@@ -228,7 +239,7 @@ def __add(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, server_opts: Serv
         SystemHelper.change_host_name(host_name, log_lvl=logger.DEBUG)
     logger.info(f'Setup VPN Client with VPN account {account}...')
     executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], account, silent=True)
-    vpn_nic = vpn_opts.vpn_nic(account)
+    vpn_nic = vpn_opts.account_to_nic(account)
     auth_cmd, param = auth_opts.setup(account)
     setup_cmd = {
         'NicCreate': account,
@@ -264,7 +275,7 @@ def __delete(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, account):
     current_account = executor.find_current_account()
     if current_account and current_account in account:
         executor.remove_current_account()
-        resolver.ip_resolver.release_ip(current_account, vpn_opts.vpn_nic(current_account))
+        resolver.ip_resolver.release_ip(current_account, vpn_opts.account_to_nic(current_account))
         resolver.unix_service.stop(unix_service.service_name)
     logger.done()
 
@@ -285,7 +296,7 @@ def __connect(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, account):
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
     current_account = executor.remove_current_account()
     if current_account:
-        resolver.ip_resolver.release_ip(current_account, vpn_opts.vpn_nic(current_account))
+        resolver.ip_resolver.release_ip(current_account, vpn_opts.account_to_nic(current_account))
         executor.exec_command('AccountDisconnect', params=current_account, log_lvl=logger.INFO, silent=True)
     resolver.unix_service.stop(unix_service.service_name)
     executor.exec_command('AccountConnect', params=account, log_lvl=logger.INFO)
@@ -305,7 +316,7 @@ def __disconnect(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
     current_account = executor.remove_current_account()
     if current_account:
-        resolver.ip_resolver.release_ip(current_account, vpn_opts.vpn_nic(current_account))
+        resolver.ip_resolver.release_ip(current_account, vpn_opts.account_to_nic(current_account))
         executor.exec_command('AccountDisconnect', current_account, silent=True)
     resolver.unix_service.stop(unix_service.service_name)
     logger.done()
@@ -323,7 +334,7 @@ def __status(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
     current_acc, vpn_ip, status = executor.find_current_account(), None, None
     if current_acc:
         try:
-            vpn_ip = netifaces.ifaddresses(ClientOpts.vpn_nic(current_acc))[netifaces.AF_INET]
+            vpn_ip = netifaces.ifaddresses(ClientOpts.account_to_nic(current_acc))[netifaces.AF_INET]
         except:
             vpn_ip = None
         try:
@@ -422,7 +433,7 @@ def __start(vpn_opts: ClientOpts):
     executor.pre_exec(log_lvl=logger.INFO)
     vpn_acc = executor.find_current_account()
     if vpn_acc:
-        resolver.ip_resolver.lease_ip(vpn_acc, ClientOpts.vpn_nic(vpn_acc))
+        resolver.ip_resolver.lease_ip(vpn_acc, ClientOpts.account_to_nic(vpn_acc))
     else:
         resolver.ip_resolver.renew_all_ip()
 
@@ -439,19 +450,36 @@ def __stop(vpn_opts: ClientOpts):
 
 
 @cli.command(name="dns", help="Update VPN DNS server", hidden=True)
-@click.argument("nic", type=str, required=True)
-@click.option('-r', '--reason', type=str, required=True, help='DHClient Reason')
-@click.option('-ndns', '--new-domain-name-servers', type=str, required=True, help='New domain name servers')
-@click.option('-odns', '--old-domain-name-servers', type=str, help='Old domain name servers')
+@click.argument('reason', type=click.Choice([r.name for r in DHCPReason]), required=True)
+@click.option('-n', '--nic', type=str, help='VPN network interface card')
+@click.option('-nns', '--new-name-servers', type=str, help='New domain name servers')
+@click.option('-ons', '--old-name-servers', type=str, help='Previous domain name servers')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @permission
-def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_domain_name_servers: str, old_domain_name_servers: str):
+def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_name_servers: str, old_name_servers: str):
     print('come here ================================================')
-    FileHelper.write_file(os.path.join(vpn_opts.runtime_dir, 'vpn_dns'),
-                          nic + '::' + reason + '::' + new_domain_name_servers + '::' + old_domain_name_servers)
     FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'),
-                          nic + '::' + reason + '::' + new_domain_name_servers + '::' + old_domain_name_servers)
+                          nic + '::' + reason + '::' + new_name_servers + '::' + old_name_servers)
+    logger.info(f'Update DNS by {nic}::{reason}...')
+    reason_ = DHCPReason[reason]
+    if not vpn_opts.is_vpn_nic(nic):
+        logger.warn('NIC does not belong to VPN service')
+        sys.exit(0)
+    executor = VPNClientExecutor(vpn_opts)
+    resolver = DeviceResolver(vpn_opts.runtime_dir, log_lvl=logger.INFO, silent=True).probe()
+    if reason_ == DHCPReason.STOP:
+        resolver.dns_resolver.rollback_origin()
+        return
+    current_acc = executor.find_current_account()
+    if vpn_opts.nic_to_account(nic) != current_acc:
+        logger.warn('NIC does not meet current VPN account')
+        sys.exit(0)
+    if (reason_ == DHCPReason.RENEW and new_name_servers == old_name_servers
+        and resolver.dns_resolver.is_synced()):
+        logger.debug('Skip generating DNS entry because already synced')
+        return
+    resolver.dns_resolver.tweak(new_name_servers)
 
 
 @cli.command(name="tree", help="Tree inside binary", hidden=True)

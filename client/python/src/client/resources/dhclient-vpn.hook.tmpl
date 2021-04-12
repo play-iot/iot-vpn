@@ -8,7 +8,7 @@ set -e
 echo "$(date): $(whoami) entering ${1%/*}, dumping variables." >> /tmp/dhclient-vpn.debug
 
 case $interface in vpn_*)
-    {{VPN_CLIENT_CLI}} dns --vpn-dir {{WORKING_DIR}} -r "$reason" -ndns "$new_domain_name_servers" -odns "$old_domain_name_servers" "$interface"
+    {{VPN_CLIENT_CLI}} dns --vpn-dir "{{WORKING_DIR}}" -n "$interface" -nns "$new_domain_name_servers" -ons "$old_domain_name_servers" "$reason"
     echo "INTO VPN $interface" >> /tmp/dhclient-vpn.debug
 esac
 
