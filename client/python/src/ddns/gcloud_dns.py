@@ -1,14 +1,13 @@
-from typing import Sequence, Callable, NoReturn
+from typing import Sequence
 
-import sys
-import time
 from google.cloud._helpers import _rfc3339_to_datetime
 from google.cloud.dns import ResourceRecordSet, ManagedZone
 from google.cloud.dns.client import Client
 from google.oauth2.service_account import Credentials
 
-from src.dns.cmd_dns import CloudDNSProvider, DNSEntry
+from src.ddns.cmd_ddns import CloudDNSProvider, DNSEntry
 from src.utils import logger
+from src.utils.helper import loop_interval
 
 
 class GCloudDNSProvider(CloudDNSProvider):
@@ -29,7 +28,8 @@ class GCloudDNSProvider(CloudDNSProvider):
             dns_entries if dns.is_valid()]
         logger.info(f'Purge {len(changes.deletions)} DNS records then create {len(changes.additions)} DNS records')
         changes.create(self.client)
-        self.__loop(lambda: changes.reload(), lambda: changes.status != 'pending', 'Unable sync DNS')
+        loop_interval(lambda: changes.reload(), lambda: changes.status != 'pending', 'Unable sync DNS',
+                      self.max_retries, self.interval, exit_if_error=True)
         logger.info(f'Zone Changed: {changes._properties}')
 
     def to_dns(self, dns_name, dns_entry: DNSEntry):
@@ -53,13 +53,6 @@ class GCloudDNSProvider(CloudDNSProvider):
         if not zone.exists():
             zone.description = dns_description
             create_zone(self.client, zone)
-            self.__loop(lambda: zone.reload(), lambda: zone.created is not None, f'Unable create DNS zone[{zone_name}]')
+            loop_interval(lambda: zone.reload(), lambda: zone.created is not None,
+                          f'Unable create DNS zone[{zone_name}]', self.max_retries, self.interval, exit_if_error=True)
         return zone
-
-    def __loop(self, func: Callable[[], NoReturn], condition: Callable[[], bool], error_if_timeout: str):
-        for c in range(self.max_retries + 1):
-            func()
-            if condition():
-                return
-            time.sleep(self.interval)
-        sys.exit(TimeoutError(f'{error_if_timeout} after {self.max_retries * self.interval}(s)'))
