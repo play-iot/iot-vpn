@@ -18,7 +18,7 @@ from src.executor.vpn_cmd_executor import VpnCmdExecutor
 from src.utils.constants import ErrorCode, Versions
 from src.utils.downloader import download, VPNType, downloader_opt_factory, DownloaderOpt
 from src.utils.helper import resource_finder, FileHelper, build_executable_command, grep, awk, tail, \
-    get_base_path, tree
+    get_base_path, tree, loop_interval
 from src.utils.opts_shared import CLI_CTX_SETTINGS, permission, verbose_opts, UnixServiceOpts, unix_service_opts, \
     dev_mode_opts
 from src.utils.opts_vpn import AuthOpts, vpn_auth_opts, ServerOpts, vpn_server_opts, VpnDirectory, \
@@ -56,7 +56,7 @@ class ClientOpts(VpnDirectory):
 
     @staticmethod
     def account_to_nic(account: str) -> str:
-        return 'vpn_' + account
+        return 'vpn_' + account.strip()
 
     @staticmethod
     def nic_to_account(nic: str) -> str:
@@ -143,7 +143,7 @@ class VPNClientExecutor(VpnCmdExecutor):
             logger.decrease(log_lvl, msg)
             return False
         logger.error(msg)
-        sys.exit(ErrorCode.NOT_FOUND_VPN_BINARY)
+        sys.exit(ErrorCode.FILE_CORRUPTED)
 
     def save_current_account(self, account: str):
         FileHelper.write_file(self.opts.current_acc_file, account)
@@ -194,6 +194,7 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
         '{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{PID_FILE}}': str(vpn_opts.pid_file),
         '{{VPN_DESC}}': unix_service.service_name,
         '{{START_CMD}}': f'{cmd} start --vpn-dir {vpn_opts.vpn_dir}',
+        '{{START_POST_CMD}}': f'{cmd} dns SCAN --debug',
         '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {vpn_opts.vpn_dir}',
         '{{STOP_POST_CMD}}': f'{cmd} dns {DHCPReason.STOP.name}'
     })
@@ -454,30 +455,41 @@ def __stop(vpn_opts: ClientOpts):
 
 @cli.command(name="dns", help="Update VPN DNS server", hidden=True)
 @click.argument('reason', type=click.Choice([r.name for r in DHCPReason]), required=True)
-@click.option('-n', '--nic', type=str, help='VPN network interface card')
-@click.option('-nns', '--new-name-servers', type=str, help='New domain name servers')
-@click.option('-ons', '--old-name-servers', type=str, help='Previous domain name servers')
+@click.option('-n', '--nic', type=str, default='', help='VPN network interface card')
+@click.option('-nns', '--new-nameservers', type=str, default='', help='New domain name servers')
+@click.option('-ons', '--old-nameservers', type=str, default='', help='Previous domain name servers')
 @vpn_client_opts
-@dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
+@dev_mode_opts(opt_name=ClientOpts.OPT_NAME, hidden=False)
+@click.option('--debug', default=False, flag_value=True, help='Enable write debug into /tmp/vpn_dns')
 @permission
-def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_name_servers: str, old_name_servers: str):
-    now = datetime.now().isoformat()
-    FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'), append=True,
-                          content=f"{now}::{reason}::{nic or ''}::{new_name_servers or ''}::{old_name_servers or ''}\n")
+def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old_nameservers: str, debug: bool):
     logger.info(f'Update DNS with {reason}::{nic}...')
-    reason_ = DHCPReason[reason]
+    _reason = DHCPReason[reason]
     executor = VPNClientExecutor(vpn_opts)
     resolver = DeviceResolver(vpn_opts.runtime_dir, log_lvl=logger.INFO, silent=True).probe()
-    if not resolver.dns_resolver.is_rollback(reason_):
+    current_acc = executor.find_current_account()
+    if not current_acc:
+        logger.warn(f'Not found any VPN account')
+        sys.exit(ErrorCode.VPN_ACCOUNT_NOT_FOUND)
+    if not _reason.is_release() and _reason is not DHCPReason.SCAN:
         if not vpn_opts.is_vpn_nic(nic):
             logger.warn(f'NIC[{nic}] does not belong to VPN service')
             sys.exit(0)
-        current_acc = executor.find_current_account()
-        if current_acc and vpn_opts.nic_to_account(nic) != current_acc:
+        if vpn_opts.nic_to_account(nic) != current_acc:
             logger.warn(f'NIC[{nic}] does not meet current VPN account')
-            sys.exit(0)
-    if resolver.dns_resolver.tweak(reason_, new_name_servers, old_name_servers):
-        resolver.ip_resolver.lease_ip(vpn_opts.nic_to_account(nic), nic, daemon=False)
+            sys.exit(ErrorCode.VPN_ACCOUNT_NOT_MATCH)
+    if _reason is DHCPReason.SCAN:
+        loop_interval(lambda: resolver.dns_resolver.is_vpn_dns_available(),
+                      lambda: resolver.dns_resolver.vpn_nameservers is not None, 'Unable read DHCP status',
+                      exit_if_error=True)
+        nic = vpn_opts.account_to_nic(current_acc)
+        new_nameservers = resolver.dns_resolver.vpn_nameservers
+        _reason = DHCPReason.BOUND
+    if debug:
+        now = datetime.now().isoformat()
+        FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'), append=True,
+                              content=f"{now}::{reason}::{nic}::{new_nameservers}::{old_nameservers}\n")
+    resolver.dns_resolver.tweak(_reason, new_nameservers, old_nameservers)
 
 
 @cli.command(name="tree", help="Tree inside binary", hidden=True)

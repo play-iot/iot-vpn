@@ -12,7 +12,7 @@ import time
 from distutils.dir_util import copy_tree
 from itertools import islice
 from pathlib import Path
-from typing import Sequence, Union, Any, Optional, Iterator, TextIO, Callable
+from typing import Sequence, Union, Any, Optional, Iterator, TextIO, Callable, NoReturn
 
 import src.utils.logger as logger
 from src.utils.constants import ErrorCode
@@ -130,18 +130,18 @@ class FileHelper(object):
         return os.readlink(str(p.absolute()))
 
     @staticmethod
-    def create_symlink(path: Union[str, Path], link: Union[str, Path], force=False):
-        p = Path(path)
+    def create_symlink(source: Union[str, Path], link: Union[str, Path], force=False):
+        src = Path(source)
         lk = Path(link)
-        if not p.exists():
-            raise RuntimeError(f'Given file[{p}] is not existed')
+        if not src.exists():
+            raise RuntimeError(f'Given file[{src}] is not existed')
         if lk.exists():
             if FileHelper.is_dir(lk):
                 raise RuntimeError(f'Given target link[{lk}] is directory')
             if not force:
                 raise RuntimeError(f'Given target link[{lk}] is existed')
             os.remove(lk)
-        lk.symlink_to(p)
+        os.symlink(src, lk, target_is_directory=FileHelper.is_dir(src))
 
     @staticmethod
     def is_file_readable(path: Union[str, Path]) -> bool:
@@ -321,7 +321,7 @@ def awk(value: str, sep=' ', pos=-1) -> Optional[Union[str, list]]:
     return None
 
 
-def tail(file: str, prev=1, _buffer=1024, follow=True) -> Iterator[str]:
+def tail(file: str, prev=1, _buffer=1024, follow=False) -> Iterator[str]:
     def _last(_f: TextIO, _l: int):
         while True:
             try:
@@ -392,3 +392,18 @@ def tree(dir_path: Union[str, Path], level: int = -1, limit_to_directories: bool
     if next(iterator, None):
         print(f'... length_limit, {length_limit}, reached, counted:')
     print(f'\n{directories} directories' + (f', {files} files' if files else ''))
+
+
+def loop_interval(func: Callable[[], NoReturn], condition: Callable[[], bool], error_if_timeout: str,
+                  max_retries: int = 5, interval: int = 1, exit_if_error=False):
+    for c in range(max_retries + 1):
+        func()
+        if condition():
+            return
+        time.sleep(interval)
+    msg = f'{error_if_timeout} after {max_retries * interval}(s)'
+    if exit_if_error:
+        logger.error(msg)
+        sys.exit(ErrorCode.TIMEOUT)
+    else:
+        raise TimeoutError()

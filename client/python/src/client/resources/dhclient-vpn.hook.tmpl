@@ -37,5 +37,5 @@ if [ "$RUN" = "yes" ]; then
 fi
 
 case $interface in vpn_*)
-    {{VPN_CLIENT_CLI}} dns --vpn-dir "{{WORKING_DIR}}" -n "$interface" -nns "$new_domain_name_servers" -ons "$old_domain_name_servers" "$reason"
+    {{VPN_CLIENT_CLI}} dns --vpn-dir "{{WORKING_DIR}}" -n "$interface" -nns "$new_domain_name_servers" -ons "$old_domain_name_servers" "$reason" --debug
 esac
