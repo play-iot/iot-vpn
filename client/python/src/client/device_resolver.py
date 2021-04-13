@@ -58,7 +58,13 @@ class DHCPReason(Enum):
     SCAN = 20
 
     def is_release(self):
-        return self in [DHCPReason.RELEASE, DHCPReason.STOP, DHCPReason.FAIL]
+        return self in [DHCPReason.RELEASE, DHCPReason.STOP, DHCPReason.FAIL, DHCPReason.EXPIRE]
+
+    def is_ignore(self):
+        return self in [DHCPReason.MEDIUM, DHCPReason.PREINIT]
+
+    def is_fallback(self):
+        return self in [DHCPReason.NBI, DHCPReason.TIMEOUT]
 
 
 class DNSResolverType(Enum):
@@ -172,20 +178,21 @@ class DNSResolver:
         vpn_ns = [ns[len('nameserver'):].strip() if ns.startswith('nameserver') else ns.strip() for ns in nss][0:1]
         return ','.join(vpn_ns) if vpn_ns else None
 
-    def tweak(self, reason: DHCPReason, new_name_servers: str = None, old_name_servers: str = None):
-        if reason in [DHCPReason.PREINIT] or (reason == DHCPReason.RENEW and new_name_servers == old_name_servers):
-            logger.info(f'Skip generating DNS entry in [{reason.name}]')
-            return
+    def tweak(self, reason: DHCPReason, new_nameservers: str = None, old_nameservers: str = None):
         if reason.is_release():
             self.__restore_origin()
             return
-        nameservers = [ns for ns in new_name_servers.split(',') if ns][0:2]
-        logger.info(f'Generate VPN DNS config file in [{reason.name}] with nameservers {nameservers}...')
+        nameservers = self.__validate_ns(reason, new_nameservers, old_nameservers)
+        if nameservers:
+            logger.info(f'Skip generating DNS entry in [{reason.name}][{nameservers}]')
+            return
+        nss = [ns for ns in nameservers.split(',') if ns][0:2]
+        logger.info(f'Generate VPN DNS config file in [{reason.name}] with nameservers {nss}...')
         try:
             if not FileHelper.is_file_readable(self.dns_origin_cfg):
                 FileHelper.backup(DNSResolver.DNS_SYSTEM_FILE, self.dns_origin_cfg, remove=True)
             FileHelper.write_file(self.dns_vpn_cfg,
-                                  self.__resolv_config(reason, '\n'.join([f'nameserver {ns}' for ns in nameservers]),
+                                  self.__resolv_config(reason, '\n'.join([f'nameserver {ns}' for ns in nss]),
                                                        FileHelper.read_file_by_line(self.dns_origin_cfg)), mode=0o0644)
             FileHelper.create_symlink(self.dns_vpn_cfg, DNSResolver.DNS_SYSTEM_FILE, force=True)
         except Exception as err:
@@ -197,6 +204,15 @@ class DNSResolver:
         if not FileHelper.is_file_readable(self.dns_origin_cfg):
             return
         FileHelper.backup(self.dns_origin_cfg, DNSResolver.DNS_SYSTEM_FILE)
+
+    def __validate_ns(self, reason: DHCPReason, new_ns: str = None, old_ns: str = None) -> Optional[str]:
+        if reason.is_ignore():
+            return None
+        if reason is DHCPReason.RENEW and new_ns == old_ns and self.is_vpn_dns_available():
+            return None
+        if reason.is_fallback():
+            return new_ns or old_ns
+        return new_ns
 
     @staticmethod
     def __resolv_config(reason: DHCPReason, vpn_content: str, origin_content: str):
