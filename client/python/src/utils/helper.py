@@ -134,9 +134,10 @@ class FileHelper(object):
         return parent.joinpath(target).resolve()
 
     @staticmethod
-    def create_symlink(source: Union[str, Path], link: Union[str, Path], force=False):
+    def create_symlink(source: Union[str, Path], link: Union[str, Path], force=False, log_lvl=logger.DEBUG):
         src = Path(source)
         lk = Path(link)
+        logger.log(log_lvl, f'Create symlink from [{src}] to [{lk}]...')
         if not src.exists():
             raise RuntimeError(f'Given file[{src}] is not existed')
         if lk.exists():
@@ -255,23 +256,27 @@ class FileHelper(object):
         return shutil.copy2(p, t, follow_symlinks=True)
 
     @staticmethod
-    def backup(src: Union[str, Path], dest: Union[str, Path] = None, remove=True, force=True) -> str:
+    def backup(src: Union[str, Path], dest: Union[str, Path] = None, remove=True, force=True,
+               log_lvl=logger.DEBUG) -> str:
         """
         Backup
         :param src: given path
         :param dest: given destination or backup to same given source with suffix '.bak'
         :param remove: remove flag to decide removing source after backup
         :param force: force flag to decide removing dest if exists
+        :param log_lvl: log level
         :return: the file destination
         """
         p = Path(src)
         t = Path(dest) if dest else p.parent.joinpath(p.name + '.bak')
+        logger.log(log_lvl, f'Backup [{p}] to [{t}]...')
         if FileHelper.is_symlink(p):
             FileHelper.create_symlink(FileHelper.get_target_link(p), t, force)
             to = t
         else:
             to = FileHelper.copy_advanced(p, t, force)
         if remove:
+            logger.log(log_lvl, f'Remove [{p}] after backup...')
             os.remove(p)
         return to
 

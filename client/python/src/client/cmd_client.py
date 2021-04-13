@@ -200,6 +200,7 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
     })
     resolver.ip_resolver.add_hook(resource(ClientOpts.DHCLIENT_HOOK_TMPL), unix_service.service_name,
                                   {'{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{VPN_CLIENT_CLI}}': cmd})
+    resolver.dns_resolver.tweak(DHCPReason.INIT)
     logger.done()
 
 
@@ -468,10 +469,10 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
     executor = VPNClientExecutor(vpn_opts)
     resolver = DeviceResolver(vpn_opts.runtime_dir, log_lvl=logger.INFO, silent=True).probe()
     current_acc = executor.find_current_account()
-    if not current_acc:
-        logger.warn(f'Not found any VPN account')
-        sys.exit(ErrorCode.VPN_ACCOUNT_NOT_FOUND)
     if not _reason.is_release() and _reason is not DHCPReason.SCAN:
+        if not current_acc:
+            logger.warn(f'Not found any VPN account')
+            sys.exit(ErrorCode.VPN_ACCOUNT_NOT_FOUND)
         if not vpn_opts.is_vpn_nic(nic):
             logger.warn(f'NIC[{nic}] does not belong to VPN service')
             sys.exit(0)
@@ -479,17 +480,17 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
             logger.warn(f'NIC[{nic}] does not meet current VPN account')
             sys.exit(ErrorCode.VPN_ACCOUNT_NOT_MATCH)
     if _reason is DHCPReason.SCAN:
-        loop_interval(lambda: resolver.dns_resolver.is_vpn_dns_available(),
-                      lambda: resolver.dns_resolver.vpn_nameservers is not None, 'Unable read DHCP status',
-                      exit_if_error=True)
+        loop_interval(lambda: None, lambda: resolver.dns_resolver.find_vpn_nameservers() is not None,
+                      'Unable read DHCP status', exit_if_error=True)
         nic = vpn_opts.account_to_nic(current_acc)
-        new_nameservers = resolver.dns_resolver.vpn_nameservers
+        new_nameservers = resolver.dns_resolver.find_vpn_nameservers()
         _reason = DHCPReason.BOUND
     if debug:
         now = datetime.now().isoformat()
         FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'), append=True,
                               content=f"{now}::{reason}::{nic}::{new_nameservers}::{old_nameservers}\n")
-    resolver.dns_resolver.tweak(_reason, new_nameservers, old_nameservers)
+    if resolver.dns_resolver.tweak(_reason, new_nameservers, old_nameservers):
+        resolver.ip_resolver.renew_all_ip(0)
 
 
 @cli.command(name="tree", help="Tree inside binary", hidden=True)
