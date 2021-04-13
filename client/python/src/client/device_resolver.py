@@ -64,17 +64,18 @@ class DHCPReason(Enum):
     def is_ignore(self):
         return self in [DHCPReason.MEDIUM, DHCPReason.PREINIT]
 
-    def is_fallback(self):
+    def is_unreachable(self):
         return self in [DHCPReason.NBI, DHCPReason.TIMEOUT]
 
 
 class DNSResolverType(Enum):
-    CONNMAN = 'connman'
-    DNSMASQ = 'dnsmasq'
-    SYSTEMD_RESOLVED = 'systemd-resolved'
-    NETWORK_MANAGER = 'NetworkManager'
-    RESOLVCONF = 'resolvconf'
-    UNKNOWN = 'unknown'
+    CONNMAN = ('connman', True)
+    DNSMASQ = ('dnsmasq', True)
+    SYSTEMD_RESOLVED = ('systemd-resolved', True)
+    NETWORK_MANAGER = ('NetworkManager', True)
+    RESOLVCONF = ('resolvconf', True)
+    RESOLVCONF_CMD = ('resolvconf', False)
+    UNKNOWN = ('unknown', False)
 
 
 class UnixService(ABC):
@@ -125,11 +126,14 @@ class DNSResolver:
         self.kind = None
 
     def probe(self) -> 'DNSResolver':
-        self.kind = next((t for t in DNSResolverType if self.service.status(t.value) is ServiceStatus.RUNNING), None)
-        if not self.kind and SystemHelper.verify_command('resolvconf'):
-            self.kind = DNSResolverType.RESOLVCONF
+        self.kind = next(
+            (t for t in DNSResolverType if t.value[1] and self.service.status(t.value[0]) is ServiceStatus.RUNNING),
+            None)
+        if not self.kind and SystemHelper.verify_command(DNSResolverType.RESOLVCONF_CMD.value[0]):
+            self.kind = DNSResolverType.RESOLVCONF_CMD
         if not self.kind:
             logger.warn('Unknown DNS resolver')
+            self.kind = DNSResolverType.UNKNOWN
         return self
 
     def resolve(self, nic: str):
@@ -151,14 +155,15 @@ class DNSResolver:
         vpn_ns = [ns[len('nameserver'):].strip() if ns.startswith('nameserver') else ns.strip() for ns in nss][0:1]
         return ','.join(vpn_ns) if vpn_ns else None
 
-    def tweak(self, reason: DHCPReason, new_nameservers: str = None, old_nameservers: str = None) -> bool:
+    def tweak(self, reason: DHCPReason, new_nameservers: str = None, old_nameservers: str = None):
         if reason.is_release():
-            return self.__restore_origin()
+            self.__restore_origin()
+            return
         nss = self.__validate_nameservers(reason, new_nameservers, old_nameservers)
         log_lvl = logger.DEBUG if reason is DHCPReason.INIT else logger.INFO
         if nss is None:
             logger.log(log_lvl, f'Skip generating DNS entry in [{reason.name}][{new_nameservers}][{old_nameservers}]')
-            return False
+            return
         try:
             if not FileHelper.is_file_readable(self.dns_origin_cfg):
                 logger.info(f'Override and backup System DNS config file...')
@@ -168,17 +173,15 @@ class DNSResolver:
                                   self.__resolv_config(reason, '\n'.join([f'nameserver {ns}' for ns in nss]),
                                                        FileHelper.read_file_by_line(self.dns_origin_cfg)), mode=0o0644)
             FileHelper.create_symlink(self.dns_vpn_cfg, DNSResolver.DNS_SYSTEM_FILE, force=True)
-            return True
         except Exception as err:
             logger.error(f'Unable create {DNSResolver.DNS_SYSTEM_FILE} from VPN service. Error: {err}')
-            return self.__restore_origin()
+            self.__restore_origin()
 
-    def __restore_origin(self) -> bool:
+    def __restore_origin(self):
         logger.info(f'Restore System DNS config file...')
         if not FileHelper.is_file_readable(self.dns_origin_cfg):
-            return False
+            return
         FileHelper.backup(self.dns_origin_cfg, DNSResolver.DNS_SYSTEM_FILE)
-        return True
 
     def __validate_nameservers(self, reason: DHCPReason, new_ns: str = None, old_ns: str = None) -> Optional[list]:
         if reason.is_ignore():
@@ -187,7 +190,7 @@ class DNSResolver:
             return None if FileHelper.is_file_readable(self.dns_origin_cfg) else []
         if reason is DHCPReason.RENEW and new_ns == old_ns and FileHelper.is_file_readable(self.dns_vpn_cfg):
             return None
-        nameservers = new_ns if not reason.is_fallback() else (new_ns or old_ns)
+        nameservers = old_ns if reason.is_unreachable() else new_ns
         return [ns for ns in nameservers.split(',') if ns][0:2]
 
     @staticmethod

@@ -194,7 +194,7 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
         '{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{PID_FILE}}': str(vpn_opts.pid_file),
         '{{VPN_DESC}}': unix_service.service_name,
         '{{START_CMD}}': f'{cmd} start --vpn-dir {vpn_opts.vpn_dir}',
-        '{{START_POST_CMD}}': f'{cmd} dns SCAN --debug',
+        '{{START_POST_CMD}}': f'{cmd} dns {DHCPReason.SCAN.name} --debug',
         '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {vpn_opts.vpn_dir}',
         '{{STOP_POST_CMD}}': f'{cmd} dns {DHCPReason.STOP.name}'
     })
@@ -287,6 +287,7 @@ def __delete(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, account):
     if current_account and current_account in account:
         executor.remove_current_account()
         resolver.ip_resolver.release_ip(current_account, vpn_opts.account_to_nic(current_account))
+        resolver.dns_resolver.tweak(DHCPReason.STOP)
         resolver.unix_service.stop(unix_service.service_name)
     logger.done()
 
@@ -329,6 +330,7 @@ def __disconnect(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
     if current_account:
         resolver.ip_resolver.release_ip(current_account, vpn_opts.account_to_nic(current_account))
         executor.exec_command('AccountDisconnect', current_account, silent=True)
+    resolver.dns_resolver.tweak(DHCPReason.STOP)
     resolver.unix_service.stop(unix_service.service_name)
     logger.done()
 
@@ -469,7 +471,8 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
     executor = VPNClientExecutor(vpn_opts)
     resolver = DeviceResolver(vpn_opts.runtime_dir, log_lvl=logger.INFO, silent=True).probe()
     current_acc = executor.find_current_account()
-    if not _reason.is_release() and _reason is not DHCPReason.SCAN:
+    is_in_scan = _reason is DHCPReason.SCAN
+    if not _reason.is_release() and not is_in_scan:
         if not current_acc:
             logger.warn(f'Not found any VPN account')
             sys.exit(ErrorCode.VPN_ACCOUNT_NOT_FOUND)
@@ -479,9 +482,9 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
         if vpn_opts.nic_to_account(nic) != current_acc:
             logger.warn(f'NIC[{nic}] does not meet current VPN account')
             sys.exit(ErrorCode.VPN_ACCOUNT_NOT_MATCH)
-    if _reason is DHCPReason.SCAN:
+    if is_in_scan:
         loop_interval(lambda: None, lambda: resolver.dns_resolver.find_vpn_nameservers() is not None,
-                      'Unable read DHCP status', exit_if_error=True)
+                      'Unable read DHCP status', exit_if_error=True, max_retries=10)
         nic = vpn_opts.account_to_nic(current_acc)
         new_nameservers = resolver.dns_resolver.find_vpn_nameservers()
         _reason = DHCPReason.BOUND
@@ -489,8 +492,9 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
         now = datetime.now().isoformat()
         FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'), append=True,
                               content=f"{now}::{reason}::{nic}::{new_nameservers}::{old_nameservers}\n")
-    if resolver.dns_resolver.tweak(_reason, new_nameservers, old_nameservers):
-        resolver.ip_resolver.renew_all_ip(0)
+    resolver.dns_resolver.tweak(_reason, new_nameservers, old_nameservers)
+    if is_in_scan:
+        resolver.ip_resolver.renew_all_ip()
 
 
 @cli.command(name="tree", help="Tree inside binary", hidden=True)
