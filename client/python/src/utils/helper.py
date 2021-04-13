@@ -127,7 +127,11 @@ class FileHelper(object):
         p = Path(path)
         if not FileHelper.is_symlink(p):
             return None
-        return os.readlink(str(p.absolute()))
+        target = Path(os.readlink(p.absolute()))
+        if target.is_absolute():
+            return target
+        parent = p if p.is_dir() else p.parent
+        return parent.joinpath(target).resolve()
 
     @staticmethod
     def create_symlink(source: Union[str, Path], link: Union[str, Path], force=False):
