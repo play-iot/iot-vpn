@@ -78,11 +78,13 @@ class DHCPReason(Enum):
 
 
 class DNSResolverConfig:
-    def __init__(self, identity: str, main_cfg: str, config_dir: str, is_service: bool = True):
+    def __init__(self, identity: str, main_cfg: str, config_dir: str, runtime_resolv: str = None,
+                 is_service: bool = True):
         self.identity = identity
         self.is_service = is_service
-        self.main_cfg = main_cfg
+        self.main_cfg = Path(main_cfg)
         self.config_dir = Path(config_dir)
+        self.runtime_resolv = Path(runtime_resolv) if runtime_resolv else None
 
     def to_fqn_cfg(self, cfg_name: str) -> Path:
         return self.config_dir.joinpath(cfg_name)
@@ -96,7 +98,7 @@ class DNSResolverType(Enum):
     """
 
     SYSTEMD_RESOLVED = DNSResolverConfig('systemd-resolved', '/etc/systemd/resolved.conf',
-                                         '/etc/systemd/resolved.conf.d')
+                                         '/etc/systemd/resolved.conf.d', '/run/systemd/resolve/resolv.conf')
     """
     Ubuntu 18/20 use `systemd-resolved`
     """
@@ -107,7 +109,8 @@ class DNSResolverType(Enum):
     Fedora/RedHat/CentOS use `NetworkManager`
     """
 
-    RESOLVCONF = DNSResolverConfig('resolvconf', '/etc/resolvconf/run/resolv.conf', '/etc/resolvconf/resolv.conf.d')
+    RESOLVCONF = DNSResolverConfig('resolvconf', '/etc/resolvconf/run/resolv.conf', '/etc/resolvconf/resolv.conf.d',
+                                   '/etc/resolvconf/resolv.conf.d/original')
     """
     Raspbian use openresolv
     https://manpages.debian.org/buster/openresolv/resolvconf.8.en.html
@@ -254,10 +257,12 @@ class DNSResolver(AppConvention):
         logger.info(f'Generating System DNS config file and point to dnsmasq...')
         FileHelper.remove_files(DNSResolver.DNS_SYSTEM_FILE)
         FileHelper.write_file(DNSResolver.DNS_SYSTEM_FILE, self.__dnsmasq_resolv(service_name), mode=0o0644)
-        origin_cfg = FileHelper.get_target_link(self.dns_origin_cfg) or self.dns_origin_cfg
         dnsmasq_vpn_cfg = DNSResolverType.DNSMASQ.config.to_fqn_cfg(f'{service_name}.conf')
+        logger.info(f'Add dnsmasq config for {service_name}[{dnsmasq_vpn_cfg}]...')
+        resolv_file = f'resolv-file={str(self.kind.config.runtime_resolv)}' if self.kind.config.runtime_resolv else ''
         FileHelper.copy(self.resource_dir.joinpath(self.DNSMASQ_CONFIG_TMPL), dnsmasq_vpn_cfg, force=True)
-        FileHelper.replace_in_file(dnsmasq_vpn_cfg, {'{{DNS_ORIGIN_CFG_FILE}}': str(origin_cfg.absolute())}, backup='')
+        FileHelper.replace_in_file(dnsmasq_vpn_cfg, {'{{DNS_RESOLVED_FILE}}': resolv_file}, backup='')
+        FileHelper.chmod(dnsmasq_vpn_cfg, mode=0o0644)
         self.service.enable(DNSResolverType.DNSMASQ.config.identity)
         self.service.restart(DNSResolverType.DNSMASQ.config.identity)
 
