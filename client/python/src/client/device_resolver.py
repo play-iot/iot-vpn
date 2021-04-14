@@ -122,9 +122,9 @@ class DNSResolverType(Enum):
     DNSMASQ = DNSResolverConfig('dnsmasq', '/etc/dnsmasq.conf', '/etc/dnsmasq.d')
     UNKNOWN = None
 
-    @staticmethod
-    def resolver_as_service():
-        return (for t in list(DNSResolverType) if t != DNSResolverType.UNKNOWN and t.value.is_service)
+    @classmethod
+    def as_services(cls):
+        return (t for t in DNSResolverType if t != DNSResolverType.UNKNOWN and t.config.is_service)
 
     @property
     def config(self) -> Optional[DNSResolverConfig]:
@@ -203,7 +203,7 @@ class DNSResolver(AppConvention):
 
     def probe(self) -> 'DNSResolver':
         self.kind = next(
-            (t for t in DNSResolverType.resolver_as_service() if self.service.status(t.value.identity).is_enabled()),
+            (t for t in DNSResolverType.as_services() if self.service.status(t.config.identity).is_enabled()),
             DNSResolverType.UNKNOWN)
         if self.kind.is_unknown():
             if SystemHelper.verify_command(DNSResolverType.RESOLVCONF_CMD.config.identity):
