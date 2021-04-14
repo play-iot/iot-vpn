@@ -110,8 +110,8 @@ class FileHelper(object):
         [os.remove(f) if os.path.isfile(f) else rm_dir(f, recursive) for f in files if os.path.exists(f) and force]
 
     @staticmethod
-    def chmod(paths: Union[str, Sequence[str]], mode):
-        paths = [paths] if isinstance(paths, str) else paths
+    def chmod(paths: Union[str, Path, Sequence[str]], mode):
+        paths = [paths] if isinstance(paths, (str, Path)) else paths
         [os.chmod(p, mode=mode) for p in paths if os.path.exists(p)]
 
     @staticmethod
@@ -190,7 +190,7 @@ class FileHelper(object):
         return glob.glob(os.path.join(_dir, glob_path))
 
     @staticmethod
-    def replace_in_file(filename: str, replacements: dict, backup='.bak', regex=False) -> bool:
+    def replace_in_file(filename: Union[str, Path], replacements: dict, backup='.bak', regex=False) -> bool:
         has_replaced = False
         with fileinput.FileInput(filename, inplace=True, backup=backup) as file:
             for line in file:

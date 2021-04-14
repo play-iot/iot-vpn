@@ -1,16 +1,20 @@
 import fileinput
 import os
 import re
+import shutil
+import sys
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any, Optional
 
 import netifaces
 
 import src.utils.logger as logger
 from src.executor.shell_executor import SystemHelper
+from src.utils.constants import ErrorCode
 from src.utils.helper import FileHelper, grep
 from src.utils.opts_shared import UnixServiceOpts
 
@@ -26,6 +30,12 @@ class ServiceStatus(Enum):
     def parse(status: str):
         status_ = [e for e in list(ServiceStatus) if e.value == status]
         return status_[0] if len(status_) else ServiceStatus.UNKNOWN
+
+    def is_running(self):
+        return self is ServiceStatus.RUNNING
+
+    def is_enabled(self):
+        return self in [ServiceStatus.RUNNING, ServiceStatus.EXITED, ServiceStatus.WAITING]
 
 
 class UnixServiceType(Enum):
@@ -55,7 +65,6 @@ class DHCPReason(Enum):
     NBI = 11
     TIMEOUT = 12
     # MANUAL
-    INIT = 20
     SCAN = 21
 
     def is_release(self):
@@ -68,21 +77,77 @@ class DHCPReason(Enum):
         return self in [DHCPReason.NBI, DHCPReason.TIMEOUT]
 
 
+class DNSResolverConfig:
+    def __init__(self, identity: str, main_cfg: str, config_dir: str, is_service: bool = True):
+        self.identity = identity
+        self.is_service = is_service
+        self.main_cfg = main_cfg
+        self.config_dir = Path(config_dir)
+
+    def to_fqn_cfg(self, cfg_name: str) -> Path:
+        return self.config_dir.joinpath(cfg_name)
+
+
 class DNSResolverType(Enum):
-    CONNMAN = ('connman', True)
-    DNSMASQ = ('dnsmasq', True)
-    SYSTEMD_RESOLVED = ('systemd-resolved', True)
-    NETWORK_MANAGER = ('NetworkManager', True)
-    RESOLVCONF = ('resolvconf', True)
-    RESOLVCONF_CMD = ('resolvconf', False)
-    UNKNOWN = ('unknown', False)
+    CONNMAN = DNSResolverConfig('connman', '/etc/connman/main.conf', '/etc/systemd/system/connman.service.d')
+    """
+    https://wiki.archlinux.org/index.php/ConnMan
+    https://manpages.debian.org/unstable/connman/connman.conf.5.en.html
+    """
+
+    SYSTEMD_RESOLVED = DNSResolverConfig('systemd-resolved', '/etc/systemd/resolved.conf',
+                                         '/etc/systemd/resolved.conf.d')
+    """
+    Ubuntu 18/20 use `systemd-resolved`
+    """
+
+    NETWORK_MANAGER = DNSResolverConfig('NetworkManager', '/etc/NetworkManager/NetworkManager.conf',
+                                        '/etc/NetworkManager/conf.d')
+    """
+    Fedora/RedHat/CentOS use `NetworkManager`
+    """
+
+    RESOLVCONF = DNSResolverConfig('resolvconf', '/etc/resolvconf/run/resolv.conf', '/etc/resolvconf/resolv.conf.d')
+    """
+    Raspbian use openresolv
+    https://manpages.debian.org/buster/openresolv/resolvconf.8.en.html
+    https://manpages.debian.org/buster/openresolv/resolvconf.conf.5.en.html
+    
+    Debian use systemd/resolvconf
+    https://manpages.debian.org/buster/resolvconf/resolvconf.8.en.html
+    """
+    RESOLVCONF_CMD = DNSResolverConfig('resolvconf', '/etc/resolvconf/run/resolv.conf', '/etc/resolvconf/resolv.conf.d',
+                                       False)
+
+    DNSMASQ = DNSResolverConfig('dnsmasq', '/etc/dnsmasq.conf', '/etc/dnsmasq.d')
+    UNKNOWN = None
+
+    @staticmethod
+    def resolver_as_service():
+        return (for t in list(DNSResolverType) if t != DNSResolverType.UNKNOWN and t.value.is_service)
+
+    @property
+    def config(self) -> Optional[DNSResolverConfig]:
+        return None if self.is_unknown() else self.value
+
+    def is_unknown(self):
+        return self is DNSResolverType.UNKNOWN
 
 
-class UnixService(ABC):
+class AppConvention(ABC):
+
+    def __init__(self, resource_dir: str, runtime_dir: str, log_lvl: int = logger.DEBUG, silent: bool = True):
+        self.resource_dir = Path(resource_dir)
+        self.runtime_dir = Path(runtime_dir)
+        self.log_lvl = log_lvl
+        self.silent = silent
+
+
+class UnixService(AppConvention):
 
     @staticmethod
     @abstractmethod
-    def factory() -> 'UnixService':
+    def factory(resource_dir: str, runtime_dir: str) -> 'UnixService':
         pass
 
     @property
@@ -91,11 +156,23 @@ class UnixService(ABC):
         pass
 
     @abstractmethod
-    def create(self, opts: UnixServiceOpts, service_tmpl_path: str, replacements: dict):
+    def create(self, opts: UnixServiceOpts, replacements: dict):
         pass
 
     @abstractmethod
-    def disable(self, opts: UnixServiceOpts, force: bool = False):
+    def remove(self, opts: UnixServiceOpts, force: bool = False):
+        pass
+
+    @abstractmethod
+    def enable(self, service_name: str):
+        pass
+
+    @abstractmethod
+    def disable(self, service_name: str):
+        pass
+
+    @abstractmethod
+    def stop(self, service_name: str):
         pass
 
     @abstractmethod
@@ -107,100 +184,124 @@ class UnixService(ABC):
         pass
 
     @abstractmethod
-    def stop(self, service_name: str):
-        pass
-
-    @abstractmethod
     def to_service_fqn(self, service_dir: str, service_name: str):
         pass
 
 
-class DNSResolver:
-    DNS_SYSTEM_FILE = '/etc/resolv.conf'
+class DNSResolver(AppConvention):
+    DNS_SYSTEM_FILE = Path('/etc/resolv.conf')
+    DNS_ORIGIN_FILE = 'resolv.origin.conf'
+    DNSMASQ_CONFIG_TMPL = 'dnsmasq-vpn.conf'
+    DNSMASQ_TUNED_CFG = '00-use-dnsmasq.conf'
+    DNSMASQ_VPN_CFG = '10-use-vpn.conf'
 
-    def __init__(self, cache_dir: str, unix_service: UnixService):
-        self.cache_dir = cache_dir
-        self.dns_origin_cfg = os.path.join(self.cache_dir, 'resolv.origin.conf')
-        self.dns_vpn_cfg = os.path.join(self.cache_dir, 'resolv.vpn.conf')
-        self.service = unix_service
-        self.kind = None
+    def __init__(self, resource_dir: str, runtime_dir: str, unix_service: UnixService, log_lvl: int = logger.DEBUG,
+                 silent: bool = True):
+        super(DNSResolver, self).__init__(resource_dir, runtime_dir, log_lvl, silent)
+        self.service, self.kind, self.dnsmasq = unix_service, DNSResolverType.UNKNOWN, False
+        self.dns_origin_cfg = DNSResolver.DNS_SYSTEM_FILE.parent.joinpath(DNSResolver.DNS_ORIGIN_FILE)
 
     def probe(self) -> 'DNSResolver':
         self.kind = next(
-            (t for t in DNSResolverType if t.value[1] and self.service.status(t.value[0]) is ServiceStatus.RUNNING),
-            None)
-        if not self.kind and SystemHelper.verify_command(DNSResolverType.RESOLVCONF_CMD.value[0]):
-            self.kind = DNSResolverType.RESOLVCONF_CMD
-        if not self.kind:
-            logger.warn('Unknown DNS resolver')
-            self.kind = DNSResolverType.UNKNOWN
+            (t for t in DNSResolverType.resolver_as_service() if self.service.status(t.value.identity).is_enabled()),
+            DNSResolverType.UNKNOWN)
+        if self.kind.is_unknown():
+            if SystemHelper.verify_command(DNSResolverType.RESOLVCONF_CMD.config.identity):
+                self.kind = DNSResolverType.RESOLVCONF_CMD
+            else:
+                logger.warn('Unknown DNS resolver')
+        if self.kind not in [DNSResolverType.DNSMASQ, DNSResolverType.UNKNOWN]:
+            dnsmasq_name = DNSResolverType.DNSMASQ.config.identity
+            self.dnsmasq = self.service.status(dnsmasq_name).is_enabled() or shutil.which(dnsmasq_name) is not None
+        logger.debug(f'Current DNS resolver [{self.kind.name}], dnsmasq available [{self.dnsmasq}]')
         return self
 
-    def resolve(self, nic: str):
-        if self.kind == DNSResolverType.CONNMAN:
-            self.__tweak_connman(nic)
-        if self.kind == DNSResolverType.DNSMASQ:
-            self.__tweak_dnsmasq(nic)
-        if self.kind == DNSResolverType.SYSTEMD_RESOLVED:
-            self.__tweak_systemd_resolved(nic)
-        if self.kind == DNSResolverType.NETWORK_MANAGER:
-            self.__tweak_network_manager(nic)
-        if self.kind == DNSResolverType.RESOLVCONF:
-            self.__tweak_resolvconf(nic)
+    @property
+    def dns_vpn_cfg(self):
+        return DNSResolverType.DNSMASQ.config.to_fqn_cfg(self.DNSMASQ_VPN_CFG)
+
+    def is_dnsmasq_available(self):
+        return self.kind is DNSResolverType.DNSMASQ or self.dnsmasq
+
+    def create_config(self, service_name: str):
+        if not FileHelper.is_file_readable(self.dns_origin_cfg):
+            logger.info(f'Override and backup System DNS config file...')
+            FileHelper.backup(DNSResolver.DNS_SYSTEM_FILE, self.dns_origin_cfg, remove=False)
+        if not FileHelper.is_file_readable(self.dns_origin_cfg):
+            logger.error(f'Not found origin DNS config file [{self.dns_origin_cfg}]')
+            sys.exit(ErrorCode.FILE_CORRUPTED)
+        self._make_current_dns_compatible_with_dnsmasq()
+        self._promote_dnsmasq(service_name)
+
+    def restore_config(self, remove_dnsmasq=False):
+        logger.info(f'Remove dnsmasq[{self.DNSMASQ_VPN_CFG}]')
+        FileHelper.remove_files(DNSResolverType.DNSMASQ.config.to_fqn_cfg(self.DNSMASQ_VPN_CFG))
+        if remove_dnsmasq:
+            if not FileHelper.is_file_readable(self.dns_origin_cfg):
+                return
+            logger.info(f'Restore System DNS config file...')
+            FileHelper.backup(self.dns_origin_cfg, DNSResolver.DNS_SYSTEM_FILE)
+
+    def _make_current_dns_compatible_with_dnsmasq(self):
+        if not self.kind.is_unknown():
+            FileHelper.create_folders(self.kind.config.config_dir)
+            logger.debug(f'Tweak {self.kind} service...')
+        self.__tweak_systemd_resolved()
+        self.__tweak_network_manager()
+        self.__tweak_resolvconf()
+
+    def _promote_dnsmasq(self, service_name: str):
+        logger.info(f'Generating System DNS config file and point to dnsmasq...')
+        FileHelper.remove_files(DNSResolver.DNS_SYSTEM_FILE)
+        FileHelper.write_file(DNSResolver.DNS_SYSTEM_FILE, self.__dnsmasq_resolv(service_name), mode=0o0644)
+        origin_cfg = FileHelper.get_target_link(self.dns_origin_cfg) or self.dns_origin_cfg
+        dnsmasq_vpn_cfg = DNSResolverType.DNSMASQ.config.to_fqn_cfg(f'{service_name}.conf')
+        FileHelper.copy(self.resource_dir.joinpath(self.DNSMASQ_CONFIG_TMPL), dnsmasq_vpn_cfg, force=True)
+        FileHelper.replace_in_file(dnsmasq_vpn_cfg, {'{{DNS_ORIGIN_CFG_FILE}}': origin_cfg}, backup='')
+        self.service.enable(DNSResolverType.DNSMASQ.config.identity)
+        self.service.restart(DNSResolverType.DNSMASQ.config.identity)
+
+    def tweak_on_nic(self, nic: str):
+        self.__tweak_connman_on_nic(nic)
 
     def find_vpn_nameservers(self) -> Optional[str]:
         if not FileHelper.is_file_readable(self.dns_vpn_cfg):
             return None
-        nss = grep(FileHelper.read_file_by_line(self.dns_vpn_cfg), r'nameserver .+')
-        vpn_ns = [ns[len('nameserver'):].strip() if ns.startswith('nameserver') else ns.strip() for ns in nss][0:1]
+        nss = grep(FileHelper.read_file_by_line(self.dns_vpn_cfg), r'server=.+')
+        vpn_ns = [ns[len('server='):].strip() if ns.startswith('server=') else ns.strip() for ns in nss][0:1]
         return ','.join(vpn_ns) if vpn_ns else None
 
-    def tweak(self, reason: DHCPReason, new_nameservers: str = None, old_nameservers: str = None):
+    def resolve(self, reason: DHCPReason, nic: str, new_nameservers: str = None, old_nameservers: str = None):
         if reason.is_release():
-            self.__restore_origin()
+            self.restore_config()
             return
         nss = self.__validate_nameservers(reason, new_nameservers, old_nameservers)
-        log_lvl = logger.DEBUG if reason is DHCPReason.INIT else logger.INFO
         if nss is None:
-            logger.log(log_lvl, f'Skip generating DNS entry in [{reason.name}][{new_nameservers}][{old_nameservers}]')
+            logger.info(f'Skip generating DNS entry in [{reason.name}][{new_nameservers}][{old_nameservers}]')
             return
         try:
-            if not FileHelper.is_file_readable(self.dns_origin_cfg):
-                logger.info(f'Override and backup System DNS config file...')
-                FileHelper.backup(DNSResolver.DNS_SYSTEM_FILE, self.dns_origin_cfg, remove=False)
-            logger.log(log_lvl, f'Generate VPN DNS config file on [{reason.name}] with nameservers {nss}...')
-            FileHelper.write_file(self.dns_vpn_cfg,
-                                  self.__resolv_config(reason, '\n'.join([f'nameserver {ns}' for ns in nss]),
-                                                       FileHelper.read_file_by_line(self.dns_origin_cfg)), mode=0o0644)
-            FileHelper.create_symlink(self.dns_vpn_cfg, DNSResolver.DNS_SYSTEM_FILE, force=True)
+            logger.info(f'Update VPN DNS config file on [{reason.name}][{nic}] with nameservers {nss}...')
+            FileHelper.write_file(self.dns_vpn_cfg, '\n'.join([f'server={ns}' for ns in nss]))
         except Exception as err:
-            logger.error(f'Unable create {DNSResolver.DNS_SYSTEM_FILE} from VPN service. Error: {err}')
-            self.__restore_origin()
-
-    def __restore_origin(self):
-        logger.info(f'Restore System DNS config file...')
-        if not FileHelper.is_file_readable(self.dns_origin_cfg):
-            return
-        FileHelper.backup(self.dns_origin_cfg, DNSResolver.DNS_SYSTEM_FILE)
+            logger.warn(f'Unable create {self.dns_vpn_cfg} from VPN service. Error: {err}')
 
     def __validate_nameservers(self, reason: DHCPReason, new_ns: str = None, old_ns: str = None) -> Optional[list]:
         if reason.is_ignore():
             return None
-        if reason is DHCPReason.INIT:
-            return None if FileHelper.is_file_readable(self.dns_origin_cfg) else []
         if reason is DHCPReason.RENEW and new_ns == old_ns and FileHelper.is_file_readable(self.dns_vpn_cfg):
             return None
         nameservers = old_ns if reason.is_unreachable() else new_ns
         return [ns for ns in nameservers.split(',') if ns][0:2]
 
     @staticmethod
-    def __resolv_config(reason: DHCPReason, vpn_content: str, origin_content: str):
+    def __dnsmasq_resolv(service_name: str = 'VPN'):
         now = datetime.now().isoformat()
-        return f'### Generated by VPN service [{reason.name}] at {now}\n{vpn_content}\n' + \
-               f'### End VPN configuration =============\n' + \
-               f'{origin_content}'
+        return f'### Generated by {service_name} service and managed by dnsmasq at {now}\n' \
+               f'nameserver 127.0.0.1\n'
 
-    def __tweak_connman(self, nic):
+    def __tweak_connman_on_nic(self, nic):
+        if self.kind != DNSResolverType.CONNMAN:
+            return
         restart = False
         with fileinput.FileInput("/etc/connman/main.conf", inplace=True, backup='.bak') as f:
             for line in f:
@@ -210,32 +311,35 @@ class DNSResolver:
                 else:
                     print(line, end='')
         if restart:
-            self.service.restart("connman")
+            self.service.restart(self.kind.config.identity)
 
-    def __tweak_systemd_resolved(self, nic):
-        pass
+    def __tweak_systemd_resolved(self):
+        if self.kind is DNSResolverType.SYSTEMD_RESOLVED:
+            FileHelper.copy(self.resource_dir.joinpath(f'dnsmasq-{self.kind.config.identity}.conf'),
+                            self.kind.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG))
+            self.service.restart(self.kind.config.identity)
 
-    def __tweak_network_manager(self, nic):
-        pass
+    def __tweak_resolvconf(self):
+        if self.kind not in [DNSResolverType.RESOLVCONF, DNSResolverType.RESOLVCONF_CMD]:
+            return
 
-    def __tweak_dnsmasq(self, nic):
-        pass
+    def __tweak_network_manager(self):
+        if self.kind is DNSResolverType.NETWORK_MANAGER:
+            FileHelper.copy(self.resource_dir.joinpath(f'dnsmasq-{self.kind.config.identity}.conf'),
+                            self.kind.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG))
+            self.service.restart(self.kind.config.identity)
 
-    def __tweak_resolvconf(self, nic):
-        pass
+    def __tweak_dnsmasq(self):
+        if not self.is_dnsmasq_available():
+            return
 
 
-class IPResolver(ABC):
+class IPResolver(AppConvention):
 
     @staticmethod
     @abstractmethod
-    def factory(cache_dir: str, log_lvl: int, silent: bool = True) -> 'IPResolver':
+    def factory(resource_dir: str, runtime_dir: str, log_lvl: int, silent: bool = True) -> 'IPResolver':
         pass
-
-    def __init__(self, cache_dir: str, log_lvl: int, silent: bool = True):
-        self.cache_dir = cache_dir
-        self.log_lvl = log_lvl
-        self.silent = silent
 
     @property
     @abstractmethod
@@ -244,14 +348,14 @@ class IPResolver(ABC):
 
     @property
     def pid_file(self):
-        return os.path.join(self.cache_dir, 'vpn_dhclient.pid')
+        return self.runtime_dir.joinpath('vpn_dhclient.pid')
 
     @property
     def lease_file(self):
-        return os.path.join(self.cache_dir, 'vpn_dhclient.lease')
+        return self.runtime_dir.joinpath('vpn_dhclient.lease')
 
     @abstractmethod
-    def add_hook(self, hook_tmpl_path: str, service_name: str, replacements: dict):
+    def add_hook(self, service_name: str, replacements: dict):
         pass
 
     @abstractmethod
@@ -259,7 +363,7 @@ class IPResolver(ABC):
         pass
 
     @abstractmethod
-    def create_config(self, config_tmpl_path: str, vpn_acc: str, replacements: dict):
+    def create_config(self, vpn_acc: str, replacements: dict):
         pass
 
     def lease_ip(self, vpn_acc: str, vpn_nic: str, daemon=True):
@@ -284,13 +388,14 @@ class IPResolver(ABC):
 
     def get_vpn_ip(self, nic: str):
         try:
+            logger.log(self.log_lvl, f'Query VPN IPv4 on {nic}...')
             return netifaces.ifaddresses(nic)[netifaces.AF_INET]
         except Exception as err:
             logger.warn(f'Not found VPN IP {nic}. Error: {err}')
             return None
 
     def _to_config_file(self, suffix):
-        return os.path.join(self.cache_dir, f'vpn_dhclient.{suffix}.conf')
+        return self.runtime_dir.joinpath(f'vpn_dhclient.{suffix}.conf')
 
     @abstractmethod
     def _lease_ip_opt(self, vpn_acc: str, vpn_nic: str, daemon=True) -> str:
@@ -309,38 +414,52 @@ class IPResolver(ABC):
         pass
 
 
-class SystemdService(UnixService):
+class Systemd(UnixService):
     """
-    Systemd
+    Systemd service
     """
 
+    SERVICE_FILE_TMPL = 'qweio-vpn.service.tmpl'
+
     @staticmethod
-    def factory() -> 'UnixService':
+    def factory(resource_dir, runtime_dir) -> 'UnixService':
         if SystemHelper.verify_command(f'pidof {UnixServiceType.SYSTEMD.value}'):
-            return SystemdService()
+            return Systemd(resource_dir=resource_dir, runtime_dir=runtime_dir)
         return None
 
     @property
     def kind(self) -> UnixServiceType:
         return UnixServiceType.SYSTEMD
 
-    def create(self, opts: UnixServiceOpts, service_tmpl_path: str, replacements: dict):
+    def create(self, opts: UnixServiceOpts, replacements: dict):
         service_fqn = self.to_service_fqn(opts.service_dir, opts.service_name)
-        FileHelper.copy(service_tmpl_path, service_fqn, force=True)
+        FileHelper.copy(self.resource_dir.joinpath(Systemd.SERVICE_FILE_TMPL), service_fqn, force=True)
         FileHelper.replace_in_file(service_fqn, replacements, backup='')
         FileHelper.chmod(service_fqn, mode=0o0644)
-        logger.info(f"Enable System service '{opts.service_name}[{service_fqn}]'...", )
-        SystemHelper.exec_command(f"systemctl enable {opts.service_name}", log_lvl=logger.INFO)
+        logger.debug(f'Add new service {opts.service_name} in [{service_fqn}]')
+        self.enable(opts.service_name)
 
-    def disable(self, opts: UnixServiceOpts, force: bool = False):
+    def remove(self, opts: UnixServiceOpts, force: bool = False):
         service_fqn = self.to_service_fqn(opts.service_dir, opts.service_name)
         logger.info(f"Disable System service '{opts.service_name}'...")
-        SystemHelper.exec_command(f"systemctl stop {opts.service_name}", silent=True, log_lvl=logger.INFO)
-        SystemHelper.exec_command(f"systemctl disable {opts.service_name}", silent=True, log_lvl=logger.INFO)
+        self.stop(opts.service_name)
+        self.disable(opts.service_name)
         if force and os.path.exists(service_fqn):
             logger.info("Remove System service '%s'...", opts.service_name)
             os.remove(service_fqn)
         SystemHelper.exec_command("systemctl daemon-reload", silent=True, log_lvl=logger.INFO)
+
+    def enable(self, service_name: str):
+        logger.info(f'Enable System service [{service_name}]...', )
+        SystemHelper.exec_command(f"systemctl enable {service_name}", log_lvl=logger.INFO)
+
+    def disable(self, service_name: str):
+        logger.info(f'Disable System service [{service_name}]...', )
+        SystemHelper.exec_command(f"systemctl disable {service_name}", silent=True, log_lvl=logger.INFO)
+
+    def stop(self, service_name):
+        logger.info(f"Stop System service '{service_name}'...")
+        SystemHelper.exec_command(f"systemctl stop {service_name}", silent=True, log_lvl=logger.INFO)
 
     def restart(self, service_name, delay: int = 1):
         logger.info(f"Restart System service '{service_name}'...")
@@ -352,49 +471,47 @@ class SystemdService(UnixService):
                                            shell=True, silent=True, log_lvl=logger.DEBUG)
         return ServiceStatus.parse(status)
 
-    def stop(self, service_name):
-        logger.info(f"Stop System service '{service_name}'...")
-        SystemHelper.exec_command(f"systemctl stop {service_name}", silent=True, log_lvl=logger.INFO)
-
     def to_service_fqn(self, service_dir: str, service_name: str):
         return os.path.join(service_dir or '/lib/systemd/system', service_name + '.service')
 
 
-class ProcdService(UnixService, ABC):
+class Procd(UnixService, ABC):
     """
     Procd for OpenWRT: https://openwrt.org/docs/techref/procd
     """
 
     @staticmethod
-    def factory() -> 'UnixService':
+    def factory(resource_dir: str, runtime_dir: str) -> 'UnixService':
         if SystemHelper.verify_command(f'pidof {UnixServiceType.PROCD.value}'):
             raise NotImplementedError('Not yet supported OpenWRT')
         return None
 
 
 class DHCPResolver(IPResolver):
+    DHCLIENT_HOOK_TMPL = 'dhclient-vpn.hook.tmpl'
+    DHCLIENT_CONFIG_TMPL = 'dhclient-vpn.conf.tmpl'
 
     @staticmethod
-    def factory(cache_dir: str, log_lvl: int, silent: bool = True) -> 'IPResolver':
+    def factory(resource_dir, runtime_dir: str, log_lvl: int, silent: bool = True) -> 'IPResolver':
         if FileHelper.which(IPResolverType.DHCLIENT.value):
-            return DHCPResolver(cache_dir, log_lvl, silent)
+            return DHCPResolver(resource_dir, runtime_dir, log_lvl, silent)
         return None
 
     @property
     def ip_tool(self) -> str:
         return IPResolverType.DHCLIENT.value
 
-    def create_config(self, config_tmpl_path: str, vpn_acc: str, replacements: dict):
+    def create_config(self, vpn_acc: str, replacements: dict):
         config_file = self._to_config_file(vpn_acc)
         logger.log(self.log_lvl, f'Create DHCP client VPN config[{config_file}]...')
-        FileHelper.copy(config_tmpl_path, config_file, force=True)
+        FileHelper.copy(self.resource_dir.joinpath(self.DHCLIENT_CONFIG_TMPL), config_file, force=True)
         FileHelper.replace_in_file(config_file, replacements, backup='')
         FileHelper.chmod(config_file, mode=0o0644)
 
-    def add_hook(self, hook_tmpl_path: str, service_name: str, replacements: dict):
+    def add_hook(self, service_name: str, replacements: dict):
         hook_file = self._to_hook_file(service_name)
         logger.log(self.log_lvl, f'Create DHCP client VPN hook[{hook_file}]...')
-        FileHelper.copy(hook_tmpl_path, hook_file, force=True)
+        FileHelper.copy(self.resource_dir.joinpath(self.DHCLIENT_HOOK_TMPL), hook_file, force=True)
         FileHelper.replace_in_file(hook_file, replacements, backup='')
         FileHelper.chmod(hook_file, mode=0o0744)
 
@@ -429,18 +546,15 @@ class UDHCPCResolver(IPResolver, ABC):
 
 class DeviceResolver:
 
-    def __init__(self, cache_dir: str, log_lvl=logger.DEBUG, silent=True):
-        self.cache_dir = cache_dir
-        self.log_lvl = log_lvl
-        self.silent = silent
+    def __init__(self):
         self.__service = None
         self.__ip_resolver = None
         self.__dns_resolver = None
 
-    def probe(self) -> 'DeviceResolver':
-        self._service(SystemdService.factory() or ProcdService.factory())
-        self._ip_resolver(DHCPResolver.factory(self.cache_dir, self.log_lvl, self.silent))
-        self._dns_resolver(DNSResolver(self.cache_dir, self.unix_service).probe())
+    def probe(self, resource_dir: str, runtime_dir: str, log_lvl=logger.DEBUG, silent=True) -> 'DeviceResolver':
+        self._service(Systemd.factory(resource_dir, runtime_dir) or Procd.factory(resource_dir, runtime_dir))
+        self._ip_resolver(DHCPResolver.factory(resource_dir, runtime_dir, log_lvl, silent))
+        self._dns_resolver(DNSResolver(resource_dir, runtime_dir, self.unix_service).probe())
         return self
 
     @property
