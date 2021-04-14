@@ -82,7 +82,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         if self.current_pid:
             self.__write_pid_file(logger.down_lvl(log_lvl))
             return
-        FileHelper.remove_files(self.__pid_files())
+        FileHelper.rm(self.__pid_files())
         logger.log(log_lvl, 'Start VPN Client')
         SystemHelper.exec_command(f'{self.opts.vpnclient} start', log_lvl=logger.down_lvl(log_lvl))
         time.sleep(1)
@@ -94,7 +94,7 @@ class VPNClientExecutor(VpnCmdExecutor):
             return
         logger.log(log_lvl, 'Stop VPN Client')
         SystemHelper.exec_command(f'{self.opts.vpnclient} stop', silent=silent, log_lvl=logger.down_lvl(log_lvl))
-        FileHelper.remove_files(self.opts.pid_file)
+        FileHelper.rm(self.opts.pid_file)
 
     def vpn_cmd_opt(self):
         return '/CLIENT localhost /CMD'
@@ -131,7 +131,7 @@ class VPNClientExecutor(VpnCmdExecutor):
             if pid and pid > 0 and SystemHelper.is_pid_exists(pid):
                 return pid
         except Exception as _:
-            FileHelper.remove_files(pid_file)
+            FileHelper.rm(pid_file)
         return 0
 
     def _validate(self, silent=False, log_lvl=logger.DEBUG):
@@ -152,7 +152,7 @@ class VPNClientExecutor(VpnCmdExecutor):
     def remove_current_account(self) -> str:
         account = self.find_current_account()
         if account:
-            FileHelper.remove_files(self.opts.current_acc_file)
+            FileHelper.rm(self.opts.current_acc_file)
         return account
 
     def find_current_account(self) -> Optional[str]:
@@ -194,9 +194,9 @@ def __install(dnsmasq: bool, vpn_opts: ClientOpts, unix_service: UnixServiceOpts
         logger.error('dnsmasq is not yet installed. Install by [apt install dnsmasq]/[yum install dnsmasq]' +
                      'or depends on package-manager of your distro')
         sys.exit(ErrorCode.MISSING_REQUIREMENT)
-    FileHelper.create_folders(Path(vpn_opts.vpn_dir).parent)
+    FileHelper.mkdirs(Path(vpn_opts.vpn_dir).parent)
     FileHelper.unpack_archive(ClientOpts.get_resource(ClientOpts.VPNCLIENT_ZIP), vpn_opts.vpn_dir)
-    FileHelper.create_folders([vpn_opts.vpn_dir, vpn_opts.runtime_dir])
+    FileHelper.mkdirs([vpn_opts.vpn_dir, vpn_opts.runtime_dir])
     FileHelper.chmod(vpn_opts.runtime_dir, mode=0o0755)
     FileHelper.chmod([os.path.join(vpn_opts.vpn_dir, p) for p in ('vpnclient', 'vpncmd')], mode=0o0755)
     _, cmd = build_executable_command()

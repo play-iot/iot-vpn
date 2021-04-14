@@ -232,10 +232,10 @@ class DNSResolver(AppConvention):
         return self.kind is DNSResolverType.DNSMASQ or self.dnsmasq
 
     def create_config(self, service_name: str):
-        if not FileHelper.is_file_readable(self.dns_origin_cfg):
+        if not FileHelper.is_readable(self.dns_origin_cfg):
             logger.info(f'Override and backup System DNS config file...')
             FileHelper.backup(DNSResolver.DNS_SYSTEM_FILE, self.dns_origin_cfg, remove=False)
-        if not FileHelper.is_file_readable(self.dns_origin_cfg):
+        if not FileHelper.is_readable(self.dns_origin_cfg):
             logger.error(f'Not found origin DNS config file [{self.dns_origin_cfg}]')
             sys.exit(ErrorCode.FILE_CORRUPTED)
         self._make_current_dns_compatible_with_dnsmasq()
@@ -243,16 +243,16 @@ class DNSResolver(AppConvention):
 
     def restore_config(self, remove_dnsmasq=False):
         logger.info(f'Remove dnsmasq[{self.DNSMASQ_VPN_NS_CFG}]')
-        FileHelper.remove_files([self.dns_ns_runtime_cfg, self.dnsmasq_vpn_ns_cfg])
+        FileHelper.rm([self.dns_ns_runtime_cfg, self.dnsmasq_vpn_ns_cfg])
         if remove_dnsmasq:
-            if not FileHelper.is_file_readable(self.dns_origin_cfg):
+            if not FileHelper.is_readable(self.dns_origin_cfg):
                 return
             logger.info(f'Restore System DNS config file...')
             FileHelper.backup(self.dns_origin_cfg, DNSResolver.DNS_SYSTEM_FILE)
 
     def _make_current_dns_compatible_with_dnsmasq(self):
         if not self.kind.is_unknown():
-            FileHelper.create_folders(self.kind.config.config_dir)
+            FileHelper.mkdirs(self.kind.config.config_dir)
             logger.debug(f'Tweak [{self.kind.config.identity}] service...')
         self.__tweak_systemd_resolved()
         self.__tweak_network_manager()
@@ -260,7 +260,7 @@ class DNSResolver(AppConvention):
 
     def _promote_dnsmasq(self, service_name: str):
         logger.info(f'Generating System DNS config file and config dnsmasq...')
-        FileHelper.remove_files(DNSResolver.DNS_SYSTEM_FILE)
+        FileHelper.rm(DNSResolver.DNS_SYSTEM_FILE)
         FileHelper.write_file(DNSResolver.DNS_SYSTEM_FILE, self.__dnsmasq_resolv(service_name), mode=0o0644)
         dnsmasq_vpn_cfg = self.dnsmasq_vpn_cfg(service_name)
         logger.debug(f'Add dnsmasq config for {service_name}[{dnsmasq_vpn_cfg}]...')
@@ -269,7 +269,7 @@ class DNSResolver(AppConvention):
         FileHelper.replace_in_file(dnsmasq_vpn_cfg, {'{{DNS_RESOLVED_FILE}}': resolv_file}, backup='')
         FileHelper.chmod(dnsmasq_vpn_cfg, mode=0o0644)
         logger.debug(f'Add dnsmasq nameserver runtime configuration [{self.dns_ns_runtime_cfg}]...')
-        FileHelper.create_file(self.dns_ns_runtime_cfg, mode=0o0644)
+        FileHelper.touch(self.dns_ns_runtime_cfg, mode=0o0644)
         FileHelper.create_symlink(self.dns_ns_runtime_cfg, self.dnsmasq_vpn_ns_cfg, force=True)
         self.service.enable(DNSResolverType.DNSMASQ.config.identity)
         self.service.restart(DNSResolverType.DNSMASQ.config.identity)
@@ -278,7 +278,7 @@ class DNSResolver(AppConvention):
         self.__tweak_connman_on_nic(nic)
 
     def find_vpn_nameservers(self, vpn_acc: str) -> Optional[str]:
-        if not FileHelper.is_file_readable(self.dnsmasq_vpn_ns_cfg):
+        if not FileHelper.is_readable(self.dnsmasq_vpn_ns_cfg):
             return None
         nss = grep(FileHelper.read_file_by_line(self.dnsmasq_vpn_ns_cfg), fr'server=/{vpn_acc}/.+')
         vpn_ns = [ns[len(f'server='):].strip() for ns in nss][0:1]
@@ -298,7 +298,7 @@ class DNSResolver(AppConvention):
     def __validate_nameservers(self, reason: DHCPReason, new_ns: str = None, old_ns: str = None) -> Optional[list]:
         if reason.is_ignore():
             return None
-        if reason is DHCPReason.RENEW and new_ns == old_ns and FileHelper.is_file_readable(self.dns_ns_runtime_cfg):
+        if reason is DHCPReason.RENEW and new_ns == old_ns and FileHelper.is_readable(self.dns_ns_runtime_cfg):
             return None
         nameservers = old_ns if reason.is_unreachable() else new_ns
         return [ns for ns in nameservers.split(',') if ns][0:2]
@@ -529,7 +529,7 @@ class DHCPResolver(IPResolver):
     def remove_hook(self, service_name: str):
         hook_file = self._to_hook_file(service_name)
         logger.log(self.log_lvl, f'Remove DHCP client VPN hook[{hook_file}]...')
-        FileHelper.remove_files(hook_file, force=True)
+        FileHelper.rm(hook_file, force=True)
 
     def _to_hook_file(self, service_name: str) -> str:
         return os.path.join('/etc/dhcp/dhclient-exit-hooks.d', service_name)

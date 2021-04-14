@@ -69,12 +69,12 @@ def build_executable_command():
 class FileHelper(object):
 
     @staticmethod
-    def create_folders(folders: Union[str, Path, list], mode=0o0755):
+    def mkdirs(folders: Union[str, Path, list], mode=0o0755):
         folders = folders if isinstance(folders, list) else [folders]
         [Path(f).mkdir(parents=True, exist_ok=True, mode=mode) for f in folders]
 
     @staticmethod
-    def create_file(path: Union[str, Path], mode=0o0664):
+    def touch(path: Union[str, Path], mode=0o0664):
         p = Path(path)
         with open(str(p.absolute()), 'w') as _:
             os.chmod(p, mode)
@@ -105,7 +105,7 @@ class FileHelper(object):
             json.dump(content, fp, indent=2)
 
     @staticmethod
-    def remove_files(files: Union[str, Path, list], force=True, recursive=True):
+    def rm(files: Union[str, Path, list], force=True, recursive=True):
         def rm_dir(_f, _recursive):
             if not _recursive:
                 raise RuntimeError(f'{_f} is folder, need to enable recursive to cleanup')
@@ -154,12 +154,12 @@ class FileHelper(object):
         os.symlink(src, lk, target_is_directory=FileHelper.is_dir(src))
 
     @staticmethod
-    def is_file_readable(path: Union[str, Path]) -> bool:
+    def is_readable(path: Union[str, Path]) -> bool:
         p = Path(path)
         return p.is_file() and FileHelper.stat(os.lstat(p)[stat.ST_MODE], [stat.S_IRUSR, stat.S_IRGRP, stat.S_IROTH])
 
     @staticmethod
-    def is_file_writable(path: Union[str, Path]) -> bool:
+    def is_writable(path: Union[str, Path]) -> bool:
         p = Path(path)
         return p.is_file() and FileHelper.stat(os.lstat(p)[stat.ST_MODE], [stat.S_IWUSR, stat.S_IWGRP, stat.S_IWOTH])
 
@@ -178,7 +178,7 @@ class FileHelper(object):
 
     @staticmethod
     def read_file_by_line(path: Union[str, Path], line=-1, fallback_if_not_exists=None):
-        if FileHelper.is_file_readable(path):
+        if FileHelper.is_readable(path):
             count = 0
             with open(path, 'r') as fp:
                 if line == -1:
@@ -228,13 +228,13 @@ class FileHelper(object):
         if not p.exists():
             raise RuntimeError(f'Given path[{file_or_folder}] is not existed')
         if FileHelper.is_dir(t):
-            FileHelper.create_folders(t)
+            FileHelper.mkdirs(t)
         else:
             if t.exists():
                 if not force:
                     raise RuntimeError(f'Destination[{dest}] is existed')
-                FileHelper.remove_files(t)
-            FileHelper.create_folders(t.parent)
+                FileHelper.rm(t)
+            FileHelper.mkdirs(t.parent)
         if p.is_dir():
             copy_tree(str(p.absolute()), str(t.absolute()))
         else:
