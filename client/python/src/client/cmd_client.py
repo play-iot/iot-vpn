@@ -215,21 +215,23 @@ def __install(dnsmasq: bool, vpn_opts: ClientOpts, unix_service: UnixServiceOpts
 
 
 @cli.command(name="uninstall", help="Stop and disable VPN client and *nix service")
-@click.option("-f", "--force", type=bool, flag_value=True, help="If enabled force, force remove everything in VPN")
+@click.option("-f", "--force", type=bool, flag_value=True, help="If force is enabled, VPN service will be removed")
+@click.option("--keep-dnsmasq/--no-keep-dnsmasq", type=bool, default=True, flag_value=False,
+              help="By default, dnsmasq is used as local DNS cache.")
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @unix_service_opts
 @verbose_opts
 @permission
-def __uninstall(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, force: bool = False):
+def __uninstall(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, force: bool = False, keep_dnsmasq: bool = True):
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
     resolver = DeviceResolver().probe(ClientOpts.resource_dir(), vpn_opts.runtime_dir)
     account = executor.remove_current_account()
     if account:
         executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], account, silent=True)
-        resolver.dns_resolver.restore_config()
     resolver.unix_service.remove(unix_service, force)
     executor.cleanup_zombie_vpn()
+    resolver.dns_resolver.restore_config(keep_dnsmasq=keep_dnsmasq)
     resolver.ip_resolver.remove_hook(unix_service.service_name)
     resolver.ip_resolver.cleanup_vpn_ip()
     resolver.ip_resolver.renew_all_ip()
