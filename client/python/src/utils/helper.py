@@ -74,29 +74,34 @@ class FileHelper(object):
         [Path(f).mkdir(parents=True, exist_ok=True, mode=mode) for f in folders]
 
     @staticmethod
-    def create_file(path, mode=0o0664):
-        with open(path, 'w') as _:
-            os.chmod(path, mode)
+    def create_file(path: Union[str, Path], mode=0o0664):
+        p = Path(path)
+        with open(str(p.absolute()), 'w') as _:
+            os.chmod(p, mode)
 
     @staticmethod
-    def write_file(path, content, mode=0o0664, append=False, log_lvl=logger.DEBUG):
-        logger.log(log_lvl, "Dump to file: " + path)
-        with open(path, 'w+' if not append else 'a+') as fp:
+    def write_file(path: Union[str, Path], content: str, mode=0o0664, append=False):
+        p = Path(path)
+        logger.debug(f"Dump to file [{p}]")
+        with open(str(p.absolute()), 'w+' if not append else 'a+') as fp:
             fp.write(content)
-            os.chmod(path, mode)
+            os.chmod(p, mode)
 
     @staticmethod
-    def write_binary_file(path, content, mode=0o0755, symlink=None):
-        with open(path, 'wb') as f:
+    def write_binary_file(path: Union[str, Path], content, mode=0o0755, symlink: Union[str, Path] = None):
+        p = Path(path)
+        logger.debug(f"Dump to file [{p}]")
+        with open(str(p.absolute()), 'wb') as f:
             f.write(content)
-            os.chmod(path, mode)
+            os.chmod(p, mode)
             if symlink:
-                os.symlink(path, symlink)
+                os.symlink(p, symlink)
 
     @staticmethod
-    def json_to_file(path, content, log_lvl=logger.DEBUG):
-        logger.log(log_lvl, "Dump json to file: " + path)
-        with open(path, 'w+') as fp:
+    def json_to_file(path: Union[str, Path], content):
+        p = Path(path)
+        logger.debug(f"Dump json to file [{p}]" + p)
+        with open(str(p.absolute()), 'w+') as fp:
             json.dump(content, fp, indent=2)
 
     @staticmethod
@@ -219,6 +224,7 @@ class FileHelper(object):
     def copy(file_or_folder: Union[str, Path], dest: Union[str, Path], force=False):
         p = Path(file_or_folder)
         t = Path(dest)
+        logger.debug(f'Copy [{p}] to [{t}]...')
         if not p.exists():
             raise RuntimeError(f'Given path[{file_or_folder}] is not existed')
         if FileHelper.is_dir(t):

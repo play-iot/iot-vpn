@@ -245,7 +245,7 @@ class DNSResolver(AppConvention):
     def _make_current_dns_compatible_with_dnsmasq(self):
         if not self.kind.is_unknown():
             FileHelper.create_folders(self.kind.config.config_dir)
-            logger.debug(f'Tweak {self.kind} service...')
+            logger.debug(f'Tweak [{self.kind.config.identity}] service...')
         self.__tweak_systemd_resolved()
         self.__tweak_network_manager()
         self.__tweak_resolvconf()
@@ -257,7 +257,7 @@ class DNSResolver(AppConvention):
         origin_cfg = FileHelper.get_target_link(self.dns_origin_cfg) or self.dns_origin_cfg
         dnsmasq_vpn_cfg = DNSResolverType.DNSMASQ.config.to_fqn_cfg(f'{service_name}.conf')
         FileHelper.copy(self.resource_dir.joinpath(self.DNSMASQ_CONFIG_TMPL), dnsmasq_vpn_cfg, force=True)
-        FileHelper.replace_in_file(dnsmasq_vpn_cfg, {'{{DNS_ORIGIN_CFG_FILE}}': origin_cfg}, backup='')
+        FileHelper.replace_in_file(dnsmasq_vpn_cfg, {'{{DNS_ORIGIN_CFG_FILE}}': str(origin_cfg.absolute())}, backup='')
         self.service.enable(DNSResolverType.DNSMASQ.config.identity)
         self.service.restart(DNSResolverType.DNSMASQ.config.identity)
 
@@ -316,7 +316,8 @@ class DNSResolver(AppConvention):
     def __tweak_systemd_resolved(self):
         if self.kind is DNSResolverType.SYSTEMD_RESOLVED:
             FileHelper.copy(self.resource_dir.joinpath(f'dnsmasq-{self.kind.config.identity}.conf'),
-                            self.kind.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG))
+                            self.kind.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG), True)
+            FileHelper.chmod(self.kind.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG), mode=0o0644)
             self.service.restart(self.kind.config.identity)
 
     def __tweak_resolvconf(self):
@@ -326,7 +327,8 @@ class DNSResolver(AppConvention):
     def __tweak_network_manager(self):
         if self.kind is DNSResolverType.NETWORK_MANAGER:
             FileHelper.copy(self.resource_dir.joinpath(f'dnsmasq-{self.kind.config.identity}.conf'),
-                            self.kind.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG))
+                            self.kind.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG), force=True)
+            FileHelper.chmod(self.kind.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG), mode=0o0644)
             self.service.restart(self.kind.config.identity)
 
     def __tweak_dnsmasq(self):
@@ -441,11 +443,10 @@ class Systemd(UnixService):
 
     def remove(self, opts: UnixServiceOpts, force: bool = False):
         service_fqn = self.to_service_fqn(opts.service_dir, opts.service_name)
-        logger.info(f"Disable System service '{opts.service_name}'...")
         self.stop(opts.service_name)
         self.disable(opts.service_name)
         if force and os.path.exists(service_fqn):
-            logger.info("Remove System service '%s'...", opts.service_name)
+            logger.info(f'Remove System service [{opts.service_name}]...')
             os.remove(service_fqn)
         SystemHelper.exec_command("systemctl daemon-reload", silent=True, log_lvl=logger.INFO)
 
@@ -458,11 +459,11 @@ class Systemd(UnixService):
         SystemHelper.exec_command(f"systemctl disable {service_name}", silent=True, log_lvl=logger.INFO)
 
     def stop(self, service_name):
-        logger.info(f"Stop System service '{service_name}'...")
+        logger.info(f"Stop System service [{service_name}]...")
         SystemHelper.exec_command(f"systemctl stop {service_name}", silent=True, log_lvl=logger.INFO)
 
     def restart(self, service_name, delay: int = 1):
-        logger.info(f"Restart System service '{service_name}'...")
+        logger.info(f"Restart System service [{service_name}]...")
         SystemHelper.exec_command(f"systemctl restart {service_name}", log_lvl=logger.INFO)
         time.sleep(delay)
 
