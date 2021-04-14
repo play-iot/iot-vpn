@@ -434,7 +434,6 @@ def __execute(vpn_opts: ClientOpts, command):
 @cli.command(name="version", help="VPN Version")
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
-@verbose_opts
 def __version(vpn_opts: ClientOpts):
     logger.info('VPN version: %s', vpn_opts.get_vpn_version(Versions.VPN_VERSION))
     logger.info('CLI version: %s', CLI_VERSION)
@@ -474,6 +473,7 @@ def __stop(vpn_opts: ClientOpts):
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME, hidden=False)
 @click.option('--debug', default=False, flag_value=True, help='Enable write debug into /tmp/vpn_dns')
+@verbose_opts
 @permission
 def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old_nameservers: str, debug: bool):
     logger.info(f'Update DNS with {reason}::{nic}...')
@@ -493,16 +493,16 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
             logger.warn(f'NIC[{nic}] does not meet current VPN account')
             sys.exit(ErrorCode.VPN_ACCOUNT_NOT_MATCH)
     if is_in_scan:
-        loop_interval(lambda: None, lambda: resolver.dns_resolver.find_vpn_nameservers() is not None,
+        loop_interval(lambda: None, lambda: resolver.dns_resolver.find_vpn_nameservers(current_acc) is not None,
                       'Unable read DHCP status', exit_if_error=True, max_retries=10)
         nic = vpn_opts.account_to_nic(current_acc)
-        new_nameservers = resolver.dns_resolver.find_vpn_nameservers()
+        new_nameservers = resolver.dns_resolver.find_vpn_nameservers(current_acc)
         _reason = DHCPReason.BOUND
     if debug:
         now = datetime.now().isoformat()
         FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'), append=True,
                               content=f"{now}::{reason}::{nic}::{new_nameservers}::{old_nameservers}\n")
-    resolver.dns_resolver.resolve(_reason, nic, new_nameservers, old_nameservers)
+    resolver.dns_resolver.resolve(_reason, current_acc, new_nameservers, old_nameservers)
     if is_in_scan:
         resolver.ip_resolver.renew_all_ip()
 
