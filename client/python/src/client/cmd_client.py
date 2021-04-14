@@ -191,7 +191,7 @@ def __install(dnsmasq: bool, vpn_opts: ClientOpts, unix_service: UnixServiceOpts
         sys.exit(ErrorCode.NOT_YET_SUPPORTED)
     resolver = DeviceResolver().probe(ClientOpts.resource_dir(), vpn_opts.runtime_dir, log_lvl=logger.INFO)
     if dnsmasq and not resolver.dns_resolver.is_dnsmasq_available():
-        logger.error('dnsmasq is not yet installed. Install by [apt install dnsmasq]/[yum install dnsmasq]' +
+        logger.error('dnsmasq is not yet installed. Install by [apt install dnsmasq]/[yum install dnsmasq] ' +
                      'or depends on package-manager of your distro')
         sys.exit(ErrorCode.MISSING_REQUIREMENT)
     FileHelper.mkdirs(Path(vpn_opts.vpn_dir).parent)
@@ -204,9 +204,7 @@ def __install(dnsmasq: bool, vpn_opts: ClientOpts, unix_service: UnixServiceOpts
         '{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{PID_FILE}}': str(vpn_opts.pid_file),
         '{{VPN_DESC}}': unix_service.service_name,
         '{{START_CMD}}': f'{cmd} start --vpn-dir {vpn_opts.vpn_dir}',
-        '{{START_POST_CMD}}': f'{cmd} dns {DHCPReason.SCAN.name} --debug',
-        '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {vpn_opts.vpn_dir}',
-        '{{STOP_POST_CMD}}': f'{cmd} dns {DHCPReason.STOP.name}'
+        '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {vpn_opts.vpn_dir}'
     })
     resolver.ip_resolver.add_hook(unix_service.service_name,
                                   {'{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{VPN_CLIENT_CLI}}': cmd})
