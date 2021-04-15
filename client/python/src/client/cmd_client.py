@@ -229,7 +229,7 @@ def __uninstall(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, force: bool
         executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], account, silent=True)
     resolver.unix_service.remove(unix_service, force)
     executor.cleanup_zombie_vpn()
-    resolver.dns_resolver.restore_config(keep_dnsmasq=keep_dnsmasq)
+    resolver.dns_resolver.restore_config(unix_service.service_name, keep_dnsmasq=keep_dnsmasq)
     resolver.ip_resolver.remove_hook(unix_service.service_name)
     resolver.ip_resolver.cleanup_vpn_ip()
     resolver.ip_resolver.renew_all_ip()
@@ -297,7 +297,7 @@ def __delete(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, account):
     if current_account and current_account in account:
         executor.remove_current_account()
         resolver.ip_resolver.release_ip(current_account, vpn_opts.account_to_nic(current_account))
-        resolver.dns_resolver.restore_config()
+        resolver.dns_resolver.restore_config(unix_service.service_name)
         resolver.unix_service.stop(unix_service.service_name)
     logger.done()
 
@@ -340,7 +340,7 @@ def __disconnect(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
     if current_account:
         resolver.ip_resolver.release_ip(current_account, vpn_opts.account_to_nic(current_account))
         executor.exec_command('AccountDisconnect', current_account, silent=True)
-    resolver.dns_resolver.restore_config()
+    resolver.dns_resolver.restore_config(unix_service.service_name)
     resolver.unix_service.stop(unix_service.service_name)
     logger.done()
 
@@ -493,10 +493,10 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
             logger.warn(f'NIC[{nic}] does not meet current VPN account')
             sys.exit(ErrorCode.VPN_ACCOUNT_NOT_MATCH)
     if is_in_scan:
-        loop_interval(lambda: None, lambda: resolver.dns_resolver.find_vpn_nameservers(current_acc) is not None,
+        loop_interval(lambda: None, lambda: resolver.dns_resolver.query_vpn_nameservers(current_acc) is not None,
                       'Unable read DHCP status', exit_if_error=True, max_retries=10)
         nic = vpn_opts.account_to_nic(current_acc)
-        new_nameservers = resolver.dns_resolver.find_vpn_nameservers(current_acc)
+        new_nameservers = resolver.dns_resolver.query_vpn_nameservers(current_acc)
         _reason = DHCPReason.BOUND
     if debug:
         now = datetime.now().isoformat()
