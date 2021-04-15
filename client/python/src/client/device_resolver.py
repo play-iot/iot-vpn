@@ -287,7 +287,7 @@ class DNSMasqFlavour(DNSFlavour):
     def __init__(self, config: DNSConfig, service: UnixService, resource_dir: Path, **kwargs):
         super().__init__(config, service, resource_dir, **kwargs)
         self.compatible = kwargs.get('compatible', DNSCompatibleMode.ITSELF)
-        self.config.config_dir = kwargs.get('config_dir', config.config_dir)
+        self.config.config_dir = kwargs.get('config_dir') or config.config_dir
 
     @property
     def dnsmasq_compatible(self) -> DNSCompatibleMode:
@@ -434,6 +434,8 @@ class DNSResolver(AppConvention):
         if not FileHelper.is_readable(self.dns_origin_cfg):
             logger.error(f'Not found origin DNS config file [{self.dns_origin_cfg}]')
             sys.exit(ErrorCode.FILE_CORRUPTED)
+        if not FileHelper.is_readable(self.dns_nameserver_runtime_cfg):
+            FileHelper.touch(self.dns_nameserver_runtime_cfg, 0o0644)
         resolver = self._resolver()
         self._dnsmasq(resolver).setup(vpn_service, self.dns_nameserver_runtime_cfg, resolver.adapt_dnsmasq(vpn_service))
 
