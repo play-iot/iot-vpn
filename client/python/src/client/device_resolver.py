@@ -177,7 +177,7 @@ class DNSFlavour(ABC):
         :param vpn_service: VPN service name
         :return: runtime_resolv_config
         """
-        return None
+        pass
 
     def setup(self, vpn_service: str, vpn_nameserver_cfg: Path, runtime_resolv_cfg: Optional[Path]):
         """
@@ -255,6 +255,7 @@ class NetworkManagerFlavour(DNSFlavour):
     def dnsmasq_compatible(self) -> DNSCompatibleMode:
         return DNSCompatibleMode.PLUGIN
 
+    @property
     def dnsmasq_config_dir(self) -> Optional[Path]:
         return Path(self.config.plugin_dir) if self.config.plugin_dir else None
 
@@ -457,14 +458,15 @@ class DNSResolver(AppConvention):
         self._dnsmasq().restore_config(vpn_service, keep_dnsmasq)
         logger.info(f'Remove VPN nameserver config [{self.VPN_NAMESERVER_CFG}]')
         FileHelper.rm(self.dns_nameserver_runtime_cfg)
-        if keep_dnsmasq:
+        if keep_dnsmasq and self.is_dnsmasq_available():
             self.service.restart(DNSResolverType.DNSMASQ.config.identity)
             return
         if FileHelper.is_readable(self.dns_origin_cfg):
             logger.info(f'Restore System DNS config file...')
             FileHelper.backup(self.dns_origin_cfg, DNSResolver.DNS_SYSTEM_FILE)
-        self.service.stop(DNSResolverType.DNSMASQ.config.identity)
-        self.service.disable(DNSResolverType.DNSMASQ.config.identity)
+        if self.is_dnsmasq_available():
+            self.service.stop(DNSResolverType.DNSMASQ.config.identity)
+            self.service.disable(DNSResolverType.DNSMASQ.config.identity)
 
     def query_vpn_nameservers(self, priv_root_dns: str) -> Optional[str]:
         return self._dnsmasq().query(priv_root_dns, self.dns_nameserver_runtime_cfg)
