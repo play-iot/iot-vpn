@@ -70,15 +70,18 @@ class UnixServiceOpts:
         self.service_name = service_name
 
 
-def unix_service_opts(func):
-    @click.option('-dn', '--service-name', type=str, default='qweio-vpn', help='VPN Service name')
-    @click.option('-ds', '--service-dir', type=str, help='Linux Service directory')
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        kwargs['unix_service'] = UnixServiceOpts(kwargs.pop('service_dir'), kwargs.pop('service_name'))
-        return func(*args, **kwargs)
+def unix_service_opts(service_name: str):
+    def _inner(func):
+        @click.option('-dn', '--service-name', type=str, default=service_name, help='VPN Service name')
+        @click.option('-ds', '--service-dir', type=str, help='Linux Service directory')
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            kwargs['unix_service'] = UnixServiceOpts(kwargs.pop('service_dir'), kwargs.pop('service_name'))
+            return func(*args, **kwargs)
 
-    return wrapper
+        return wrapper
+
+    return _inner
 
 
 class DevModeDir(ABC):

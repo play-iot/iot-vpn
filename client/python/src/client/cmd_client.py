@@ -15,10 +15,10 @@ from src.client.device_resolver import DeviceResolver, DHCPReason
 from src.client.version import CLI_VERSION
 from src.executor.shell_executor import SystemHelper
 from src.executor.vpn_cmd_executor import VpnCmdExecutor
-from src.utils.constants import ErrorCode, Versions
+from src.utils.constants import ErrorCode, Versions, AppEnv
 from src.utils.downloader import download, VPNType, downloader_opt_factory, DownloaderOpt
 from src.utils.helper import resource_finder, FileHelper, build_executable_command, grep, awk, tail, \
-    get_base_path, tree, loop_interval
+    get_base_path, tree, loop_interval, JsonHelper, binary_name
 from src.utils.opts_shared import CLI_CTX_SETTINGS, permission, verbose_opts, UnixServiceOpts, unix_service_opts, \
     dev_mode_opts
 from src.utils.opts_vpn import AuthOpts, vpn_auth_opts, ServerOpts, vpn_server_opts, VpnDirectory, \
@@ -41,8 +41,12 @@ class ClientOpts(VpnDirectory):
         return os.path.join(self.runtime_dir, 'vpn.pid')
 
     @property
-    def current_acc_file(self):
-        return os.path.join(self.runtime_dir, 'vpn_acc')
+    def account_cache_file(self):
+        return os.path.join(self.runtime_dir, 'vpn.account.cache')
+
+    @property
+    def service_cache_file(self):
+        return os.path.join(self.runtime_dir, 'vpn.service.cache')
 
     def get_log_file(self, date):
         return os.path.join(self.vpn_dir, 'client_log', f'client_{date}.log')
@@ -66,6 +70,12 @@ class ClientOpts(VpnDirectory):
     @staticmethod
     def is_vpn_nic(nic: str) -> bool:
         return nic.startswith('vpn_')
+
+    @staticmethod
+    def vpn_service_name() -> str:
+        binary = binary_name()
+        brand = binary.split('-', 1)[0] if binary else AppEnv.BRAND
+        return (os.environ.get(AppEnv.VPN_CORP_ENV) or brand) + '-vpn'
 
 
 class VPNClientExecutor(VpnCmdExecutor):
@@ -143,16 +153,16 @@ class VPNClientExecutor(VpnCmdExecutor):
         sys.exit(ErrorCode.FILE_CORRUPTED)
 
     def save_current_account(self, account: str):
-        FileHelper.write_file(self.opts.current_acc_file, account)
+        FileHelper.write_file(self.opts.account_cache_file, account)
 
     def remove_current_account(self) -> str:
         account = self.find_current_account()
         if account:
-            FileHelper.rm(self.opts.current_acc_file)
+            FileHelper.rm(self.opts.account_cache_file)
         return account
 
     def find_current_account(self) -> Optional[str]:
-        return FileHelper.read_file_by_line(self.opts.current_acc_file)
+        return FileHelper.read_file_by_line(self.opts.account_cache_file)
 
     @staticmethod
     def cleanup_zombie_vpn(delay=1, log_lvl=logger.DEBUG) -> str:
@@ -160,14 +170,24 @@ class VPNClientExecutor(VpnCmdExecutor):
         SystemHelper.ps_kill('vpnclient execsvc', silent=True, log_lvl=log_lvl)
         return 'vpn_'
 
+    def dump_cache_service(self, _unix_service_opts: UnixServiceOpts):
+        JsonHelper.dump(self.opts.service_cache_file, _unix_service_opts)
+
+    def read_cache_service(self) -> UnixServiceOpts:
+        try:
+            data = JsonHelper.read(self.opts.service_cache_file)
+            return UnixServiceOpts(data.get('service_dir'), data.get('service_name'))
+        except FileNotFoundError:
+            return UnixServiceOpts(None, ClientOpts.vpn_service_name())
+
 
 vpn_client_opts = vpn_dir_opts_factory(app_dir="/app/vpnclient", opt_func=ClientOpts)
 
 
-@click.group(name="installer", context_settings=CLI_CTX_SETTINGS)
+@click.group(name="vpnclient", context_settings=CLI_CTX_SETTINGS)
 def cli():
     """
-    VPN Client tool to install Softether VPN Client and setup VPN connection
+    CLI tool to install VPN Client and setup VPN connection
     """
     pass
 
@@ -185,12 +205,12 @@ def __download(downloader_opts: DownloaderOpt):
               help="By default, dnsmasq is used as local DNS cache. Disabled it if using default System DNS resolver")
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
-@unix_service_opts
+@unix_service_opts(ClientOpts.vpn_service_name())
 @verbose_opts
 @permission
 def __install(auto_startup: bool, dnsmasq: bool, vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
     if not dnsmasq:
-        logger.error('Unsupported using Systemd DNS resolver. Must use dnsmasq')
+        logger.error('Only support dnsmasq as DNS resolver in first version')
         sys.exit(ErrorCode.NOT_YET_SUPPORTED)
     resolver = DeviceResolver().probe(ClientOpts.resource_dir(), vpn_opts.runtime_dir, log_lvl=logger.INFO)
     if dnsmasq and not resolver.dns_resolver.is_dnsmasq_available():
@@ -212,6 +232,7 @@ def __install(auto_startup: bool, dnsmasq: bool, vpn_opts: ClientOpts, unix_serv
     resolver.ip_resolver.add_hook(unix_service.service_name,
                                   {'{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{VPN_CLIENT_CLI}}': cmd})
     resolver.dns_resolver.create_config(unix_service.service_name)
+    VPNClientExecutor(vpn_opts=vpn_opts).dump_cache_service(unix_service)
     logger.done()
 
 
@@ -221,19 +242,19 @@ def __install(auto_startup: bool, dnsmasq: bool, vpn_opts: ClientOpts, unix_serv
               help="By default, dnsmasq is used as local DNS cache.")
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
-@unix_service_opts
 @verbose_opts
 @permission
-def __uninstall(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, force: bool = False, keep_dnsmasq: bool = True):
+def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = True):
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
+    service_opts = executor.read_cache_service()
     resolver = DeviceResolver().probe(ClientOpts.resource_dir(), vpn_opts.runtime_dir)
     account = executor.remove_current_account()
     if account:
         executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], account, silent=True)
-    resolver.unix_service.remove(unix_service, force)
+    resolver.unix_service.remove(service_opts, force)
+    resolver.dns_resolver.restore_config(service_opts.service_name, keep_dnsmasq=keep_dnsmasq)
     resolver.ip_resolver.cleanup_zombie(executor.cleanup_zombie_vpn())
-    resolver.dns_resolver.restore_config(unix_service.service_name, keep_dnsmasq=keep_dnsmasq)
-    resolver.ip_resolver.remove_hook(unix_service.service_name)
+    resolver.ip_resolver.remove_hook(service_opts.service_name)
     resolver.ip_resolver.renew_all_ip()
     if force:
         logger.info(f'Remove VPN Client in {vpn_opts.vpn_dir}...')
@@ -245,21 +266,22 @@ def __uninstall(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, force: bool
 @vpn_server_opts
 @click.option("--hostname", type=bool, default=False, flag_value=True,
               help='Change hostname based on VPN username and hub. Should use on IoT device')
-@click.option("-ca", "--account", type=str, default="qweio", help='VPN Client account name')
+@click.option("-ca", "--account", type=str, help='VPN Client account name. Default is VPN hub')
 @click.option("-cd", "--default", type=bool, default=False, flag_value=True, help='Set VPN Client Account is default')
 @vpn_auth_opts
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
-@unix_service_opts
 @verbose_opts
 @permission
-def __add(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, server_opts: ServerOpts, auth_opts: AuthOpts,
-          account: str, default: bool, hostname: bool):
+def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, account: str, default: bool,
+          hostname: bool):
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
+    service_opts = executor.read_cache_service()
     resolver = DeviceResolver().probe(ClientOpts.resource_dir(), vpn_opts.runtime_dir)
     host_name = executor.generate_host_name(server_opts.hub, auth_opts.user, log_lvl=logger.DEBUG)
     if hostname:
         SystemHelper.change_host_name(host_name, log_lvl=logger.DEBUG)
+    account = account or server_opts.hub
     logger.info(f'Setup VPN Client with VPN account {account}...')
     executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], account, silent=True)
     vpn_nic = vpn_opts.account_to_nic(account)
@@ -276,23 +298,23 @@ def __add(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, server_opts: Serv
     executor.save_current_account(account)
     resolver.ip_resolver.create_config(account, {'{{HOST_NAME}}': host_name})
     resolver.dns_resolver.tweak_on_nic(vpn_nic)
-    resolver.unix_service.enable(unix_service.service_name)
-    resolver.unix_service.restart(unix_service.service_name)
+    resolver.unix_service.enable(service_opts.service_name)
+    resolver.unix_service.restart(service_opts.service_name)
     logger.done()
 
 
-@cli.command(name='delete', help='Delete VPN account')
+@cli.command(name='delete', help='Delete one or many VPN account')
 @click.argument('account', nargs=-1)
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
-@unix_service_opts
 @verbose_opts
 @permission
-def __delete(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, account):
+def __delete(vpn_opts: ClientOpts, account):
     if account is None or len(account) == 0:
         logger.error('Must provide at least account')
         sys.exit(ErrorCode.INVALID_ARGUMENT)
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
+    service_opts = executor.read_cache_service()
     resolver = DeviceResolver().probe(ClientOpts.resource_dir(), vpn_opts.runtime_dir, logger.INFO)
     executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], account, silent=True,
                           log_lvl=logger.INFO)
@@ -300,8 +322,22 @@ def __delete(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, account):
     if current_account and current_account in account:
         executor.remove_current_account()
         resolver.ip_resolver.release_ip(current_account, vpn_opts.account_to_nic(current_account))
-        resolver.dns_resolver.restore_config(unix_service.service_name)
-        resolver.unix_service.stop(unix_service.service_name)
+        resolver.dns_resolver.restore_config(service_opts.service_name)
+        resolver.unix_service.stop(service_opts.service_name)
+    logger.done()
+
+
+@cli.command(name="set", help="Set an VPN account to default connection when VPN client startup")
+@click.argument('account', nargs=1)
+@click.option('--connect', type=bool, default=False, flag_value=True, help='Open connection immediately')
+@vpn_auth_opts
+@vpn_client_opts
+@dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
+@verbose_opts
+@permission
+def __set_default(vpn_opts: ClientOpts, account: str):
+    executor = VPNClientExecutor(vpn_opts=vpn_opts)
+    service_opts = executor.read_cache_service()
     logger.done()
 
 
@@ -309,24 +345,24 @@ def __delete(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, account):
 @click.argument('account', nargs=1)
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
-@unix_service_opts
 @verbose_opts
 @permission
-def __connect(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, account):
+def __connect(vpn_opts: ClientOpts, account: str):
     """Connect to VPN connection by VPN account
 
     Account is an VPN client account for each VPN connection
     """
     resolver = DeviceResolver().probe(ClientOpts.resource_dir(), vpn_opts.runtime_dir, logger.INFO)
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
+    service_opts = executor.read_cache_service()
     current_account = executor.remove_current_account()
     if current_account:
         resolver.ip_resolver.release_ip(current_account, vpn_opts.account_to_nic(current_account))
         executor.exec_command('AccountDisconnect', params=current_account, log_lvl=logger.INFO, silent=True)
-    resolver.unix_service.stop(unix_service.service_name)
+    resolver.unix_service.stop(service_opts.service_name)
     executor.exec_command('AccountConnect', params=account, log_lvl=logger.INFO)
     executor.save_current_account(account)
-    resolver.unix_service.restart(unix_service.service_name)
+    resolver.unix_service.restart(service_opts.service_name)
     logger.done()
 
 
@@ -334,40 +370,40 @@ def __connect(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, account):
 @click.option("--disable", type=bool, default=False, flag_value=True, help='Disable VPN Client service')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
-@unix_service_opts
 @verbose_opts
 @permission
-def __disconnect(disable: bool, vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
+def __disconnect(disable: bool, vpn_opts: ClientOpts):
     resolver = DeviceResolver().probe(ClientOpts.resource_dir(), vpn_opts.runtime_dir, log_lvl=logger.INFO)
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
+    service_opts = executor.read_cache_service()
     current_account = executor.remove_current_account()
     if current_account:
         resolver.ip_resolver.release_ip(current_account, vpn_opts.account_to_nic(current_account))
         executor.exec_command('AccountDisconnect', current_account, silent=True)
-    resolver.dns_resolver.restore_config(unix_service.service_name)
-    resolver.unix_service.stop(unix_service.service_name)
+    resolver.dns_resolver.restore_config(service_opts.service_name)
+    resolver.unix_service.stop(service_opts.service_name)
     resolver.ip_resolver.cleanup_zombie(executor.cleanup_zombie_vpn())
     if disable:
-        resolver.unix_service.disable(unix_service.service_name)
+        resolver.unix_service.disable(service_opts.service_name)
     logger.done()
 
 
 @cli.command(name='status', help='Get current VPN status')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
-@unix_service_opts
 @verbose_opts
 @permission
-def __status(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
+def __status(vpn_opts: ClientOpts):
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
     resolver = DeviceResolver().probe(ClientOpts.resource_dir(), vpn_opts.runtime_dir)
-    service_status = resolver.unix_service.status(unix_service.service_name)
+    service_opts = executor.read_cache_service()
+    service_status = resolver.unix_service.status(service_opts.service_name)
     current_acc, vpn_ip, vpn_status = executor.find_current_account(), None, None
     if current_acc:
         vpn_ip = resolver.ip_resolver.get_vpn_ip(ClientOpts.account_to_nic(current_acc))
         vpn_status = executor.vpn_status(current_acc)
 
-    logger.info(f'VPN Service        : {unix_service.service_name} - {service_status.value}')
+    logger.info(f'VPN Service        : {service_opts.service_name} - {service_status.value}')
     logger.info(f'Current VPN IP     : {vpn_ip}')
     logger.info(f'Current VPN Account: {current_acc} - {vpn_status}')
     if not vpn_status or not vpn_ip or service_status != service_status.RUNNING:

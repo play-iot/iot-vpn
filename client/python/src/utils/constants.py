@@ -21,3 +21,9 @@ class Versions:
                  'linux/mips': 'mips_el-32', 'linux/386': 'linux-x86', 'linux/amd64': 'linux-x64',
                  'linux/arm64': None}
     ARCHES = [a for a in PLATFORMS.values() if a]
+
+
+class AppEnv:
+    BRAND = 'qweio'
+    SLOGAN = 'Make in QWEiO, Vietnam'
+    VPN_CORP_ENV = 'VPN_CORP'
