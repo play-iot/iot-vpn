@@ -68,7 +68,7 @@ def vpn_server_opts(func):
 
 
 def vpn_auth_opts(func):
-    @click.option("-ct", "--auth-type", type=click.Choice(["password", "cert", "radius"]), default="password",
+    @click.option("-ct", "--auth-type", type=click.Choice(["password", "cert"]), default="password",
                   required=True, help="VPN Client Authentication type")
     @click.option("-cu", "--user", type=str, required=True, help="VPN Client User to access VPN server")
     @click.option("-cp", "--password", type=str, help="VPN Client Password to access VPN server")
@@ -82,7 +82,7 @@ def vpn_auth_opts(func):
         password = kwargs.pop("password")
         cert_key = kwargs.pop("cert_key")
         private_key = kwargs.pop("private_key")
-        if auth_type in ["password", "radius"]:
+        if auth_type == "password":
             kwargs["auth_opts"] = BasicAuthOpts(auth_type, kwargs.pop("user"), password)
         elif auth_type == "cert":
             kwargs["auth_opts"] = CertAuthOpts(auth_type, kwargs.pop("user"), cert_key, private_key)

@@ -31,6 +31,7 @@ env:
   PLATFORMS: linux/amd64,linux/arm/v7
   DOCKER_FILE: docker/dockerfile/vpnclient.Dockerfile
   DOCKER_FOLDER: ./client/python
+  TAG_PREFIX: vpnc/v
 
 jobs:
 
@@ -42,7 +43,7 @@ jobs:
       shouldPublish: ${{ steps.context.outputs.decision_publish }}
       isRelease: ${{ steps.context.outputs.isTag }}
       afterRelease: ${{ steps.context.outputs.isAfterMergedReleasePR }}
-      sha: ${{ steps.context.outputs.commitId }}
+      sha: ${{ steps.context.outputs.shortCommitId }}
       version: ${{ steps.context.outputs.version }}
 
     steps:
@@ -66,7 +67,7 @@ jobs:
         with:
           dry: false
           mustSign: true
-          tagPrefix: vpnc/v
+          tagPrefix: ${{ env.TAG_PREFIX }}
           releaseBranchPrefix: release/vpnc/
           mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/vpnc/.+$"
           patterns: |
@@ -86,6 +87,10 @@ jobs:
           --name registry
     steps:
       - uses: actions/checkout@v2
+
+      - name: Inject Hash version
+        run: |
+          sed -i 's/dev/${{ needs.context.outputs.sha }}/' client/python/src/client/version.py
 
       - name: Cache Docker layers
         uses: actions/cache@v2
@@ -168,9 +173,27 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: vpnc/v${{ needs.context.outputs.version }}
+          tag_name: ${{ env.TAG_PREFIX }}${{ needs.context.outputs.version }}
           name: Release VPN Client v${{ needs.context.outputs.version }}
           draft: false
           prerelease: false
           files: |
             /tmp/zip/${{ env.APP_IMAGE }}.*.zip
+
+      - name: Trigger release distribution
+        if: ${{ needs.context.outputs.isRelease == 'true' }}
+        run: |
+          workflow=release-distribution-gh.yml
+          project="${{ env.APP_IMAGE }}"
+          tag="${{ env.TAG_PREFIX }}${{ needs.context.outputs.version }}"
+          sha="${{ needs.context.outputs.sha }}"
+          secret="${{ secrets.BEEIO_CI_TOKEN }}"
+          workflow=release-distribution-gh.yml
+          data="{\"ref\":\"main\",\"inputs\":{\"project\":\"$project\",\"tag\":\"$tag\",\"sha\":\"$sha\"}}"
+          status=$(curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: Bearer $secret" \
+            -d "$data" -w "%{http_code}\n" -o out.json \
+            https://api.github.com/repos/qweio/distribution/actions/workflows/$workflow/dispatches)
+          cat out.json
+          [[ "$status" =~ ^2[[:digit:]][[:digit:]] ]] || exit 1

@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509.oid import NameOID
 
-from src.utils.helper import FileHelper, DEFAULT_ENCODING, encode_base64
+from src.utils.helper import FileHelper, DEFAULT_ENCODING, encode_base64, JsonHelper
 from src.utils.opts_shared import CLI_CTX_SETTINGS, OutputOpts, out_dir_opts_factory
 
 # FIXME: Need to study algorithm and cryptography type
@@ -101,7 +101,7 @@ def gen_ssh(users, output_opts: OutputOpts):
         FileHelper.write_file(output_opts.make_file(user + "_ssh"), private_ssh_key)
         FileHelper.write_file(output_opts.make_file(user + "_ssh.pub"), public_ssh_key)
 
-    FileHelper.json_to_file(output_opts.to_file(".json"), output)
+    JsonHelper.dump(output_opts.to_file(".json"), output)
 
 
 @cli.command(name="encrypt")
@@ -138,7 +138,7 @@ def gen_root_cert(output_opts: OutputOpts, cert_attributes: CertAttributes):
     output = {'private_key': root_private_key, 'cert_key': root_cert_key, 'serial_number': '%x' % crt.serial_number}
     FileHelper.write_file(output_opts.to_file("key"), root_private_key)
     FileHelper.write_file(output_opts.to_file("crt"), root_cert_key)
-    FileHelper.json_to_file(output_opts.to_file("json"), output)
+    JsonHelper.dump(output_opts.to_file("json"), output)
 
 
 @cli.command(name="gen-signed-cert")
@@ -194,7 +194,7 @@ def gen_signed_cert(cert_key, private_key, intermediate, code, items, output_opt
                         'hash_user': hash_user, 'dns': hash_user + cert_attributes.common_name}
         FileHelper.write_file(output_opts.make_file(item + ".key"), user_private_key)
         FileHelper.write_file(output_opts.make_file(item + ".crt"), user_cert_key)
-    FileHelper.json_to_file(
+    JsonHelper.dump(
         output_opts.make_file(("intermediate" if intermediate else code) + "-" + output_opts.file + ".json"), output)
 
 

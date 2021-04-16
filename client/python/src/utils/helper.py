@@ -1,4 +1,5 @@
 import base64
+import collections
 import fileinput
 import glob
 import json
@@ -11,6 +12,7 @@ import sys
 import time
 from distutils.dir_util import copy_tree
 from itertools import islice
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Sequence, Union, Any, Optional, Iterator, TextIO, Callable, NoReturn
 
@@ -66,6 +68,13 @@ def build_executable_command():
     return os.getcwd(), f'{executable} {" ".join(params)}'
 
 
+def binary_name():
+    executable = sys.executable
+    if getattr(sys, 'frozen', False):
+        return Path(executable).name
+    return None
+
+
 class FileHelper(object):
 
     @staticmethod
@@ -96,13 +105,6 @@ class FileHelper(object):
             os.chmod(p, mode)
             if symlink:
                 os.symlink(p, symlink)
-
-    @staticmethod
-    def json_to_file(path: Union[str, Path], content):
-        p = Path(path)
-        logger.debug(f"Dump json to file [{p}]" + p)
-        with open(str(p.absolute()), 'w+') as fp:
-            json.dump(content, fp, indent=2)
 
     @staticmethod
     def rm(files: Union[str, Path, list], force=True, recursive=True):
@@ -285,6 +287,39 @@ class FileHelper(object):
             logger.log(log_lvl, f'Remove [{p}] after backup...')
             os.remove(p)
         return to
+
+
+class JsonHelper:
+
+    @staticmethod
+    def to_json(_data: Any):
+        if isinstance(_data, object):
+            return json.dumps(_data, default=lambda o: o.__dict__, sort_keys=True, indent=2)
+        if isinstance(_data, collections.Sequence):
+            return [JsonHelper.to_json(d) for d in _data]
+        return json.dumps(_data, sort_keys=True, indent=2)
+
+    @staticmethod
+    def dump(path: Union[str, Path], data: Any, mode=0o0644):
+        logger.debug(f'Dump json to file [{path}]')
+        FileHelper.write_file(path, JsonHelper.to_json(data), mode)
+
+    @staticmethod
+    def read(path: Union[str, Path], strict=True):
+        def _error(_path: Union[str, Path], _strict: bool, _err=None):
+            if strict:
+                if _err:
+                    logger.debug(f'Unable read json file [{path}]. Error:{err}')
+                raise FileNotFoundError(f'Not found or unreadable file[{path}]')
+            return {}
+
+        if not FileHelper.is_readable(path):
+            return _error(path, strict)
+        with open(str(Path(path).absolute())) as fp:
+            try:
+                return json.load(fp)
+            except (JSONDecodeError, TypeError) as err:
+                return _error(path, strict)
 
 
 def check_supported_python_version():
