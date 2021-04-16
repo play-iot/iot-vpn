@@ -6,13 +6,13 @@ import os
 import platform
 import re
 import shutil
-from distutils.dir_util import copy_tree
-from pathlib import Path
-from typing import Sequence, Union, Any, Optional, Iterator, TextIO, Callable
-
+import stat
 import sys
 import time
+from distutils.dir_util import copy_tree
 from itertools import islice
+from pathlib import Path
+from typing import Sequence, Union, Any, Optional, Iterator, TextIO, Callable, NoReturn
 
 import src.utils.logger as logger
 from src.utils.constants import ErrorCode
@@ -69,55 +69,120 @@ def build_executable_command():
 class FileHelper(object):
 
     @staticmethod
-    def create_file(path, mode=0o744):
-        with open(path, 'w') as _:
-            os.chmod(path, mode)
+    def mkdirs(folders: Union[str, Path, list], mode=0o0755):
+        folders = folders if isinstance(folders, list) else [folders]
+        [Path(f).mkdir(parents=True, exist_ok=True, mode=mode) for f in folders]
 
     @staticmethod
-    def write_file(path, content, mode=0o664, log_lvl=logger.DEBUG):
-        logger.log(log_lvl, "Dump to file: " + path)
-        with open(path, 'w+') as fp:
+    def touch(path: Union[str, Path], mode=0o0644):
+        p = Path(path)
+        with open(str(p.absolute()), 'w') as _:
+            os.chmod(p, mode)
+
+    @staticmethod
+    def write_file(path: Union[str, Path], content: str, mode=0o0664, append=False):
+        p = Path(path)
+        logger.debug(f"Dump to file [{p}]")
+        with open(str(p.absolute()), 'w+' if not append else 'a+') as fp:
             fp.write(content)
-            os.chmod(path, mode)
+            os.chmod(p, mode)
 
     @staticmethod
-    def write_binary_file(path, content, mode=0o755, symlink=None):
-        with open(path, 'wb') as f:
+    def write_binary_file(path: Union[str, Path], content, mode=0o0755, symlink: Union[str, Path] = None):
+        p = Path(path)
+        logger.debug(f"Dump to file [{p}]")
+        with open(str(p.absolute()), 'wb') as f:
             f.write(content)
-            os.chmod(path, mode)
+            os.chmod(p, mode)
             if symlink:
-                os.symlink(path, symlink)
+                os.symlink(p, symlink)
 
     @staticmethod
-    def json_to_file(path, content, log_lvl=logger.DEBUG):
-        logger.log(log_lvl, "Dump json to file: " + path)
-        with open(path, 'w+') as fp:
+    def json_to_file(path: Union[str, Path], content):
+        p = Path(path)
+        logger.debug(f"Dump json to file [{p}]" + p)
+        with open(str(p.absolute()), 'w+') as fp:
             json.dump(content, fp, indent=2)
 
     @staticmethod
-    def remove_files(files: list, force=True, recursive=True):
+    def rm(files: Union[str, Path, list], force=True, recursive=True):
         def rm_dir(_f, _recursive):
             if not _recursive:
                 raise RuntimeError(f'{_f} is folder, need to enable recursive to cleanup')
             shutil.rmtree(_f, ignore_errors=True)
 
+        files = files if isinstance(files, list) else [files]
         [os.remove(f) if os.path.isfile(f) else rm_dir(f, recursive) for f in files if os.path.exists(f) and force]
 
     @staticmethod
-    def make_executable(paths: Sequence[str], mode=0o755):
+    def chmod(paths: Union[str, Path, Sequence[str]], mode):
+        paths = [paths] if isinstance(paths, (str, Path)) else paths
         [os.chmod(p, mode=mode) for p in paths if os.path.exists(p)]
 
     @staticmethod
-    def is_exists(path: str):
-        return os.path.exists(path)
+    def is_dir(path: Union[str, Path]) -> bool:
+        return Path(path).is_dir()
 
     @staticmethod
-    def read_file_by_line(path: str, line=-1, fallback_if_not_exists=None):
-        if os.path.exists(path) and os.path.isfile(path):
+    def is_symlink(path: Union[str, Path]) -> bool:
+        return Path(path).is_symlink()
+
+    @staticmethod
+    def get_target_link(path: Union[str, Path]):
+        p = Path(path)
+        if not FileHelper.is_symlink(p):
+            return None
+        target = Path(os.readlink(p.absolute()))
+        if target.is_absolute():
+            return target
+        parent = p if p.is_dir() else p.parent
+        return parent.joinpath(target).resolve()
+
+    @staticmethod
+    def create_symlink(source: Union[str, Path], link: Union[str, Path], force=False, log_lvl=logger.DEBUG):
+        src = Path(source)
+        lk = Path(link)
+        logger.log(log_lvl, f'Create symlink from [{src}] to [{lk}]...')
+        if not src.exists():
+            raise RuntimeError(f'Given file[{src}] is not existed')
+        if lk.exists():
+            if FileHelper.is_dir(lk):
+                raise RuntimeError(f'Given target link[{lk}] is directory')
+            if not force:
+                raise RuntimeError(f'Given target link[{lk}] is existed')
+            os.remove(lk)
+        os.symlink(src, lk, target_is_directory=FileHelper.is_dir(src))
+
+    @staticmethod
+    def is_readable(path: Union[str, Path]) -> bool:
+        p = Path(path)
+        return p.is_file() and FileHelper.stat(os.lstat(p)[stat.ST_MODE], [stat.S_IRUSR, stat.S_IRGRP, stat.S_IROTH])
+
+    @staticmethod
+    def is_writable(path: Union[str, Path]) -> bool:
+        p = Path(path)
+        return p.is_file() and FileHelper.stat(os.lstat(p)[stat.ST_MODE], [stat.S_IWUSR, stat.S_IWGRP, stat.S_IWOTH])
+
+    @staticmethod
+    def is_executable(path: Union[str, Path]) -> bool:
+        p = Path(path)
+        return p.is_file() and FileHelper.stat(os.lstat(p)[stat.ST_MODE], [stat.S_IXUSR, stat.S_IXGRP, stat.S_IXOTH])
+
+    @staticmethod
+    def stat(mode, checks: list) -> bool:
+        return True if next(filter(lambda x: mode & x, checks), None) else False
+
+    @staticmethod
+    def which(command):
+        return True if shutil.which(command) else False
+
+    @staticmethod
+    def read_file_by_line(path: Union[str, Path], line=-1, fallback_if_not_exists=None):
+        if FileHelper.is_readable(path):
             count = 0
             with open(path, 'r') as fp:
                 if line == -1:
-                    return fp.read().replace('\n', '')
+                    return fp.read()
                 for line in fp:
                     count += 1
                     if count == line:
@@ -130,11 +195,11 @@ class FileHelper(object):
         return glob.glob(os.path.join(_dir, glob_path))
 
     @staticmethod
-    def replace_in_file(filename: str, data: dict, backup='.bak', regex=False) -> bool:
+    def replace_in_file(filename: Union[str, Path], replacements: dict, backup='.bak', regex=False) -> bool:
         has_replaced = False
         with fileinput.FileInput(filename, inplace=True, backup=backup) as file:
             for line in file:
-                for k, v in data.items():
+                for k, v in replacements.items():
                     if not regex or re.match(k, line):
                         old = line
                         line = line.replace(k, v) if not regex else re.sub(k, v, line)
@@ -143,33 +208,83 @@ class FileHelper(object):
         return has_replaced
 
     @staticmethod
-    def create_folders(folders: Union[str, list], mode=0o755):
-        folders = folders if isinstance(folders, list) else [folders]
-        [Path(f).mkdir(parents=True, exist_ok=True, mode=mode) for f in folders]
+    def unpack_archive(file: str, dest: str):
+        shutil.unpack_archive(file, dest)
 
     @staticmethod
-    def unpack_archive(file: str, to: str):
-        shutil.unpack_archive(file, to)
-
-    @staticmethod
-    def make_archive(folder: str, into: str, name: str = None, _format='zip') -> str:
+    def make_archive(folder: Union[str, Path], into: str, name: str = None, _format='zip') -> str:
         to = Path(folder)
-        if not to.exists():
-            raise RuntimeError('Archive folder is not existed')
+        if not FileHelper.is_dir(to):
+            raise RuntimeError(f'Archive folder[{to}] is not existed')
         name = name or to.name
         into = os.path.join(into, name)
         return shutil.make_archive(into, root_dir=to, base_dir='.', format=_format, logger=logger)
 
     @staticmethod
-    def copy(file_or_folder: str, to: str):
+    def copy(file_or_folder: Union[str, Path], dest: Union[str, Path], force=False):
         p = Path(file_or_folder)
-        t = str(Path(to).absolute())
+        t = Path(dest)
+        logger.debug(f'Copy [{p}] to [{t}]...')
         if not p.exists():
-            raise RuntimeError(f'Given file {file_or_folder} is not existed')
+            raise RuntimeError(f'Given path[{file_or_folder}] is not existed')
+        if FileHelper.is_dir(t):
+            FileHelper.mkdirs(t)
+        else:
+            if t.exists():
+                if not force:
+                    raise RuntimeError(f'Destination[{dest}] is existed')
+                FileHelper.rm(t)
+            FileHelper.mkdirs(t.parent)
         if p.is_dir():
-            copy_tree(p, t)
-        if p.is_file():
+            copy_tree(str(p.absolute()), str(t.absolute()))
+        else:
             shutil.copy(p, t)
+
+    @staticmethod
+    def copy_advanced(src: Union[str, Path], dest: Union[str, Path], force=False) -> str:
+        """
+        Advanced copy given path with metadata and symlink to destination
+        :param src: given path
+        :param dest: given destination
+        :param force: force flag to decide removing dest if exists
+        :return: the file destination
+        """
+        p = Path(src)
+        t = Path(dest)
+        if p.is_dir():
+            raise RuntimeError('Unsupported advanced copy directory')
+        if t.is_dir():
+            raise RuntimeError(f'Destination[{dest}] is folder')
+        if t.exists():
+            if not force:
+                raise RuntimeError(f'Destination[{dest}] is existed')
+            os.remove(t)
+        return shutil.copy2(p, t, follow_symlinks=True)
+
+    @staticmethod
+    def backup(src: Union[str, Path], dest: Union[str, Path] = None, remove=True, force=True,
+               log_lvl=logger.DEBUG) -> str:
+        """
+        Backup
+        :param src: given path
+        :param dest: given destination or backup to same given source with suffix '.bak'
+        :param remove: remove flag to decide removing source after backup
+        :param force: force flag to decide removing dest if exists
+        :param log_lvl: log level
+        :return: the file destination
+        """
+        p = Path(src)
+        t = Path(dest) if dest else p.parent.joinpath(p.name + '.bak')
+        logger.log(log_lvl, f'Backup [{p}] to [{t}]...')
+        if FileHelper.is_symlink(p):
+            FileHelper.create_symlink(FileHelper.get_target_link(p), t, force)
+            to = t
+        else:
+            to = FileHelper.copy_advanced(p, t, force)
+        if remove:
+            logger.log(log_lvl, f'Remove [{p}] after backup...')
+            os.remove(p)
+        return to
 
 
 def check_supported_python_version():
@@ -202,10 +317,10 @@ def decode_base64(value: str, url_safe=False, without_padding=False, lenient=Fal
         raise
 
 
-def grep(value: str, expected: str) -> list:
+def grep(value: str, pattern: str, flags=re.VERBOSE) -> list:
     if not value:
         return []
-    return re.findall(expected, value, flags=re.M)
+    return re.findall(pattern, value, flags=flags)
 
 
 def awk(value: str, sep=' ', pos=-1) -> Optional[Union[str, list]]:
@@ -221,7 +336,7 @@ def awk(value: str, sep=' ', pos=-1) -> Optional[Union[str, list]]:
     return None
 
 
-def tail(file: str, prev=1, _buffer=1024, follow=True) -> Iterator[str]:
+def tail(file: str, prev=1, _buffer=1024, follow=False) -> Iterator[str]:
     def _last(_f: TextIO, _l: int):
         while True:
             try:
@@ -292,3 +407,18 @@ def tree(dir_path: Union[str, Path], level: int = -1, limit_to_directories: bool
     if next(iterator, None):
         print(f'... length_limit, {length_limit}, reached, counted:')
     print(f'\n{directories} directories' + (f', {files} files' if files else ''))
+
+
+def loop_interval(func: Callable[[], NoReturn], condition: Callable[[], bool], error_if_timeout: str,
+                  max_retries: int = 5, interval: int = 1, exit_if_error=False):
+    for c in range(max_retries + 1):
+        func()
+        if condition():
+            return
+        time.sleep(interval)
+    msg = f'{error_if_timeout} after {max_retries * interval}(s)'
+    if exit_if_error:
+        logger.error(msg)
+        sys.exit(ErrorCode.TIMEOUT)
+    else:
+        raise TimeoutError()

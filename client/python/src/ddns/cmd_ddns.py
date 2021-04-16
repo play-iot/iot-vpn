@@ -1,4 +1,5 @@
 import os
+import re
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Iterator
@@ -72,8 +73,8 @@ def query_hub(hub_password: str, server_opts: ServerOpts, vpn_opts: VpnDirectory
     # SessionList > SessionGet (user + session + session_name + client_hostname + client_ip_public + client_ip_local)
     # MacTable(session_name + mac) > DhcpTable (mac + vpn_ip)
     dhcp_table = VPNHubExecutor(vpn_opts, server_opts, hub_password).exec_command('DhcpTable')
-    raw = zip(grep(dhcp_table, r'MAC Address.+'), grep(dhcp_table, r'Allocated IP.+'),
-              grep(dhcp_table, r'Client Host Name.+'))
+    raw = zip(grep(dhcp_table, r'MAC Address.+', re.MULTILINE), grep(dhcp_table, r'Allocated IP.+', re.MULTILINE),
+              grep(dhcp_table, r'Client Host Name.+', re.MULTILINE))
     keys = {0: 'mac', 1: 'vpn_ip', 2: 'hostname'}
     return map(lambda each: {keys[idx]: parse_entry_value(idx, r) for idx, r in enumerate(each)}, raw)
 

@@ -1,0 +1,43 @@
+#
+# The purpose of this script is updating DNS server and DHCP gateway.
+#
+# This will invoke main VPN client CLI
+
+set -e
+
+RUN="no"
+
+if [ "$RUN" = "yes" ]; then
+        echo "$(date): entering ${1%/*}, dumping variables." \
+                >> /tmp/dhclient-script.debug
+
+        # loop over the 4 possible prefixes: (empty), cur_, new_, old_
+        for prefix in '' 'cur_' 'new_' 'old_'; do
+                # loop over the DHCP variables passed to dhclient-script
+                for basevar in reason interface medium alias_ip_address \
+                               ip_address host_name network_number subnet_mask \
+                               broadcast_address routers static_routes \
+                               rfc3442_classless_static_routes \
+                               domain_name domain_search domain_name_servers \
+                               netbios_name_servers netbios_scope \
+                               ntp_servers \
+                               ip6_address ip6_prefix ip6_prefixlen \
+                               dhcp6_domain_search dhcp6_name_servers ; do
+                        var="${prefix}${basevar}"
+                        eval "content=\$$var"
+
+                        # show only variables with values set
+                        if [ -n "${content}" ]; then
+                                echo "$var='${content}'" >> /tmp/dhclient-script.debug
+                        fi
+                done
+        done
+
+        echo '--------------------------' >> /tmp/dhclient-script.debug
+fi
+
+case $interface in vpn_*)
+    loc=$(locale -a | grep -E "^(C.UTF-8|C.utf8|en_US.utf8|en_GB.utf8)$" | head -n1)
+    LC_ALL=$loc;LANG=$loc {{VPN_CLIENT_CLI}} dns --vpn-dir "{{WORKING_DIR}}" -n "$interface" \
+                            -nns "$new_domain_name_servers" -ons "$old_domain_name_servers" "$reason"
+esac

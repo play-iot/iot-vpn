@@ -68,6 +68,10 @@ def log(level, message, *args):
         trace(message, *args)
 
 
+def done():
+    success('DONE')
+
+
 def __log(level, message, color):
     if level < LEVEL or message is None:
         return

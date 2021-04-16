@@ -4,8 +4,6 @@ import re
 import socket
 import subprocess
 import sys
-import time
-from enum import Enum
 from subprocess import CompletedProcess
 from typing import Union
 
@@ -13,19 +11,6 @@ from src.utils import logger as logger
 from src.utils.helper import is_py3_5, DEFAULT_ENCODING, FileHelper, tweak_os_env
 
 TWEAK_ENV = tweak_os_env()
-
-
-class ServiceStatus(Enum):
-    RUNNING = 'active(running)'
-    EXITED = 'active(exited)'
-    WAITING = 'active(waiting)'
-    INACTIVE = 'inactive(dead)'
-    UNKNOWN = 'unknown'
-
-    @staticmethod
-    def parse(status: str):
-        status_ = [e for e in list(ServiceStatus) if e.value == status]
-        return status_[0] if len(status_) else ServiceStatus.UNKNOWN
 
 
 class SystemHelper(object):
@@ -82,40 +67,6 @@ class SystemHelper(object):
                        stderr.strip() if not is_py3_5() else stdout.decode(DEFAULT_ENCODING).strip())
             logger.log(log_level, "+" * 40)
         raise RuntimeError()
-
-    @staticmethod
-    def create_service(service_name: str, is_start: bool = False):
-        logger.info("Enable System service '%s'...", service_name)
-        SystemHelper.exec_command("systemctl enable %s" % service_name, log_lvl=logger.INFO)
-        if is_start:
-            SystemHelper.restart_service(service_name)
-
-    @staticmethod
-    def stop_service(service_name: str):
-        logger.info("Stop System service '%s'...", service_name)
-        SystemHelper.exec_command("systemctl stop %s" % service_name, silent=True, log_lvl=logger.INFO)
-
-    @staticmethod
-    def disable_service(service_name: str, service_fqn: str, force: bool = False):
-        logger.info(f"Disable System service '{service_name}'...")
-        SystemHelper.exec_command("systemctl stop %s" % service_name, silent=True, log_lvl=logger.INFO)
-        SystemHelper.exec_command("systemctl disable %s" % service_name, silent=True, log_lvl=logger.INFO)
-        if force and os.path.exists(service_fqn):
-            logger.info("Remove System service '%s'...", service_name)
-            os.remove(service_fqn)
-        SystemHelper.exec_command("systemctl daemon-reload", silent=True, log_lvl=logger.INFO)
-
-    @staticmethod
-    def restart_service(service_name: str, delay: int = 1):
-        logger.info("Restart System service '%s'...", service_name)
-        SystemHelper.exec_command("systemctl restart %s" % service_name, log_lvl=logger.INFO)
-        time.sleep(delay)
-
-    @staticmethod
-    def status_service(service_name: str) -> ServiceStatus:
-        status = SystemHelper.exec_command(f"systemctl status {service_name} | grep Active | awk '{{print $2$3}}'",
-                                           shell=True, silent=True, log_lvl=logger.DEBUG)
-        return ServiceStatus.parse(status)
 
     @staticmethod
     def ps_kill(process_name: str, silent=True, log_lvl=logger.DEBUG):

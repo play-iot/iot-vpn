@@ -48,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          token: ${{ secrets.OSS_GITHUB_TOKEN }}
+          token: ${{ secrets.BEEIO_CI_TOKEN }}
 
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v3
@@ -135,7 +135,6 @@ jobs:
           push: true
 
       - name: Zip artifacts
-        if: ${{ needs.context.outputs.shouldPublish == 'true' }}
         run: |
           image=localhost:5000/${{ env.APP_IMAGE }}:${{ needs.context.outputs.sha }}
           output=/usr/src/app/
@@ -152,7 +151,6 @@ jobs:
           done
 
       - uses: actions/upload-artifact@v2
-        if: ${{ needs.context.outputs.shouldPublish == 'true' }}
         with:
           name: ${{ env.APP_IMAGE }}
           path: /tmp/zip/

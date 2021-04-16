@@ -96,6 +96,7 @@ def vpn_auth_opts(func):
 class VpnDirectory(DevModeDir):
     CORE_VERSION_FILE = 'vpn-version.txt'
     OPT_NAME = 'vpn_opts'
+    RUNTIME_FOLDER = 'runtime'
 
     def __init__(self, app_dir: str):
         self.vpn_dir = app_dir
@@ -107,6 +108,10 @@ class VpnDirectory(DevModeDir):
     @property
     def vpncmd(self):
         return VpnDirectory.vpn_cmd(self.vpn_dir)
+
+    @property
+    def runtime_dir(self):
+        return os.path.join(self.vpn_dir, self.RUNTIME_FOLDER)
 
     def reload(self, vpn_dir):
         self.vpn_dir = vpn_dir
@@ -127,23 +132,3 @@ def vpn_dir_opts_factory(app_dir: str, opt_func=VpnDirectory):
         return wrapper
 
     return dir_opts
-
-# def vpn_dir_opts_factory(vpn_dir: str, opt_func=VpnDirectory, support_service=True, dev_dir=None):
-#     def dir_opts(func):
-#         # print(support_service)
-#         unix_service_opts = unix_service_opts_factory(support_service)
-#         # print(unix_service_opts)
-#
-#         @click.option("-dd", "--vpn-dir", type=str, default=vpn_dir, help="VPN installation directory")
-#         @unix_service_opts_factory(support_service)
-#         @functools.wraps(unix_service_opts_factory(support_service)(func))
-#         def wrapper(*args, **kwargs):
-#             vpn_opts = opt_func(kwargs.pop('vpn_dir'))
-#             if support_service:
-#                 unix_service_opts(func)
-#                 vpn_opts.add_service_opt(kwargs.pop('unix_service'))
-#             kwargs['vpn_opts'] = vpn_opts
-#             return dev_mode_opts_factory('vpn_opts', dev_dir)(func) if dev_dir else func(*args, **kwargs)
-#
-#         return wrapper
-#     return dir_opts

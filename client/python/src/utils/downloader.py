@@ -52,7 +52,7 @@ def _prepare(ghrd: str):
     except Exception as _:
         f1 = os.path.join(BLF, 'ghrd')
         f2 = os.path.join(BF, 'ghrd')
-        FileHelper.remove_files([f1, f2])
+        FileHelper.rm([f1, f2])
         content = requests.get(Versions.GHRD_LINK.format(ghrd), allow_redirects=True).content
         FileHelper.write_binary_file(f1, content, symlink=f2)
 
@@ -75,7 +75,7 @@ def _compile(_folder: str, _type: VPNType):
     logger.info(f'Compiling vpn {_type.value}...')
     SystemHelper.exec_command(f'yes 1 | make -C {_folder}', shell=True, log_lvl=logger.DEBUG)
     rm_files = [os.path.join(_folder, f) for f in ['code', 'lib', '.install.sh', 'Makefile', 'Authors.txt']]
-    FileHelper.remove_files(rm_files + FileHelper.find_files(_folder, 'ReadMeFirst_Important*'))
+    FileHelper.rm(rm_files + FileHelper.find_files(_folder, 'ReadMeFirst_Important*'))
     return _folder
 
 
@@ -84,15 +84,16 @@ def download(vpn_type: VPNType, opt: DownloaderOpt):
     if not arch:
         logger.error(f'Unsupported platform {opt.platform}')
     _prepare(opt.ghrd_version)
-    FileHelper.remove_files([opt.tmp_dir])
-    FileHelper.create_folders(opt.tmp_dir)
+    FileHelper.rm(opt.tmp_dir)
+    FileHelper.mkdirs(opt.tmp_dir)
     out = _compile(_download_2_unzip(opt.tmp_dir, arch, opt.vpn_version, vpn_type), vpn_type)
     if not opt.no_zip:
         FileHelper.make_archive(out, opt.output_dir)
     else:
-        FileHelper.copy(out, opt.output_dir)
+        FileHelper.copy(out, opt.output_dir, force=True)
     if not opt.keep_tmp:
-        FileHelper.remove_files([opt.tmp_dir])
+        FileHelper.rm(opt.tmp_dir)
+    logger.done()
 
 
 def downloader_opt_factory(output_dir: str):

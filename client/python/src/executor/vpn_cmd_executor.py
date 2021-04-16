@@ -56,11 +56,9 @@ class VpnCmdExecutor(ABC):
         return o
 
     @staticmethod
-    def change_host_name(hub: str, user: str, do_change=False, log_lvl=logger.DEBUG):
+    def generate_host_name(hub: str, user: str, log_lvl=logger.DEBUG):
         hostname = encode_base64(hub + '::' + user, url_safe=True, without_padding=True)
-        logger.log(log_lvl, f"Generate hostname to '{hostname}'")
-        if do_change:
-            SystemHelper.change_host_name(hostname, log_lvl)
+        logger.log(log_lvl, f"Generate hostname from VPN hub and VPN user to '{hostname}'")
         return hostname
 
     @staticmethod

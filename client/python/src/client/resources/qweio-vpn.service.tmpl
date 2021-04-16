@@ -1,5 +1,5 @@
 [Unit]
-Description=QWEiO VPN Client
+Description={{VPN_DESC}}
 After=network.target auditd.service network-online.target
 ConditionPathExists=!{{WORKING_DIR}}/do_not_run
 
@@ -17,8 +17,8 @@ PIDFile={{PID_FILE}}
 PrivateTmp=yes
 ProtectHome=yes
 ProtectSystem=full
-ReadOnlyDirectories=/
-ReadWriteDirectories=-{{WORKING_DIR}}
+ReadOnlyPaths=/
+ReadWritePaths=-{{WORKING_DIR}}
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_BROADCAST CAP_NET_RAW CAP_SYS_NICE CAP_SYS_ADMIN CAP_SETUID
 
 [Install]
