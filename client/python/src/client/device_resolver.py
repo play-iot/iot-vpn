@@ -678,7 +678,7 @@ class Systemd(UnixService):
         return ServiceStatus.parse(status)
 
     def to_service_fqn(self, service_dir: str, service_name: str):
-        return os.path.join(service_dir or '/lib/systemd/system', service_name + '.service')
+        return os.path.join(service_dir or '/lib/systemd/system', f'{service_name}.service')
 
 
 class Procd(UnixService, ABC):
