@@ -87,7 +87,7 @@ class AccountInfo:
         self.is_default = is_default
 
     def to_json(self):
-        return {self.account: self.__dict__}
+        return {self.account: {k: v for k, v in self.__dict__.items() if k != 'is_default'}}
 
     @staticmethod
     def merge(_acc1: 'AccountInfo', _acc2: 'AccountInfo') -> 'AccountInfo':
@@ -98,7 +98,7 @@ class AccountInfo:
         if not _acc1:
             return _acc2
         return AccountInfo(_acc2.hub or _acc1.hub, _acc2.account or _acc2.account, _acc2.hostname or _acc1.hostname,
-                           _acc2.is_default or _acc1.is_default)
+                           _acc2.is_default if _acc2.is_default is None else _acc1.is_default)
 
 
 class AccountStorage:
@@ -108,25 +108,29 @@ class AccountStorage:
     def _load(self):
         return JsonHelper.read(self._account_file, strict=False)
 
-    def create_or_update(self, account: AccountInfo):
+    def create_or_update(self, account: AccountInfo, connect: bool):
         data = self._load()
         accounts = self._accounts()
         accounts = {**accounts, **account.to_json()}
-        self._dump(data=data, _accounts=accounts, _current=account.account,
+        self._dump(data=data, _accounts=accounts, _current=account.account if connect else None,
                    _default=account.account if account.is_default else None)
         return account
 
     def get_default(self, data=None) -> Optional[str]:
         return (data or self._load()).get('_default')
 
-    def get_current(self, data=None) -> Optional[str]:
-        return (data or self._load()).get('_current')
+    def get_current(self, data=None, info=False) -> Optional[Union[str, AccountInfo]]:
+        load = data or self._load()
+        current = load.get('_current')
+        return current if not info else self.find(current, data)
 
     def list(self) -> List[AccountInfo]:
-        return [AccountInfo(**acc) for acc in self._accounts().values()]
+        data = self._load()
+        return [self._to_account_info(acc, data) for acc in self._accounts(data).values()]
 
-    def find(self, account: str) -> Optional[AccountInfo]:
-        return next(AccountInfo(**acc) for k, acc in self._accounts().items() if k == account)
+    def find(self, account: str, data=None) -> Optional[AccountInfo]:
+        data = data or self._load()
+        return next(self._to_account_info(acc, data) for k, acc in self._accounts(data).items() if k == account)
 
     def remove(self, accounts: Union[str, List[str]]) -> (bool, bool):
         data = self._load()
@@ -134,13 +138,14 @@ class AccountStorage:
         _default = self.get_default(data)
         _current = self.get_current(data)
         accounts = accounts if isinstance(accounts, list) else [accounts]
-        self._dump(data=data, _accounts={k: v for k, v in _accounts if k in accounts},
+        self._dump(data=data, _accounts={k: v for k, v in _accounts.items() if k not in accounts},
                    _default='' if _default in accounts else _default,
-                   _current=None if _current in accounts else _current)
+                   _current='' if _current in accounts else _current)
         return _default in accounts, _current in accounts
 
     def empty(self):
-        JsonHelper.dump(self._account_file, {})
+        if FileHelper.is_writable(self._account_file):
+            self._dump({}, '', '')
 
     def set_default(self, account: str):
         self._dump(_default=account)
@@ -148,8 +153,12 @@ class AccountStorage:
     def set_current(self, account):
         self._dump(_current=account)
 
-    def _accounts(self, data=None):
+    def _accounts(self, data=None) -> dict:
         return (data or self._load()).get('_accounts', {})
+
+    def _to_account_info(self, acc, data=None) -> AccountInfo:
+        acc['is_default'] = acc['account'] == self.get_default(data)
+        return AccountInfo(**acc)
 
     def _dump(self, _accounts: dict = None, _current: str = None, _default: str = None, data=None):
         data = data or self._load()
