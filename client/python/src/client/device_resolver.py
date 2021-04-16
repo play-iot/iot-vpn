@@ -365,6 +365,8 @@ class DNSMasqFlavour(DNSFlavour):
         if keep_dnsmasq:
             self._restart_dnsmasq()
             return
+        logger.debug(f'Remove dnsmasq vpn config [{self._dnsmasq_vpn_cfg(vpn_service)}]')
+        FileHelper.rm(self._dnsmasq_vpn_cfg(vpn_service))
         self.service.stop(self.config.identity)
         self.service.disable(self.config.identity)
         if self._resolver:
