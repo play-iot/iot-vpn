@@ -292,27 +292,34 @@ class FileHelper(object):
 class JsonHelper:
 
     @staticmethod
-    def dump(path: Union[str, Path], data: Any, mode=0o0644):
-        def _dumps(_data: Any):
-            if isinstance(data, object):
-                return json.dumps(data, default=lambda o: o.__dict__, sort_keys=True, indent=2)
-            if isinstance(data, collections.Sequence):
-                return [_dumps(d) for d in data]
-            return json.dumps(data, sort_keys=True, indent=2)
-
-        logger.debug(f'Dump json to file [{path}]')
-        FileHelper.write_file(path, _dumps(data), mode)
+    def to_json(_data: Any):
+        if isinstance(_data, object):
+            return json.dumps(_data, default=lambda o: o.__dict__, sort_keys=True, indent=2)
+        if isinstance(_data, collections.Sequence):
+            return [JsonHelper.to_json(d) for d in _data]
+        return json.dumps(_data, sort_keys=True, indent=2)
 
     @staticmethod
-    def read(path: Union[str, Path]):
+    def dump(path: Union[str, Path], data: Any, mode=0o0644):
+        logger.debug(f'Dump json to file [{path}]')
+        FileHelper.write_file(path, JsonHelper.to_json(data), mode)
+
+    @staticmethod
+    def read(path: Union[str, Path], strict=True):
+        def _error(_path: Union[str, Path], _strict: bool, _err=None):
+            if strict:
+                if _err:
+                    logger.debug(f'Unable read json file [{path}]. Error:{err}')
+                raise FileNotFoundError(f'Not found or unreadable file[{path}]')
+            return {}
+
         if not FileHelper.is_readable(path):
-            raise FileNotFoundError(f'Not found or unreadable file[{path}]')
+            return _error(path, strict)
         with open(str(Path(path).absolute())) as fp:
             try:
                 return json.load(fp)
             except (JSONDecodeError, TypeError) as err:
-                logger.debug(f'Unable read json file [{path}]. Error:{err}')
-                raise FileNotFoundError(f'Not found or unreadable file[{path}]')
+                return _error(path, strict)
 
 
 def check_supported_python_version():
