@@ -262,11 +262,10 @@ class VPNClientExecutor(VpnCmdExecutor):
         self.resolver.ip_resolver.cleanup_zombie(self.opts.account_to_nic(current))
         self.storage.set_current('')
 
-    @staticmethod
-    def cleanup_zombie_vpn(delay=1, log_lvl=logger.DEBUG) -> str:
+    def cleanup_zombie_vpn(self, delay=1, log_lvl=logger.DEBUG):
         time.sleep(delay)
         SystemHelper.ps_kill('vpnclient execsvc', silent=True, log_lvl=log_lvl)
-        return 'vpn_'
+        self.resolver.ip_resolver.cleanup_zombie('vpn_')
 
 
 vpn_client_opts = vpn_dir_opts_factory(app_dir="/app/vpnclient", opt_func=ClientOpts)
@@ -342,7 +341,7 @@ def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = 
     executor.storage.empty()
     executor.resolver.unix_service.remove(service_opts, force)
     executor.resolver.dns_resolver.restore_config(service_opts.service_name, keep_dnsmasq=keep_dnsmasq)
-    executor.resolver.ip_resolver.cleanup_zombie(executor.cleanup_zombie_vpn())
+    executor.cleanup_zombie_vpn()
     executor.resolver.ip_resolver.remove_hook(service_opts.service_name)
     executor.resolver.ip_resolver.renew_all_ip()
     if force:
@@ -478,7 +477,7 @@ def __disconnect(disable: bool, vpn_opts: ClientOpts):
     executor.disconnect_current(silent=True)
     executor.resolver.dns_resolver.restore_config(service_opts.service_name)
     executor.resolver.unix_service.stop(service_opts.service_name)
-    executor.resolver.ip_resolver.cleanup_zombie(executor.cleanup_zombie_vpn())
+    executor.cleanup_zombie_vpn()
     if disable:
         executor.resolver.unix_service.disable(service_opts.service_name)
     logger.done()
@@ -500,7 +499,7 @@ def __status(vpn_opts: ClientOpts):
 
     logger.info(f'VPN Service        : {service_opts.service_name} - {service_status.value}')
     logger.info(f'Current VPN IP     : {vpn_ip}')
-    logger.info(f'Current VPN Account: {current_acc} - {vpn_status}')
+    logger.info(f'Current VPN Account: {current_acc or None} - {vpn_status}')
     if not vpn_status or not vpn_ip or service_status != service_status.RUNNING:
         sys.exit(ErrorCode.VPN_SERVICE_IS_NOT_WORKING)
 
@@ -529,7 +528,7 @@ def __list(vpn_opts: ClientOpts):
 
 
 @cli.command(name='detail', help='Get detail VPN configuration and status by one or many accounts')
-@click.argument('account', nargs=-1)
+@click.argument('accounts', nargs=-1)
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @verbose_opts
@@ -594,7 +593,7 @@ def __start(vpn_opts: ClientOpts):
 def __stop(vpn_opts: ClientOpts):
     executor = VPNClientExecutor(vpn_opts).probe(silent=False, log_lvl=logger.INFO)
     executor.post_exec(log_lvl=logger.INFO)
-    executor.resolver.ip_resolver.cleanup_zombie(executor.cleanup_zombie_vpn())
+    executor.cleanup_zombie_vpn()
     executor.resolver.ip_resolver.renew_all_ip()
 
 
