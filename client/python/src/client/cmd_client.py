@@ -266,10 +266,11 @@ class VPNClientExecutor(VpnCmdExecutor):
         current = self.storage.get_current()
         if not current:
             return
-        self.resolver.ip_resolver.release_ip(current, self.opts.account_to_nic(current))
         self.exec_command('AccountDisconnect', params=current, log_lvl=log_lvl, silent=silent)
-        self.resolver.ip_resolver.cleanup_zombie(self.opts.account_to_nic(current))
+        self.resolver.ip_resolver.release_ip(current, self.opts.account_to_nic(current))
         self.storage.set_current('')
+        self.resolver.dns_resolver.reset_vpn_nameservers()
+        self.resolver.ip_resolver.cleanup_zombie(self.opts.account_to_nic(current))
 
     def cleanup_zombie_vpn(self, delay=1, log_lvl=logger.DEBUG):
         time.sleep(delay)
@@ -366,13 +367,13 @@ def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = 
 @click.option("-ca", "--account", type=str, help='VPN Client account name. Default is VPN hub')
 @click.option("-cd", "--default", "is_default", type=bool, flag_value=True, help='Set VPN Client Account is default')
 @vpn_auth_opts
-@click.option("--without-connect", type=bool, flag_value=True, help='Just add VPN account without open connection')
+@click.option("--no-connect", type=bool, flag_value=True, help='Just add VPN account without open connection')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @verbose_opts
 @permission
 def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, account: str, is_default: bool,
-          is_hostname: bool, without_connect: bool):
+          is_hostname: bool, no_connect: bool):
     executor = VPNClientExecutor(vpn_opts).probe()
     service_opts = executor.read_cache_service()
     hostname = executor.generate_host_name(server_opts.hub, auth_opts.user, log_lvl=logger.DEBUG)
@@ -386,21 +387,21 @@ def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, ac
         'AccountCreate': f'{acc.account} /SERVER:{server_opts.server} /HUB:{acc.hub} /USERNAME:{auth_opts.user} /NICNAME:{acc.account}',
         auth_cmd: param
     }
-    setup_cmd = setup_cmd if not without_connect else {**setup_cmd, **{'AccountConnect': acc.account}}
+    setup_cmd = setup_cmd if no_connect else {**setup_cmd, **{'AccountConnect': acc.account}}
     setup_cmd = setup_cmd if not acc.is_default else {**setup_cmd, **{'AccountStartupSet': acc.account}}
-    if not without_connect:
+    if not no_connect:
         executor.disconnect_current()
     executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], acc.account, silent=True)
     executor.exec_command(setup_cmd)
-    executor.storage.create_or_update(acc)
+    executor.storage.create_or_update(acc, connect=not no_connect)
     executor.resolver.ip_resolver.create_config(acc.account, {'{{HOST_NAME}}': hostname})
     executor.resolver.dns_resolver.tweak_on_nic(vpn_opts.account_to_nic(acc.account))
     if acc.is_default:
         executor.resolver.unix_service.enable(service_opts.service_name)
-        executor.resolver.unix_service.restart(service_opts.service_name)
-    else:
-        if not without_connect:
-            executor.resolver.ip_resolver.lease_ip(acc.account, vpn_opts.account_to_nic(acc.account))
+        if not no_connect:
+            executor.resolver.unix_service.restart(service_opts.service_name)
+    if no_connect:
+        executor.resolver.ip_resolver.lease_ip(acc.account, vpn_opts.account_to_nic(acc.account))
     logger.done()
 
 
@@ -434,7 +435,6 @@ def __delete(vpn_opts: ClientOpts, accounts):
 @cli.command(name="set-default", help="Set VPN default connection in startup by given VPN account")
 @click.argument('account', nargs=1)
 @click.option('--connect', type=bool, default=False, flag_value=True, help='Open connection immediately')
-@vpn_auth_opts
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @verbose_opts
@@ -462,9 +462,9 @@ def __connect(vpn_opts: ClientOpts, account: str, is_default: bool):
     executor = VPNClientExecutor(vpn_opts).probe(log_lvl=logger.INFO)
     setup_cmd = ['AccountConnect', 'AccountStartupSet'] if is_default else ['AccountConnect']
     executor.disconnect_current()
-    executor.exec_command(setup_cmd, params=account, log_lvl=logger.INFO)
+    executor.exec_command(setup_cmd, params=account, silent=True, log_lvl=logger.INFO)
     acc = AccountInfo.merge(executor.storage.find(account), AccountInfo('', account, '', is_default))
-    executor.storage.create_or_update(acc)
+    executor.storage.create_or_update(acc, connect=True)
     if acc.is_default:
         service_opts = executor.read_cache_service()
         executor.resolver.unix_service.enable(service_opts.service_name)
@@ -620,29 +620,31 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
     logger.info(f'Update DNS with {reason}::{nic}...')
     _reason = DHCPReason[reason]
     executor = VPNClientExecutor(vpn_opts).probe(silent=True, log_lvl=logger.INFO)
-    current_acc = executor.storage.get_current()
+    current = executor.storage.get_current(info=True)
     is_in_scan = _reason is DHCPReason.SCAN
     if not _reason.is_release() and not is_in_scan:
-        if not current_acc:
+        if not current:
             logger.warn(f'Not found any VPN account')
             sys.exit(ErrorCode.VPN_ACCOUNT_NOT_FOUND)
         if not vpn_opts.is_vpn_nic(nic):
             logger.warn(f'NIC[{nic}] does not belong to VPN service')
             sys.exit(0)
-        if vpn_opts.nic_to_account(nic) != current_acc:
+        if vpn_opts.nic_to_account(nic) != current.account:
             logger.warn(f'NIC[{nic}] does not meet current VPN account')
             sys.exit(ErrorCode.VPN_ACCOUNT_NOT_MATCH)
     if is_in_scan:
-        loop_interval(lambda: None, lambda: len(executor.resolver.dns_resolver.query_vpn_nameservers(current_acc)) > 0,
+        dns_root = current.account  # TODO: Fix to current.hub
+        loop_interval(lambda: None, lambda: len(executor.resolver.dns_resolver.query_vpn_nameservers(dns_root)) > 0,
                       'Unable read DHCP status', exit_if_error=True, max_retries=10)
-        nic = vpn_opts.account_to_nic(current_acc)
-        new_nameservers = ','.join(executor.resolver.dns_resolver.query_vpn_nameservers(current_acc))
+        nic = vpn_opts.account_to_nic(current.account)
+        new_nameservers = ','.join(executor.resolver.dns_resolver.query_vpn_nameservers(dns_root))
         _reason = DHCPReason.BOUND
     if debug:
         now = datetime.now().isoformat()
         FileHelper.write_file(os.path.join('/tmp', 'vpn_dns'), append=True,
                               content=f"{now}::{reason}::{nic}::{new_nameservers}::{old_nameservers}\n")
-    executor.resolver.dns_resolver.resolve(_reason, current_acc, new_nameservers, old_nameservers)
+    vpn_service = executor.read_cache_service().service_name
+    executor.resolver.dns_resolver.resolve(vpn_service, _reason, current.account, new_nameservers, old_nameservers)
     if is_in_scan:
         executor.resolver.ip_resolver.renew_all_ip()
 

@@ -199,22 +199,30 @@ class DNSFlavour(ABC):
         """
         pass
 
-    def update(self, reason: DHCPReason, priv_root_dns: str, nameservers: list, dns_nameserver_config: Path):
+    def update(self, reason: DHCPReason, priv_root_dns: str, nameservers: list, vpn_nameserver_cfg: Path):
         """
         Update DNS configuration on each time IPResolver receive a hook event
         :param reason: DHCP reason
         :param priv_root_dns: Private root DNS
         :param nameservers: Private nameservers
-        :param dns_nameserver_config: a runtime DNS nameserver configuration
+        :param vpn_nameserver_cfg: a runtime DNS nameserver configuration
         :return:
         """
         pass
 
-    def query(self, priv_root_dns: str, dns_nameserver_config: Path) -> list:
+    def query(self, priv_root_dns: str, vpn_nameserver_cfg: Path) -> list:
         """
         Query current private DNS server
         :param priv_root_dns: Private root DNS
-        :param dns_nameserver_config: a runtime DNS nameserver configuration
+        :param vpn_nameserver_cfg: a runtime DNS nameserver configuration
+        :return:
+        """
+        pass
+
+    def reset_nameservers(self, vpn_nameserver_cfg: Path):
+        """
+        Reset nameservers due to change VPN configuration
+        :param vpn_nameserver_cfg: a runtime DNS nameserver configuration
         :return:
         """
         pass
@@ -345,30 +353,34 @@ class DNSMasqFlavour(DNSFlavour):
         if self._resolver:
             self._resolver.tweak_per_nic(nic)
 
-    def update(self, reason: DHCPReason, priv_root_dns: str, nameservers: list, dns_nameserver_config: Path):
+    def update(self, reason: DHCPReason, priv_root_dns: str, nameservers: list, vpn_nameserver_cfg: Path):
         logger.info(f'Update VPN DNS config file on [{reason.name}][{priv_root_dns}] with nameservers {nameservers}...')
         servers = '\n'.join([f'server=/{priv_root_dns}/{ns}' for ns in nameservers])
-        FileHelper.write_file(dns_nameserver_config, mode=0o644,
+        FileHelper.write_file(vpn_nameserver_cfg, mode=0o644,
                               content=f'### Generated at [{datetime.now().isoformat()}]\n{servers}\n')
         self._restart_dnsmasq()
 
-    def query(self, priv_root_dns: str, dns_nameserver_config: Path) -> list:
-        if not FileHelper.is_readable(dns_nameserver_config):
+    def reset_nameservers(self, vpn_nameserver_cfg: Path):
+        logger.info('Reset VPN DNS config file...')
+        FileHelper.write_file(vpn_nameserver_cfg, mode=0o644, content='')
+        FileHelper.create_symlink(vpn_nameserver_cfg, self._dnsmasq_vpn_nameserver_cfg, force=True)
+        self._restart_dnsmasq()
+
+    def query(self, priv_root_dns: str, vpn_nameserver_cfg: Path) -> list:
+        if not FileHelper.is_readable(vpn_nameserver_cfg):
             return []
-        nss = grep(FileHelper.read_file_by_line(dns_nameserver_config, fallback_if_not_exists=''),
+        nss = grep(FileHelper.read_file_by_line(vpn_nameserver_cfg, fallback_if_not_exists=''),
                    fr'server=/{priv_root_dns}/.+')
         return [ns[len(f'server='):].strip() for ns in nss]
 
     def restore_config(self, vpn_service: str, keep_dnsmasq=True):
-        logger.debug(f'Remove dnsmasq nameserver config [{self._dnsmasq_vpn_nameserver_cfg}]')
-        FileHelper.rm(self._dnsmasq_vpn_nameserver_cfg)
-        if keep_dnsmasq:
-            self._restart_dnsmasq()
-            return
-        logger.debug(f'Remove dnsmasq vpn config [{self._dnsmasq_vpn_cfg(vpn_service)}]')
-        FileHelper.rm(self._dnsmasq_vpn_cfg(vpn_service))
-        self.service.stop(self.config.identity)
-        self.service.disable(self.config.identity)
+        if not keep_dnsmasq:
+            logger.debug(f'Remove dnsmasq nameserver config [{self._dnsmasq_vpn_nameserver_cfg}]')
+            FileHelper.rm(self._dnsmasq_vpn_nameserver_cfg)
+            logger.debug(f'Remove dnsmasq vpn config [{self._dnsmasq_vpn_cfg(vpn_service)}]')
+            FileHelper.rm(self._dnsmasq_vpn_cfg(vpn_service))
+            self.service.stop(self.config.identity)
+            self.service.disable(self.config.identity)
         if self._resolver:
             self._resolver.restore_config(vpn_service, keep_dnsmasq)
 
@@ -495,11 +507,11 @@ class DNSResolver(AppConvention):
     def tweak_on_nic(self, nic: str):
         self._resolver().tweak_per_nic(nic)
 
-    def resolve(self, reason: DHCPReason, priv_root_dns: str, new_nameservers: str = None, old_nameservers: str = None):
+    def resolve(self, vpn_service: str, reason: DHCPReason, priv_root_dns: str, new_nameservers: str = None,
+                old_nameservers: str = None):
         resolver = self._resolver()
         if reason.is_release():
-            # TODO fix it
-            self.restore_config(vpn_service='')
+            self.restore_config(vpn_service=vpn_service)
             return
         nss = self.__validate_nameservers(reason, new_nameservers, old_nameservers)
         if nss is None:
@@ -508,19 +520,23 @@ class DNSResolver(AppConvention):
         resolver.update(reason, priv_root_dns, nss, self.dns_nameserver_runtime_cfg)
 
     def restore_config(self, vpn_service: str, keep_dnsmasq=True):
-        logger.info(f'Remove VPN nameserver config [{self.VPN_NAMESERVER_CFG}]...')
-        self._resolver().restore_config(vpn_service, keep_dnsmasq)
-        FileHelper.rm(self.dns_nameserver_runtime_cfg)
         if keep_dnsmasq:
-            return
-        if FileHelper.is_readable(self.dns_origin_cfg):
-            logger.info(f'Restore System DNS config file...')
-            FileHelper.backup(self.dns_origin_cfg, DNSResolver.DNS_SYSTEM_FILE)
+            self.reset_vpn_nameservers()
+        else:
+            logger.info(f'Remove VPN nameserver config [{self.VPN_NAMESERVER_CFG}]...')
+            FileHelper.rm(self.dns_nameserver_runtime_cfg)
+            if FileHelper.is_readable(self.dns_origin_cfg):
+                logger.info(f'Restore System DNS config file...')
+                FileHelper.backup(self.dns_origin_cfg, DNSResolver.DNS_SYSTEM_FILE)
+        self._resolver().restore_config(vpn_service, keep_dnsmasq)
+
+    def reset_vpn_nameservers(self):
+        self._resolver().reset_nameservers(self.dns_nameserver_runtime_cfg)
 
     def query_vpn_nameservers(self, priv_root_dns: str) -> list:
         return self._resolver().query(priv_root_dns, self.dns_nameserver_runtime_cfg)
 
-    def _resolver(self) -> Optional[DNSFlavour]:
+    def _resolver(self) -> DNSFlavour:
         if self.kind.is_dnsmasq():
             return DNSMasqFlavour(DNSResolverType.DNSMASQ.config, self.service, self.resource_dir,
                                   available=self.is_dnsmasq_available())
@@ -589,7 +605,7 @@ class IPResolver(AppConvention):
 
     def cleanup_zombie(self, process):
         logger.log(self.log_lvl, 'Cleanup the IP lease zombie processes...')
-        SystemHelper.ps_kill(f'{self.ip_tool}.*{process}.*', silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
+        SystemHelper.ps_kill(f'{self.ip_tool}.*{process}.*', silent=True, log_lvl=logger.down_lvl(self.log_lvl))
 
     def get_vpn_ip(self, nic: str):
         try:
