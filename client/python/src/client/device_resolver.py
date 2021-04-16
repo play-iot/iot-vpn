@@ -587,9 +587,9 @@ class IPResolver(AppConvention):
         SystemHelper.exec_command(f'{self._refresh_all_ip_opt()}', silent=self.silent,
                                   log_lvl=logger.down_lvl(self.log_lvl))
 
-    def cleanup_vpn_ip(self):
-        logger.log(self.log_lvl, 'Cleanup all ip lease process for VPN...')
-        SystemHelper.ps_kill(f'{self.ip_tool} .* vpn_', silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
+    def cleanup_zombie(self, process):
+        logger.log(self.log_lvl, 'Cleanup the IP lease zombie processes...')
+        SystemHelper.ps_kill(f'{self.ip_tool}.*{process}.*', silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
 
     def get_vpn_ip(self, nic: str):
         try:

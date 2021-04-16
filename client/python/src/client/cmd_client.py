@@ -106,10 +106,6 @@ class VPNClientExecutor(VpnCmdExecutor):
         except:
             return None
 
-    def cleanup_zombie_vpn(self, delay=1, log_lvl=logger.DEBUG):
-        time.sleep(delay)
-        SystemHelper.ps_kill('vpnclient execsvc', silent=True, log_lvl=log_lvl)
-
     def __find_pid(self, log_lvl=logger.DEBUG) -> int:
         logger.log(log_lvl, 'Checking if VPN is running')
         return next((pid for pid in map(lambda x: self._check_pid(x, log_lvl), self.__pid_files(log_lvl)) if pid), 0)
@@ -157,6 +153,12 @@ class VPNClientExecutor(VpnCmdExecutor):
 
     def find_current_account(self) -> Optional[str]:
         return FileHelper.read_file_by_line(self.opts.current_acc_file)
+
+    @staticmethod
+    def cleanup_zombie_vpn(delay=1, log_lvl=logger.DEBUG) -> str:
+        time.sleep(delay)
+        SystemHelper.ps_kill('vpnclient execsvc', silent=True, log_lvl=log_lvl)
+        return 'vpn_'
 
 
 vpn_client_opts = vpn_dir_opts_factory(app_dir="/app/vpnclient", opt_func=ClientOpts)
@@ -229,10 +231,9 @@ def __uninstall(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, force: bool
     if account:
         executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], account, silent=True)
     resolver.unix_service.remove(unix_service, force)
-    executor.cleanup_zombie_vpn()
+    resolver.ip_resolver.cleanup_zombie(executor.cleanup_zombie_vpn())
     resolver.dns_resolver.restore_config(unix_service.service_name, keep_dnsmasq=keep_dnsmasq)
     resolver.ip_resolver.remove_hook(unix_service.service_name)
-    resolver.ip_resolver.cleanup_vpn_ip()
     resolver.ip_resolver.renew_all_ip()
     if force:
         logger.info(f'Remove VPN Client in {vpn_opts.vpn_dir}...')
@@ -345,7 +346,7 @@ def __disconnect(disable: bool, vpn_opts: ClientOpts, unix_service: UnixServiceO
         executor.exec_command('AccountDisconnect', current_account, silent=True)
     resolver.dns_resolver.restore_config(unix_service.service_name)
     resolver.unix_service.stop(unix_service.service_name)
-    executor.cleanup_zombie_vpn()
+    resolver.ip_resolver.cleanup_zombie(executor.cleanup_zombie_vpn())
     if disable:
         resolver.unix_service.disable(unix_service.service_name)
     logger.done()
@@ -465,9 +466,10 @@ def __start(vpn_opts: ClientOpts):
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @permission
 def __stop(vpn_opts: ClientOpts):
-    VPNClientExecutor(vpn_opts).post_exec(log_lvl=logger.INFO)
+    executor = VPNClientExecutor(vpn_opts)
+    executor.post_exec(log_lvl=logger.INFO)
     resolver = DeviceResolver().probe(ClientOpts.resource_dir(), vpn_opts.runtime_dir, logger.INFO, True)
-    resolver.ip_resolver.cleanup_vpn_ip()
+    resolver.ip_resolver.cleanup_zombie(executor.cleanup_zombie_vpn())
     resolver.ip_resolver.renew_all_ip()
 
 
