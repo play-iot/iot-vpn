@@ -178,6 +178,7 @@ def __download(downloader_opts: DownloaderOpt):
 
 
 @cli.command(name="install", help="Install VPN client and setup *nix service")
+@click.option("--auto-startup", type=bool, default=False, flag_value=True, help="Enable auto-startup VPN service")
 @click.option("--dnsmasq/--no-dnsmasq", type=bool, default=True, flag_value=False,
               help="By default, dnsmasq is used as local DNS cache. Disabled it if using default System DNS resolver")
 @vpn_client_opts
@@ -185,7 +186,7 @@ def __download(downloader_opts: DownloaderOpt):
 @unix_service_opts
 @verbose_opts
 @permission
-def __install(dnsmasq: bool, vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
+def __install(auto_startup: bool, dnsmasq: bool, vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
     if not dnsmasq:
         logger.error('Unsupported using Systemd DNS resolver. Must use dnsmasq')
         sys.exit(ErrorCode.NOT_YET_SUPPORTED)
@@ -205,7 +206,7 @@ def __install(dnsmasq: bool, vpn_opts: ClientOpts, unix_service: UnixServiceOpts
         '{{VPN_DESC}}': unix_service.service_name,
         '{{START_CMD}}': f'{cmd} start --vpn-dir {vpn_opts.vpn_dir}',
         '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {vpn_opts.vpn_dir}'
-    })
+    }, auto_startup)
     resolver.ip_resolver.add_hook(unix_service.service_name,
                                   {'{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{VPN_CLIENT_CLI}}': cmd})
     resolver.dns_resolver.create_config(unix_service.service_name)
@@ -234,7 +235,7 @@ def __uninstall(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, force: bool
     resolver.ip_resolver.cleanup_vpn_ip()
     resolver.ip_resolver.renew_all_ip()
     if force:
-        logger.info(f'Removing VPN Client in {vpn_opts.vpn_dir}...')
+        logger.info(f'Remove VPN Client in {vpn_opts.vpn_dir}...')
         shutil.rmtree(vpn_opts.vpn_dir, ignore_errors=True)
     logger.done()
 
@@ -274,6 +275,7 @@ def __add(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, server_opts: Serv
     executor.save_current_account(account)
     resolver.ip_resolver.create_config(account, {'{{HOST_NAME}}': host_name})
     resolver.dns_resolver.tweak_on_nic(vpn_nic)
+    resolver.unix_service.enable(unix_service.service_name)
     resolver.unix_service.restart(unix_service.service_name)
     logger.done()
 
@@ -328,12 +330,13 @@ def __connect(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, account):
 
 
 @cli.command(name='disconnect', help='Disconnect VPN connection')
+@click.option("--disable", type=bool, default=False, flag_value=True, help='Disable VPN Client service')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @unix_service_opts
 @verbose_opts
 @permission
-def __disconnect(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
+def __disconnect(disable: bool, vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
     resolver = DeviceResolver().probe(ClientOpts.resource_dir(), vpn_opts.runtime_dir, log_lvl=logger.INFO)
     executor = VPNClientExecutor(vpn_opts=vpn_opts)
     current_account = executor.remove_current_account()
@@ -342,6 +345,9 @@ def __disconnect(vpn_opts: ClientOpts, unix_service: UnixServiceOpts):
         executor.exec_command('AccountDisconnect', current_account, silent=True)
     resolver.dns_resolver.restore_config(unix_service.service_name)
     resolver.unix_service.stop(unix_service.service_name)
+    executor.cleanup_zombie_vpn()
+    if disable:
+        resolver.unix_service.disable(unix_service.service_name)
     logger.done()
 
 
@@ -493,10 +499,10 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
             logger.warn(f'NIC[{nic}] does not meet current VPN account')
             sys.exit(ErrorCode.VPN_ACCOUNT_NOT_MATCH)
     if is_in_scan:
-        loop_interval(lambda: None, lambda: resolver.dns_resolver.query_vpn_nameservers(current_acc) is not None,
+        loop_interval(lambda: None, lambda: len(resolver.dns_resolver.query_vpn_nameservers(current_acc)) > 0,
                       'Unable read DHCP status', exit_if_error=True, max_retries=10)
         nic = vpn_opts.account_to_nic(current_acc)
-        new_nameservers = resolver.dns_resolver.query_vpn_nameservers(current_acc)
+        new_nameservers = ','.join(resolver.dns_resolver.query_vpn_nameservers(current_acc))
         _reason = DHCPReason.BOUND
     if debug:
         now = datetime.now().isoformat()

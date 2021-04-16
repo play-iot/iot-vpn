@@ -39,5 +39,5 @@ fi
 case $interface in vpn_*)
     loc=$(locale -a | grep -E "^(C.UTF-8|C.utf8|en_US.utf8|en_GB.utf8)$" | head -n1)
     LC_ALL=$loc;LANG=$loc {{VPN_CLIENT_CLI}} dns --vpn-dir "{{WORKING_DIR}}" -n "$interface" \
-                            -nns "$new_domain_name_servers" -ons "$old_domain_name_servers" "$reason" --debug
+                            -nns "$new_domain_name_servers" -ons "$old_domain_name_servers" "$reason"
 esac

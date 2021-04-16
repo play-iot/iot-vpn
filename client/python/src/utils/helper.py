@@ -74,7 +74,7 @@ class FileHelper(object):
         [Path(f).mkdir(parents=True, exist_ok=True, mode=mode) for f in folders]
 
     @staticmethod
-    def touch(path: Union[str, Path], mode=0o0664):
+    def touch(path: Union[str, Path], mode=0o0644):
         p = Path(path)
         with open(str(p.absolute()), 'w') as _:
             os.chmod(p, mode)
