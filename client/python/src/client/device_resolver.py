@@ -236,6 +236,14 @@ class DNSFlavour(ABC):
                         self.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG), True)
         FileHelper.chmod(self.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG), mode=0o0644)
         self.service.restart(identity)
+        return self.config.runtime_resolv
+
+    def _common_remove_dnsmasq(self, vpn_service: str, keep_dnsmasq: bool):
+        if not keep_dnsmasq:
+            cfg = self.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG)
+            logger.debug(f'Remove [dnsmasq] and [{vpn_service}] plugin[{cfg}]...')
+            FileHelper.rm(cfg)
+            self.service.restart(self.config.identity)
 
 
 class MockDNSFlavour(DNSFlavour):
@@ -246,15 +254,11 @@ class MockDNSFlavour(DNSFlavour):
 
 class SystemdResolvedFlavour(DNSFlavour):
 
-    def adapt_dnsmasq(self, vpn_service: str):
-        self._common_adapt_dnsmasq(vpn_service)
-        return self.config.runtime_resolv
+    def adapt_dnsmasq(self, vpn_service: str) -> Optional[Path]:
+        return self._common_adapt_dnsmasq(vpn_service)
 
     def restore_config(self, vpn_service: str, keep_dnsmasq=True):
-        if not keep_dnsmasq:
-            logger.debug(f'Remove [dnsmasq] and [{vpn_service}] configuration...')
-            FileHelper.rm(self.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG))
-            self.service.restart(self.config.identity)
+        self._common_remove_dnsmasq(vpn_service, keep_dnsmasq)
 
 
 class NetworkManagerFlavour(DNSFlavour):
@@ -267,15 +271,11 @@ class NetworkManagerFlavour(DNSFlavour):
     def dnsmasq_config_dir(self) -> Optional[Path]:
         return Path(self.config.plugin_dir) if self.config.plugin_dir else None
 
-    def adapt_dnsmasq(self, vpn_service: str):
-        self._common_adapt_dnsmasq(vpn_service)
-        return self.config.runtime_resolv
+    def adapt_dnsmasq(self, vpn_service: str) -> Optional[Path]:
+        return self._common_adapt_dnsmasq(vpn_service)
 
     def restore_config(self, vpn_service: str, keep_dnsmasq=True):
-        if not keep_dnsmasq:
-            logger.debug(f'Remove [dnsmasq] and [{vpn_service}] plugin...')
-            FileHelper.rm(self.config.to_fqn_cfg(self.DNSMASQ_TUNED_CFG))
-            self.service.restart(self.config.identity)
+        self._common_remove_dnsmasq(vpn_service, keep_dnsmasq)
 
 
 class ConnmanFlavour(DNSFlavour):
@@ -641,7 +641,7 @@ class Systemd(UnixService):
         FileHelper.copy(self.resource_dir.joinpath(Systemd.SERVICE_FILE_TMPL), service_fqn, force=True)
         FileHelper.replace_in_file(service_fqn, replacements, backup='')
         FileHelper.chmod(service_fqn, mode=0o0644)
-        logger.debug(f'Add new service [{opts.service_name}] in [{service_fqn}]')
+        logger.info(f'Add new service [{opts.service_name}] in [{service_fqn}]')
         SystemHelper.exec_command("systemctl daemon-reload", silent=True, log_lvl=logger.INFO)
         if auto_startup:
             self.enable(opts.service_name)
