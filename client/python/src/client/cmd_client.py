@@ -171,8 +171,7 @@ class AccountStorage:
 class VPNClientExecutor(VpnCmdExecutor):
 
     def __init__(self, vpn_opts: ClientOpts):
-        super().__init__(vpn_opts.vpn_dir)
-        self.opts = vpn_opts
+        super().__init__(vpn_opts)
         self.storage = AccountStorage(self.opts.account_cache_file)
         self._resolver = DeviceResolver()
         self.current_pid = None

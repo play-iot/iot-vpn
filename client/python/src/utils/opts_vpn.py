@@ -101,13 +101,9 @@ class VpnDirectory(DevModeDir):
     def __init__(self, app_dir: str):
         self.vpn_dir = app_dir
 
-    @staticmethod
-    def vpn_cmd(vpn_dir: str):
-        return os.path.join(vpn_dir, 'vpncmd')
-
     @property
     def vpncmd(self):
-        return VpnDirectory.vpn_cmd(self.vpn_dir)
+        return os.path.join(self.vpn_dir, 'vpncmd')
 
     @property
     def runtime_dir(self):

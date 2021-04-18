@@ -24,16 +24,13 @@ class GCloudDNSProvider(CloudDNSProvider):
         changes = zone.changes()
         [changes.delete_record_set(rrs) for rrs in zone.list_resource_record_sets() if rrs.record_type == 'A']
         [changes.add_record_set(
-            ResourceRecordSet(self.to_dns(dns_name, dns), 'A', dns.ttl, [dns.vpn_ip], zone)) for dns in
+            ResourceRecordSet(self.to_dns(dns, dns_name), 'A', dns.ttl, [dns.vpn_ip], zone)) for dns in
             dns_entries if dns.is_valid()]
         logger.info(f'Purge {len(changes.deletions)} DNS records then create {len(changes.additions)} DNS records')
         changes.create(self.client)
         loop_interval(lambda: changes.reload(), lambda: changes.status != 'pending', 'Unable sync DNS',
                       self.max_retries, self.interval, exit_if_error=True)
         logger.info(f'Zone Changed: {changes._properties}')
-
-    def to_dns(self, dns_name, dns_entry: DNSEntry):
-        return f'{dns_entry.hostname}.{dns_name}.'
 
     def _ensure_zone_exists(self, zone_name, dns_name, dns_description):
         def create_zone(_client: Client, _zone: ManagedZone):

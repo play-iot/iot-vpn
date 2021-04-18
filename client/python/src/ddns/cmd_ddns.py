@@ -2,14 +2,14 @@ import os
 import re
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Iterator
+from typing import Iterator, Optional, Tuple, Sequence
 
 import click
 
 from src.executor.vpn_cmd_executor import VpnCmdExecutor
 from src.utils import logger
 from src.utils.downloader import downloader_opt_factory, VPNType, DownloaderOpt, download
-from src.utils.helper import resource_finder, awk, grep
+from src.utils.helper import resource_finder, awk, grep, JsonHelper
 from src.utils.opts_shared import CLI_CTX_SETTINGS, verbose_opts, dev_mode_opts
 from src.utils.opts_vpn import vpn_server_opts, ServerOpts, vpn_dir_opts_factory, VpnDirectory
 
@@ -22,15 +22,59 @@ class CloudType(Enum):
     AZURE = 'azure'
 
 
+class MacIp:
+
+    def __init__(self, session_name: str, mac: str, vpn_ip: str, hostname: str):
+        self.session_name = session_name
+        self.mac = mac
+        self.vpn_ip = vpn_ip
+        self.hostname = hostname
+
+
+class UserSession:
+    NAT_SESSION_USER = 'SecureNAT'
+
+    def __init__(self, session_name: str, user_name: str, public_ip: str, public_hostname: str, local_ip: str,
+                 local_hostname: str):
+        self.session_name = session_name
+        self.user_name = user_name
+        self.public_ip = public_ip
+        self.public_hostname = public_hostname
+        self.local_ip = local_ip
+        self.local_hostname = local_hostname
+        self.mac, self.vpn_ip, self.dhcp_hostname = None, None, None
+
+    def load_ip(self, mac_ip: MacIp) -> 'UserSession':
+        self.mac = mac_ip.mac
+        self.vpn_ip = mac_ip.vpn_ip
+        self.dhcp_hostname = mac_ip.hostname
+        return self
+
+    def decode_hostname(self) -> str:
+        return VpnCmdExecutor.decode_host_name(self.dhcp_hostname)
+
+
 class DNSEntry:
-    def __init__(self, mac=None, vpn_ip=None, hostname=None, ttl=None, **kwargs):
-        self.mac = mac or kwargs['mac']
-        self.vpn_ip = vpn_ip or kwargs['vpn_ip']
-        self.hostname = hostname or kwargs['hostname']
-        self.ttl = ttl or kwargs['ttl']
+    DEFAULT_TTL = 120
+
+    def __init__(self, user_session: UserSession, ttl: int = DEFAULT_TTL, vpn_hub: str = None):
+        self.user_session = user_session
+        self.ttl = ttl
+        self._fqn_dns = self.fqn_dns(DNSEntry.device_dns(vpn_hub) if vpn_hub else None)
+
+    @property
+    def vpn_ip(self):
+        return self.user_session.vpn_ip
 
     def is_valid(self):
-        return self.mac and self.vpn_ip and self.hostname
+        return self.user_session.mac and self.user_session.vpn_ip and self.user_session.user_name
+
+    def fqn_dns(self, dns_name):
+        return f'{self.user_session.user_name}.{dns_name}'
+
+    @staticmethod
+    def device_dns(vpn_hub: str, dns_name: str = None):
+        return dns_name or f'device.{vpn_hub}'
 
 
 class CloudDNSProvider(ABC):
@@ -40,18 +84,18 @@ class CloudDNSProvider(ABC):
         self.service_account = service_account
 
     @abstractmethod
-    def sync_ip(self, dns_entries, zone_name, dns_name, dns_description):
+    def sync_ip(self, dns_entries: Sequence[DNSEntry], zone_name: str, dns_name: str, dns_description: str):
         raise NotImplementedError('Must implemented')
 
     @abstractmethod
-    def to_dns(self, dns_name, dns_entry: DNSEntry):
-        raise NotImplementedError('Must implemented')
+    def to_dns(self, dns_entry: DNSEntry, dns_name: str):
+        return dns_entry.fqn_dns(dns_name)
 
 
 class VPNHubExecutor(VpnCmdExecutor):
 
     def __init__(self, vpn_opts: VpnDirectory, server_opts: ServerOpts, hub_pwd):
-        super().__init__(vpn_opts.vpn_dir)
+        super().__init__(vpn_opts)
         self.server_opts = server_opts
         self.hub_pwd = hub_pwd
 
@@ -64,19 +108,58 @@ class VPNHubExecutor(VpnCmdExecutor):
     def vpn_cmd_opt(self):
         return f'/SERVER {self.server_opts.server} /hub:{self.server_opts.hub} /password:{self.hub_pwd} /CMD'
 
-
-def query_hub(hub_password: str, server_opts: ServerOpts, vpn_opts: VpnDirectory) -> Iterator:
-    def parse_entry_value(idx: int, row: str):
+    def _parse_entry_value(self, idx: int, row: str):
         value = awk(row, sep='|', pos=1)
-        return VPNHubExecutor.decode_host_name(value) if idx == 2 else value
+        return self.decode_host_name(value) if idx == 2 else value
 
-    # SessionList > SessionGet (user + session + session_name + client_hostname + client_ip_public + client_ip_local)
-    # MacTable(session_name + mac) > DhcpTable (mac + vpn_ip)
-    dhcp_table = VPNHubExecutor(vpn_opts, server_opts, hub_password).exec_command('DhcpTable')
-    raw = zip(grep(dhcp_table, r'MAC Address.+', re.MULTILINE), grep(dhcp_table, r'Allocated IP.+', re.MULTILINE),
-              grep(dhcp_table, r'Client Host Name.+', re.MULTILINE))
-    keys = {0: 'mac', 1: 'vpn_ip', 2: 'hostname'}
-    return map(lambda each: {keys[idx]: parse_entry_value(idx, r) for idx, r in enumerate(each)}, raw)
+    @staticmethod
+    def _parse_row(row: Iterator[Tuple], columns: dict) -> Iterator[dict]:
+        return map(lambda each: {columns[idx]: awk(r, sep='|', pos=1) for idx, r in enumerate(each)}, row)
+
+    def list_user_sessions(self) -> Iterator[UserSession]:
+        sessions = self.query_sessions()
+        mac_ip_table = self.query_mac_ip_table()
+        return [s.load_ip(mac_ip_table.get(k)) for k, s in sessions.items() if s is not None]
+
+    def query_sessions(self) -> dict:
+        sessions = self.exec_command('SessionList')
+        row = zip(grep(sessions, r'Session Name.+', re.MULTILINE), grep(sessions, r'User Name.+', re.MULTILINE))
+        return {v.get('session_name'): self._lookup_session(v) for v in
+                self._parse_row(row, {0: 'session_name', 1: 'user_name'})}
+
+    def query_mac_ip_table(self) -> dict:
+        def _ip_table(key: str, mac_obj: dict, _dhcp_table: dict) -> Optional[MacIp]:
+            dhcp = _dhcp_table.get(key)
+            return MacIp(**{**mac_obj, **dhcp}) if dhcp else None
+
+        mac_table = self._query_mac_table()
+        dhcp_table = self._query_dhcp_table()
+        return {v.get('session_name'): _ip_table(k, v, dhcp_table) for k, v in mac_table.items()}
+
+    def _lookup_session(self, user_session: dict) -> Optional[UserSession]:
+        if user_session.get('user_name', None) == UserSession.NAT_SESSION_USER:
+            return None
+        session = self.exec_command(f'SessionGet {user_session.get("session_name")}')
+        row = zip(grep(session, r'Client IP Address[^(\n]+\|.+', re.MULTILINE),
+                  grep(session, r'Client Host Name[^(\n]+\|.+', re.MULTILINE),
+                  grep(session, r'Client IP Address.+\(Reported\).+\|.+', re.MULTILINE),
+                  grep(session, r'Client Host Name.+\(Reported\).+\|.+', re.MULTILINE))
+        extra = next(self._parse_row(row, {0: 'public_ip', 1: 'public_hostname', 2: 'local_ip', 3: 'local_hostname'}),
+                     None)
+        if not extra:
+            return None
+        return UserSession(**{**user_session, **extra})
+
+    def _query_mac_table(self):
+        mac_table = self.exec_command('MacTable')
+        row = zip(grep(mac_table, r'Session Name.+', re.MULTILINE), grep(mac_table, r'MAC Address.+\|.+', re.MULTILINE))
+        return {v['mac']: v for v in self._parse_row(row, {0: 'session_name', 1: 'mac'})}
+
+    def _query_dhcp_table(self):
+        dhcp_table = self.exec_command('DhcpTable')
+        row = zip(grep(dhcp_table, r'MAC Address.+', re.MULTILINE), grep(dhcp_table, r'Allocated IP.+', re.MULTILINE),
+                  grep(dhcp_table, r'Client Host Name.+', re.MULTILINE))
+        return {v['mac']: v for v in self._parse_row(row, {0: 'mac', 1: 'vpn_ip', 2: 'hostname'})}
 
 
 @click.group(name="ddns", context_settings=CLI_CTX_SETTINGS)
@@ -101,8 +184,8 @@ def __download(downloader_opts: DownloaderOpt):
 @click.option('-sa', '--cloud-svc', required=True, type=click.Path(exists=True, dir_okay=False),
               help='Cloud service account')
 @click.option('-zn', '--dns-zone', required=True, type=str, help='DNS Zone name')
-@click.option('-zd', '--dns-name', type=str, help='DNS name. Default is <VPN_HUB>.device')
-@click.option('-zt', '--dns-ttl', type=int, default=2 * 60,
+@click.option('-zd', '--dns-name', type=str, help='DNS name. Default is "device.<VPN_HUB>"')
+@click.option('-zt', '--dns-ttl', type=int, default=DNSEntry.DEFAULT_TTL,
               help='Number of seconds that this DNS can be cached by resolvers')
 @vpn_server_opts
 @click.option('-pw', '--hub-password', type=str, prompt=True, hide_input=True, help='VPN Hub admin password')
@@ -116,19 +199,31 @@ def sync(cloud_type: CloudType, cloud_project: str, cloud_svc: str, dns_zone: st
         dns_provider = GCloudDNSProvider(cloud_project, cloud_svc, zone_name=dns_zone)
     else:
         raise NotImplementedError(f'Not yet supported cloud {cloud_type}')
-    res = query_hub(hub_password, server_opts, vpn_opts)
-    dns_provider.sync_ip([DNSEntry(ttl=dns_ttl, **r) for r in res], dns_zone,
-                         dns_name or f'{server_opts.hub}.device', f'{server_opts.hub.upper()} devices zone')
+    sessions = VPNHubExecutor(vpn_opts, server_opts, hub_password).list_user_sessions()
+    dns_provider.sync_ip([DNSEntry(s, ttl=dns_ttl) for s in sessions], dns_zone,
+                         DNSEntry.device_dns(server_opts.hub, dns_name), f'{server_opts.hub.upper()} devices zone')
 
 
 @cli.command(name="query", help="Sync Cloud Private DNS", hidden=True)
 @vpn_server_opts
 @click.option('-pw', '--hub-password', type=str, prompt=True, hide_input=True, help='VPN Hub admin password')
 @vpn_dir_opts
-@dev_mode_opts(VpnDirectory.OPT_NAME)
+@dev_mode_opts(VpnDirectory.OPT_NAME, hidden=False)
 @verbose_opts
 def __query(server_opts: ServerOpts, hub_password: str, vpn_opts: VpnDirectory):
-    logger.info(list(query_hub(hub_password, server_opts=server_opts, vpn_opts=vpn_opts)))
+    sessions = VPNHubExecutor(vpn_opts, server_opts, hub_password).list_user_sessions()
+    print(JsonHelper.to_json([DNSEntry(s, vpn_hub=server_opts.hub) for s in sessions]))
+
+
+@cli.command(name='command', help='Execute Ad-hoc VPN command', hidden=True)
+@click.argument("command", type=str, required=True)
+@vpn_server_opts
+@click.option('-pw', '--hub-password', type=str, prompt=True, hide_input=True, help='VPN Hub admin password')
+@vpn_dir_opts
+@dev_mode_opts(VpnDirectory.OPT_NAME)
+@verbose_opts
+def __execute(server_opts: ServerOpts, hub_password: str, vpn_opts: VpnDirectory, command):
+    VPNHubExecutor(vpn_opts, server_opts, hub_password).exec_command(command, log_lvl=logger.INFO)
 
 
 if __name__ == '__main__':

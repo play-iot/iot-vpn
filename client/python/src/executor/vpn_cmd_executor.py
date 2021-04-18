@@ -1,5 +1,6 @@
 import os
 from abc import ABC, abstractmethod
+from typing import TypeVar
 from typing import Union, Sequence, Dict
 
 from src.executor.shell_executor import SystemHelper
@@ -7,12 +8,29 @@ from src.utils import logger as logger
 from src.utils.helper import encode_base64, decode_base64
 from src.utils.opts_vpn import VpnDirectory
 
+VpnOpts = TypeVar("VpnOpts", bound=VpnDirectory)
+
 
 class VpnCmdExecutor(ABC):
 
-    def __init__(self, vpn_dir):
-        self.vpn_dir = vpn_dir
-        self.vpn_cmd = VpnDirectory.vpn_cmd(vpn_dir)
+    def __init__(self, vpn_opts: VpnOpts):
+        self._vpn_opts = vpn_opts
+
+    @property
+    def opts(self) -> VpnOpts:
+        return self._vpn_opts
+
+    @property
+    def vpn_dir(self):
+        return self.opts.vpn_dir
+
+    @property
+    def vpn_cmd(self):
+        return self.opts.vpncmd
+
+    @abstractmethod
+    def vpn_cmd_opt(self):
+        pass
 
     @abstractmethod
     def pre_exec(self, silent=False, log_lvl=logger.DEBUG, **kwargs):
@@ -20,10 +38,6 @@ class VpnCmdExecutor(ABC):
 
     @abstractmethod
     def post_exec(self, silent=False, log_lvl=logger.DEBUG, **kwargs):
-        pass
-
-    @abstractmethod
-    def vpn_cmd_opt(self):
         pass
 
     def exec_command(self, commands: Union[str, Sequence[str], Dict[str, str]], params: Union[str, Sequence[str]] = "",
