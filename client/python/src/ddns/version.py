@@ -1,1 +1,2 @@
-DDNS_VERSION = '1.0.0'
+APP_VERSION = '1.0.0'
+HASH_VERSION = 'dev'

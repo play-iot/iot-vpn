@@ -26,6 +26,7 @@ on:
       - 'docker/dockerfile/vpnclient.Dockerfile'
 
 env:
+  APP_CODE: vpnc
   APP_IMAGE: qweio-vpnc
   PYTHON_VERSION: 3.7.10-slim-stretch
   PLATFORMS: linux/amd64,linux/arm/v7
@@ -68,10 +69,10 @@ jobs:
           dry: false
           mustSign: true
           tagPrefix: ${{ env.TAG_PREFIX }}
-          releaseBranchPrefix: release/vpnc/
-          mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/vpnc/.+$"
+          releaseBranchPrefix: release/${{ env.APP_CODE }}/
+          mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/${{ env.APP_CODE }}/.+$"
           patterns: |
-            client/python/src/client/version.py::(CLI_VERSION\s?=\s?)(')([^']+)(')::2
+            client/python/src/client/version.py::(APP_VERSION\s?=\s?)(')([^']+)(')::2
 
   build:
     runs-on: ubuntu-latest
@@ -113,7 +114,7 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha
-            type=match,pattern=vpnc-v(.*),group=1
+            type=match,pattern=${{ env.APP_CODE }}-v(.*),group=1
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1

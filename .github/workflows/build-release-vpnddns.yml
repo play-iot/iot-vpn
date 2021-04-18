@@ -26,6 +26,7 @@ on:
       - 'docker/dockerfile/vpnddns.Dockerfile'
 
 env:
+  APP_CODE: vpnddns
   APP_IMAGE: qweio-vpnddns
   PYTHON_VERSION: 3.8.8-slim-buster
   PLATFORMS: linux/amd64
@@ -34,6 +35,7 @@ env:
   DOCKER_USERNAME: zero88
   DOCKER_IMAGE: zero88/qweio-vpnddns
   GHCR_IMAGE: ghcr.io/qweio/vpnddns
+  TAG_PREFIX: vpnddns/v
 
 jobs:
 
@@ -45,7 +47,7 @@ jobs:
       shouldPublish: ${{ steps.context.outputs.decision_publish }}
       isRelease: ${{ steps.context.outputs.isTag }}
       afterRelease: ${{ steps.context.outputs.isAfterMergedReleasePR }}
-      sha: ${{ steps.context.outputs.commitId }}
+      sha: ${{ steps.context.outputs.shortCommitId }}
       version: ${{ steps.context.outputs.version }}
 
     steps:
@@ -69,11 +71,11 @@ jobs:
         with:
           dry: false
           mustSign: true
-          tagPrefix: vpnddns/v
-          releaseBranchPrefix: release/vpnddns/
-          mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/vpnddns/.+$"
+          tagPrefix: ${{ env.TAG_PREFIX }}
+          releaseBranchPrefix: release/${{ env.APP_CODE }}/
+          mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/${{ env.APP_CODE }}/.+$"
           patterns: |
-            client/python/src/ddns/version.py::(DDNS_VERSION\s?=\s?)(')([^']+)(')::2
+            client/python/src/ddns/version.py::(APP_VERSION\s?=\s?)(')([^']+)(')::2
 
   build:
     runs-on: ubuntu-latest
@@ -90,10 +92,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Tree
+      - name: Inject Hash version
         run: |
-          ls -la ./client
-          ls -la ./client/python
+          sed -i 's/dev/${{ needs.context.outputs.sha }}/' client/python/src/client/version.py
 
       - name: Cache Docker layers
         uses: actions/cache@v2
@@ -105,9 +106,6 @@ jobs:
 
       - name: Validate cache
         run: |
-          ls -la ./
-          ls -la ./client
-          ls -la ./client/python
           docker buildx imagetools inspect localhost:5000/${{ env.APP_IMAGE }}:buildcache || echo "Not Found"
 
       - name: Docker meta
@@ -119,7 +117,7 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha
-            type=match,pattern=vpnddns-v(.*),group=1
+            type=match,pattern=${{ env.APP_CODE }}-v(.*),group=1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -168,8 +166,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: vpnddns/v${{ needs.context.outputs.version }}
-          name: Release VPN DNS sync v${{ needs.context.outputs.version }}
+          tag_name: ${{ env.TAG_PREFIX }}${{ needs.context.outputs.version }}
+          name: Release VPN DDNS v${{ needs.context.outputs.version }}
           draft: false
           prerelease: false
           files: |
