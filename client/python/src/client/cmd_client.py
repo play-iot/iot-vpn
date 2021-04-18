@@ -12,7 +12,7 @@ import click
 
 import src.utils.logger as logger
 from src.client.device_resolver import DeviceResolver, DHCPReason
-from src.client.version import CLI_VERSION, HASH_VERSION
+from src.client.version import APP_VERSION, HASH_VERSION
 from src.executor.shell_executor import SystemHelper
 from src.executor.vpn_cmd_executor import VpnCmdExecutor
 from src.utils.constants import ErrorCode, Versions, AppEnv
@@ -567,7 +567,7 @@ def __log(vpn_opts: ClientOpts, date, lines, follow, another):
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 def __version(vpn_opts: ClientOpts):
     logger.info('VPN version : %s', vpn_opts.get_vpn_version(Versions.VPN_VERSION))
-    logger.info('CLI version : %s', CLI_VERSION)
+    logger.info('CLI version : %s', APP_VERSION)
     logger.info('Hash version: %s', HASH_VERSION)
 
 
