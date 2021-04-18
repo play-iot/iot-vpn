@@ -185,12 +185,13 @@ jobs:
         if: ${{ needs.context.outputs.isRelease == 'true' }}
         run: |
           workflow=release-distribution-gh.yml
+          repo="${{ env.GITHUB_REPOSITORY }}"
           project="${{ env.APP_IMAGE }}"
           tag="${{ env.TAG_PREFIX }}${{ needs.context.outputs.version }}"
           sha="${{ needs.context.outputs.sha }}"
+          assets="amd64,armv7"
           secret="${{ secrets.BEEIO_CI_TOKEN }}"
-          workflow=release-distribution-gh.yml
-          data="{\"ref\":\"main\",\"inputs\":{\"project\":\"$project\",\"tag\":\"$tag\",\"sha\":\"$sha\"}}"
+          data="{\"ref\":\"main\",\"inputs\":{\"repo\":\"$repo\",\"project\":\"$project\",\"tag\":\"$tag\",\"sha\":\"$sha\",\"assets\":\"$assets\"}}"
           status=$(curl -X POST \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: Bearer $secret" \
