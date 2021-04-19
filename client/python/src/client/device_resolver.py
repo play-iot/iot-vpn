@@ -465,7 +465,11 @@ class DNSResolverType(Enum):
 
     @classmethod
     def as_services(cls):
-        return (t for t in DNSResolverType if t != DNSResolverType.UNKNOWN and t.config.is_service)
+        return (t for t in DNSResolverType if not t.is_unknown() and t.config.is_service)
+
+    @classmethod
+    def as_command(cls):
+        return (t for t in DNSResolverType if not t.is_unknown() and not t.config.is_service)
 
     @property
     def config(self) -> Optional[DNSConfig]:
@@ -476,6 +480,9 @@ class DNSResolverType(Enum):
 
     def is_dnsmasq(self):
         return self is DNSResolverType.DNSMASQ
+
+    def might_be_command(self):
+        return self.is_unknown() or self.is_dnsmasq()
 
 
 class DNSResolver(AppConvention):
@@ -494,11 +501,10 @@ class DNSResolver(AppConvention):
         self.kind = next(
             (t for t in DNSResolverType.as_services() if self.service.status(t.config.identity).is_enabled()),
             self.kind)
+        if self.kind.might_be_command():
+            self.kind = next(t for t in DNSResolverType.as_command() if SystemHelper.verify_command(t.config.identity))
         if self.kind.is_unknown():
-            if SystemHelper.verify_command(DNSResolverType.OPEN_RESOLV.config.identity):
-                self.kind = DNSResolverType.OPEN_RESOLV
-            else:
-                logger.warn('Unknown DNS resolver. DNS VPN IP might be not resolved correctly')
+            logger.warn('Unknown DNS resolver. DNS VPN IP might be not resolved correctly')
         if self.kind not in [DNSResolverType.DNSMASQ, DNSResolverType.UNKNOWN]:
             dnsmasq_name = DNSResolverType.DNSMASQ.config.identity
             self._is_dnsmasq = self.service.status(dnsmasq_name).is_enabled() or shutil.which(dnsmasq_name) is not None
