@@ -32,6 +32,9 @@ class GCloudDNSProvider(CloudDNSProvider):
                       self.max_retries, self.interval, exit_if_error=True)
         logger.info(f'Zone Changed: {changes._properties}')
 
+    def to_dns(self, dns_entry: DNSEntry, dns_name: str):
+        return super(GCloudDNSProvider, self).to_dns(dns_entry, dns_name) + '.'
+
     def _ensure_zone_exists(self, zone_name, dns_name, dns_description):
         def create_zone(_client: Client, _zone: ManagedZone):
             path = f'/projects/{_zone.project}/managedZones'

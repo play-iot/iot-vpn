@@ -28,6 +28,7 @@ on:
 env:
   APP_CODE: vpnddns
   APP_IMAGE: qweio-vpnddns
+  APP_FOLDER: client/python/src/ddns
   PYTHON_VERSION: 3.8.8-slim-buster
   PLATFORMS: linux/amd64
   DOCKER_FILE: docker/dockerfile/vpnddns.Dockerfile
@@ -77,7 +78,7 @@ jobs:
           releaseBranchPrefix: release/${{ env.APP_CODE }}/
           mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/${{ env.APP_CODE }}/.+$"
           patterns: |
-            client/python/src/ddns/version.py::(APP_VERSION\s?=\s?)(')([^']+)(')::2
+            ${{ env.APP_FOLDER }}/version.py::(APP_VERSION\s?=\s?)(')([^']+)(')::2
 
   build:
     runs-on: ubuntu-latest
@@ -96,13 +97,13 @@ jobs:
 
       - name: Inject Hash version
         run: |
-          sed -i 's/dev/${{ needs.context.outputs.sha }}/' client/python/src/client/version.py
+          sed -i 's/dev/${{ needs.context.outputs.sha }}/' ${{ env.APP_FOLDER }}/version.py
 
       - name: Inject brand and license
         run: |
           docker run --rm -v /tmp:/tmp zero88/ghrd:latest -a "banner.txt" -r ${{ env.BRAND_VERION }} -o /tmp ${{ env.BRAND_REPO }}
-          mv /tmp/banner.txt client/python/src/ddns/resources
-          cp LICENSE_BUNDLE.md client/python/src/ddns/resources
+          mv /tmp/banner.txt ${{ env.APP_FOLDER }}/resources
+          cp LICENSE_BUNDLE.md ${{ env.APP_FOLDER }}/resources
 
       - name: Cache Docker layers
         uses: actions/cache@v2
