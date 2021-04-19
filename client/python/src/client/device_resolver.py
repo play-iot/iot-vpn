@@ -15,7 +15,7 @@ import netifaces
 import src.utils.logger as logger
 from src.executor.shell_executor import SystemHelper
 from src.utils.constants import ErrorCode
-from src.utils.helper import FileHelper, grep
+from src.utils.helper import FileHelper, grep, awk
 from src.utils.opts_shared import UnixServiceOpts
 
 
@@ -260,6 +260,14 @@ class MockDNSFlavour(DNSFlavour):
         super().__init__(None, None, None)
 
 
+class OpenResolvFlavour(DNSFlavour):
+
+    def adapt_dnsmasq(self, vpn_service: str) -> Optional[Path]:
+        resolv = awk(next(iter(grep(FileHelper.read_file_by_line(self.config.main_cfg), r'server=/dnsmasq_resolv=/.+')),
+                          None), sep='=', pos=1)
+        return Path(resolv or self.config.runtime_resolv)
+
+
 class SystemdResolvedFlavour(DNSFlavour):
 
     def adapt_dnsmasq(self, vpn_service: str) -> Optional[Path]:
@@ -432,19 +440,27 @@ class DNSResolverType(Enum):
     """
 
     RESOLVCONF = DNSConfig('resolvconf', '/etc/resolvconf/run/resolv.conf', '/etc/resolvconf/resolv.conf.d',
-                           '/etc/resolvconf/resolv.conf.d/original')
+                           runtime_resolv='/etc/resolvconf/resolv.conf.d/original')
+    """    
+    Debian use systemd/resolvconf
+    https://manpages.debian.org/buster/resolvconf/resolvconf.8.en.html
+    """
+
+    OPEN_RESOLV = DNSConfig('resolvconf', '/etc/resolvconf.conf', '/etc/resolvconf/update.d',
+                            runtime_resolv='/var/run/dnsmasq/resolv.conf', is_service=False,
+                            flavour_type=OpenResolvFlavour)
     """
     Raspbian use openresolv
     https://manpages.debian.org/buster/openresolv/resolvconf.8.en.html
     https://manpages.debian.org/buster/openresolv/resolvconf.conf.5.en.html
-    
-    Debian use systemd/resolvconf
-    https://manpages.debian.org/buster/resolvconf/resolvconf.8.en.html
     """
-    RESOLVCONF_CMD = DNSConfig('resolvconf', '/etc/resolvconf/run/resolv.conf', '/etc/resolvconf/resolv.conf.d',
-                               is_service=False)
 
     DNSMASQ = DNSConfig('dnsmasq', '/etc/dnsmasq.conf', '/etc/dnsmasq.d', flavour_type=DNSMasqFlavour)
+    """
+    dnsmasq
+    https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html
+    """
+
     UNKNOWN = None
 
     @classmethod
@@ -479,8 +495,8 @@ class DNSResolver(AppConvention):
             (t for t in DNSResolverType.as_services() if self.service.status(t.config.identity).is_enabled()),
             self.kind)
         if self.kind.is_unknown():
-            if SystemHelper.verify_command(DNSResolverType.RESOLVCONF_CMD.config.identity):
-                self.kind = DNSResolverType.RESOLVCONF_CMD
+            if SystemHelper.verify_command(DNSResolverType.OPEN_RESOLV.config.identity):
+                self.kind = DNSResolverType.OPEN_RESOLV
             else:
                 logger.warn('Unknown DNS resolver. DNS VPN IP might be not resolved correctly')
         if self.kind not in [DNSResolverType.DNSMASQ, DNSResolverType.UNKNOWN]:
