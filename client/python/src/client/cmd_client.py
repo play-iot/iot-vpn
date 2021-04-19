@@ -633,7 +633,7 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
             logger.warn(f'NIC[{nic}] does not meet current VPN account')
             sys.exit(ErrorCode.VPN_ACCOUNT_NOT_MATCH)
     if is_in_scan:
-        dns_root = current.account  # TODO: Fix to current.hub
+        dns_root = current.hub
         loop_interval(lambda: None, lambda: len(executor.resolver.dns_resolver.query_vpn_nameservers(dns_root)) > 0,
                       'Unable read DHCP status', exit_if_error=True, max_retries=10)
         nic = vpn_opts.account_to_nic(current.account)
