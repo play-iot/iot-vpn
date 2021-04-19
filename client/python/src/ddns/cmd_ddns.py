@@ -6,14 +6,13 @@ from typing import Iterator, Optional, Tuple, Sequence
 
 import click
 
+from src.ddns.version import APP_VERSION, HASH_VERSION
 from src.executor.vpn_cmd_executor import VpnCmdExecutor
-from src.utils import logger
+from src.utils import logger, about
 from src.utils.downloader import downloader_opt_factory, VPNType, DownloaderOpt, download
 from src.utils.helper import resource_finder, awk, grep, JsonHelper
 from src.utils.opts_shared import CLI_CTX_SETTINGS, verbose_opts, dev_mode_opts
 from src.utils.opts_vpn import vpn_server_opts, ServerOpts, vpn_dir_opts_factory, VpnDirectory
-
-vpn_dir_opts = vpn_dir_opts_factory(app_dir="/app/vpnbridge")
 
 
 class CloudType(Enum):
@@ -92,9 +91,19 @@ class CloudDNSProvider(ABC):
         return dns_entry.fqn_dns(dns_name)
 
 
+class DDNSOpts(VpnDirectory):
+
+    @classmethod
+    def get_resource(cls, file_name) -> str:
+        return resource_finder(file_name, os.path.dirname(__file__))
+
+
+vpn_ddns_opts = vpn_dir_opts_factory(app_dir='/app/vpnbridge', opt_func=DDNSOpts)
+
+
 class VPNHubExecutor(VpnCmdExecutor):
 
-    def __init__(self, vpn_opts: VpnDirectory, server_opts: ServerOpts, hub_pwd):
+    def __init__(self, vpn_opts: DDNSOpts, server_opts: ServerOpts, hub_pwd):
         super().__init__(vpn_opts)
         self.server_opts = server_opts
         self.hub_pwd = hub_pwd
@@ -189,11 +198,12 @@ def __download(downloader_opts: DownloaderOpt):
               help='Number of seconds that this DNS can be cached by resolvers')
 @vpn_server_opts
 @click.option('-pw', '--hub-password', type=str, prompt=True, hide_input=True, help='VPN Hub admin password')
-@vpn_dir_opts
+@vpn_ddns_opts
 @dev_mode_opts(VpnDirectory.OPT_NAME)
 @verbose_opts
 def sync(cloud_type: CloudType, cloud_project: str, cloud_svc: str, dns_zone: str, dns_name: str, dns_ttl: int,
-         server_opts: ServerOpts, hub_password: str, vpn_opts: VpnDirectory):
+         server_opts: ServerOpts, hub_password: str, vpn_opts: DDNSOpts):
+    about.show(vpn_opts, APP_VERSION, HASH_VERSION, True)
     if cloud_type == CloudType.GCLOUD.value:
         from src.ddns.gcloud_dns import GCloudDNSProvider
         dns_provider = GCloudDNSProvider(cloud_project, cloud_svc, zone_name=dns_zone)
@@ -204,13 +214,22 @@ def sync(cloud_type: CloudType, cloud_project: str, cloud_svc: str, dns_zone: st
                          DNSEntry.device_dns(server_opts.hub, dns_name), f'{server_opts.hub.upper()} devices zone')
 
 
+@cli.command(name="about", help="Show VPN software info")
+@click.option('-l', '--license', 'show_license', default=False, flag_value=True, help='Show licenses')
+@vpn_ddns_opts
+@dev_mode_opts(VpnDirectory.OPT_NAME)
+def __about(vpn_opts: DDNSOpts, show_license: bool):
+    about.show(vpn_opts, APP_VERSION, HASH_VERSION, True, show_license)
+
+
 @cli.command(name="query", help="Sync Cloud Private DNS", hidden=True)
 @vpn_server_opts
 @click.option('-pw', '--hub-password', type=str, prompt=True, hide_input=True, help='VPN Hub admin password')
-@vpn_dir_opts
+@vpn_ddns_opts
 @dev_mode_opts(VpnDirectory.OPT_NAME, hidden=False)
 @verbose_opts
-def __query(server_opts: ServerOpts, hub_password: str, vpn_opts: VpnDirectory):
+def __query(server_opts: ServerOpts, hub_password: str, vpn_opts: DDNSOpts):
+    about.show(vpn_opts, APP_VERSION, HASH_VERSION, True)
     sessions = VPNHubExecutor(vpn_opts, server_opts, hub_password).list_user_sessions()
     print(JsonHelper.to_json([DNSEntry(s, vpn_hub=server_opts.hub) for s in sessions]))
 
@@ -219,10 +238,10 @@ def __query(server_opts: ServerOpts, hub_password: str, vpn_opts: VpnDirectory):
 @click.argument("command", type=str, required=True)
 @vpn_server_opts
 @click.option('-pw', '--hub-password', type=str, prompt=True, hide_input=True, help='VPN Hub admin password')
-@vpn_dir_opts
+@vpn_ddns_opts
 @dev_mode_opts(VpnDirectory.OPT_NAME)
 @verbose_opts
-def __execute(server_opts: ServerOpts, hub_password: str, vpn_opts: VpnDirectory, command):
+def __execute(server_opts: ServerOpts, hub_password: str, vpn_opts: DDNSOpts, command):
     VPNHubExecutor(vpn_opts, server_opts, hub_password).exec_command(command, log_lvl=logger.INFO)
 
 

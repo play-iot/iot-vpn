@@ -1,14 +1,11 @@
 import os
 from abc import ABC, abstractmethod
-from typing import TypeVar
 from typing import Union, Sequence, Dict
 
 from src.executor.shell_executor import SystemHelper
 from src.utils import logger as logger
 from src.utils.helper import encode_base64, decode_base64
-from src.utils.opts_vpn import VpnDirectory
-
-VpnOpts = TypeVar("VpnOpts", bound=VpnDirectory)
+from src.utils.opts_vpn import VpnOpts
 
 
 class VpnCmdExecutor(ABC):

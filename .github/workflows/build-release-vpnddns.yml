@@ -36,6 +36,8 @@ env:
   DOCKER_IMAGE: zero88/qweio-vpnddns
   GHCR_IMAGE: ghcr.io/qweio/vpnddns
   TAG_PREFIX: vpnddns/v
+  BRAND_VERION: v1
+  BRAND_REPO: qweio/brand
 
 jobs:
 
@@ -95,6 +97,12 @@ jobs:
       - name: Inject Hash version
         run: |
           sed -i 's/dev/${{ needs.context.outputs.sha }}/' client/python/src/client/version.py
+
+      - name: Inject brand and license
+        run: |
+          docker run --rm -v /tmp:/tmp zero88/ghrd:latest -a "banner.txt" -r ${{ env.BRAND_VERION }} -o /tmp ${{ env.BRAND_REPO }}
+          mv /tmp/banner.txt client/python/src/ddns/resources
+          cp LICENSE_BUNDLE.md client/python/src/ddns/resources
 
       - name: Cache Docker layers
         uses: actions/cache@v2

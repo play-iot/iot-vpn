@@ -23,7 +23,7 @@ DEFAULT_ENCODING = "UTF-8"
 PY_VERSION = platform.sys.version_info
 
 
-def get_base_path(base=None):
+def get_base_path(base=None) -> str:
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         return sys._MEIPASS
@@ -50,7 +50,7 @@ def tweak_os_env():
     return env
 
 
-def resource_finder(relative_path, base=None, resource_dir="resources"):
+def resource_finder(relative_path, base=None, resource_dir="resources") -> str:
     """ Get absolute path to resource, works for dev and for PyInstaller """
     return os.path.join(get_base_path(base), resource_dir, relative_path)
 

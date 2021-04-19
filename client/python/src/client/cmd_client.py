@@ -15,7 +15,8 @@ from src.client.device_resolver import DeviceResolver, DHCPReason
 from src.client.version import APP_VERSION, HASH_VERSION
 from src.executor.shell_executor import SystemHelper
 from src.executor.vpn_cmd_executor import VpnCmdExecutor
-from src.utils.constants import ErrorCode, Versions, AppEnv
+from src.utils import about
+from src.utils.constants import ErrorCode, AppEnv
 from src.utils.downloader import download, VPNType, downloader_opt_factory, DownloaderOpt
 from src.utils.helper import resource_finder, FileHelper, build_executable_command, grep, awk, tail, \
     get_base_path, tree, loop_interval, JsonHelper, binary_name
@@ -51,12 +52,8 @@ class ClientOpts(VpnDirectory):
     def get_log_file(self, date):
         return os.path.join(self.vpn_dir, 'client_log', f'client_{date}.log')
 
-    @staticmethod
-    def resource_dir():
-        return ClientOpts.get_resource('.')
-
-    @staticmethod
-    def get_resource(file_name):
+    @classmethod
+    def get_resource(cls, file_name) -> str:
         return resource_finder(file_name, os.path.dirname(__file__))
 
     @staticmethod
@@ -513,7 +510,7 @@ def __status(vpn_opts: ClientOpts):
 
 
 @cli.command(name="trust", help="Trust VPN Server cert")
-@click.option("-ca", "--account", type=str, default="qweio", help="Client Account for manage VPN connection")
+@click.option("-ca", "--account", type=str, help="Client Account for manage VPN connection")
 @click.option("-cck", "--cert-key", type=click.Path(exists=True, resolve_path=True), help="VPN Server Cert")
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
@@ -566,15 +563,21 @@ def __log(vpn_opts: ClientOpts, date, lines, follow, another):
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 def __version(vpn_opts: ClientOpts):
-    logger.info('VPN version : %s', vpn_opts.get_vpn_version(Versions.VPN_VERSION))
-    logger.info('CLI version : %s', APP_VERSION)
-    logger.info('Hash version: %s', HASH_VERSION)
+    about.show(vpn_opts, APP_VERSION, HASH_VERSION)
+
+
+@cli.command(name="about", help="Show VPN software info")
+@click.option('-l', '--license', 'show_license', default=False, flag_value=True, help='Show licenses')
+@vpn_client_opts
+@dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
+def __about(vpn_opts: ClientOpts, show_license: bool):
+    about.show(vpn_opts, APP_VERSION, HASH_VERSION, True, show_license)
 
 
 @cli.command(name='command', help='Execute Ad-hoc VPN command', hidden=True)
 @click.argument("command", type=str, required=True)
 @vpn_client_opts
-@dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
+@dev_mode_opts(opt_name=ClientOpts.OPT_NAME, hidden=False)
 @verbose_opts
 @permission
 def __execute(vpn_opts: ClientOpts, command):

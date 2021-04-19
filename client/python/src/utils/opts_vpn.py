@@ -1,5 +1,7 @@
 import functools
 import os
+from abc import abstractmethod
+from typing import TypeVar
 
 import click
 
@@ -109,6 +111,15 @@ class VpnDirectory(DevModeDir):
     def runtime_dir(self):
         return os.path.join(self.vpn_dir, self.RUNTIME_FOLDER)
 
+    @classmethod
+    def resource_dir(cls) -> str:
+        return cls.get_resource('.')
+
+    @classmethod
+    @abstractmethod
+    def get_resource(cls, file_name) -> str:
+        pass
+
     def reload(self, vpn_dir):
         self.vpn_dir = vpn_dir
         return self
@@ -128,3 +139,6 @@ def vpn_dir_opts_factory(app_dir: str, opt_func=VpnDirectory):
         return wrapper
 
     return dir_opts
+
+
+VpnOpts = TypeVar("VpnOpts", bound=VpnDirectory)
