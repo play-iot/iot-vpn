@@ -86,7 +86,6 @@ class CloudDNSProvider(ABC):
     def sync_ip(self, dns_entries: Sequence[DNSEntry], zone_name: str, dns_name: str, dns_description: str):
         raise NotImplementedError('Must implemented')
 
-    @abstractmethod
     def to_dns(self, dns_entry: DNSEntry, dns_name: str):
         return dns_entry.fqn_dns(dns_name)
 
