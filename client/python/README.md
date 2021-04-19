@@ -1,7 +1,5 @@
 # QWEiO VPN overview
 
-![softether](../.github/SoftEtherVPN-VPNServer.png)
-
 ## Index script
 
 - Install `pipenv`
@@ -35,7 +33,7 @@ More detail in `README` in each sub folders.
 
 Note
 
-Our client will run on beagleboard device, which is running Debian on armv7, testing client scripts may need a real device.
+Our client will run on beagleboard device, which is running Debian on `armv7`, testing client scripts may need a real device.
 
 ## Development script
 

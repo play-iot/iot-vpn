@@ -19,6 +19,8 @@ function multiarch() {
     --build-arg "BASE_IMAGE_VERSION=$1" \
     --build-arg "COMMIT_SHA=$sha" \
     --platform "$platform" \
+    --network host \
+    --allow network.host \
     --cache-from "type=registry,ref=localhost:5000/$image:buildcache" \
     --cache-to "type=registry,ref=localhost:5000/$image:buildcache,mode=max" \
     -f "$(pwd)/docker/dockerfile/$dockerfile" \
