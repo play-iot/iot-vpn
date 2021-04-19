@@ -19,6 +19,14 @@ on:
       - '*.md'
 
 env:
+  APP_CODE: vpnmanager
+  APP_IMAGE: qweio-vpnmanager
+  DOCKER_USERNAME: zero88
+  DOCKER_IMAGE: zero88/qweio-vpnmanager
+  GHCR_IMAGE: ghcr.io/qweio/vpnmanager
+  TAG_PREFIX: vpnmanager/v
+  BRAND_VERION: v1
+  BRAND_REPO: qweio/brand
   ENABLE_TEST: true
   ENABLE_GH_MAVEN: false
 
@@ -54,6 +62,9 @@ jobs:
         with:
           dry: false
           mustSign: true
+          tagPrefix: ${{ env.TAG_PREFIX }}
+          releaseBranchPrefix: release/${{ env.APP_CODE }}/
+          mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/${{ env.APP_CODE }}/.+$"
 
       - name: Find semantic version
         id: semantic
