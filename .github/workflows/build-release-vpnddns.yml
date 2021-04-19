@@ -12,6 +12,7 @@ on:
       - 'client/python/src/utils/**'
       - '!client/python/*.md'
       - 'docker/dockerfile/vpnddns.Dockerfile'
+      - 'CHANGELOG-VPNDDNS.md'
   push:
     branches: [ main, master ]
     tags:

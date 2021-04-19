@@ -12,6 +12,7 @@ on:
       - 'client/python/src/utils/**'
       - '!client/python/*.md'
       - 'docker/dockerfile/vpnclient.Dockerfile'
+      - 'CHANGELOG-VPNC.md'
   push:
     branches: [ main, master ]
     tags:
