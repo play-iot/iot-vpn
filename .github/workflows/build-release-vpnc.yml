@@ -199,7 +199,7 @@ jobs:
           tag="${{ env.TAG_PREFIX }}${{ needs.context.outputs.version }}"
           sha="${{ needs.context.outputs.sha }}"
           assets="amd64,armv7"
-          secret="${{ secrets.BEEIO_CI_TOKEN }}"
+          secret="${{ secrets.BEEIO_CI_PRIVATE_TOKEN }}"
           data="{\"ref\":\"main\",\"inputs\":{\"repo\":\"$repo\",\"project\":\"$project\",\"tag\":\"$tag\",\"sha\":\"$sha\",\"assets\":\"$assets\"}}"
           status=$(curl -X POST \
             -H "Accept: application/vnd.github.v3+json" \
