@@ -271,8 +271,8 @@ class VPNClientExecutor(VpnCmdExecutor):
 
     def cleanup_zombie_vpn(self, delay=1, log_lvl=logger.DEBUG):
         time.sleep(delay)
-        SystemHelper.ps_kill('vpnclient execsvc', silent=True, log_lvl=log_lvl)
-        self.resolver.ip_resolver.cleanup_zombie('vpn_')
+        SystemHelper.ps_kill(f'{self.vpn_dir}/vpnclient execsvc', silent=True, log_lvl=log_lvl)
+        self.resolver.ip_resolver.cleanup_zombie(f' {self.vpn_dir}.* vpn_')
 
 
 vpn_client_opts = vpn_dir_opts_factory(app_dir=ClientOpts.VPN_HOME, opt_func=ClientOpts)
