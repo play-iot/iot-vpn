@@ -358,23 +358,21 @@ def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = 
 
 @cli.command(name="add", help="Add new VPN Account")
 @vpn_server_opts
-@click.option("--hostname", 'is_hostname', type=bool, default=False, flag_value=True,
-              help='Change hostname based on VPN username and hub. Should use on IoT device')
 @click.option("-ca", "--account", type=str, help='VPN Client account name. Default is VPN hub')
 @click.option("-cd", "--default", "is_default", type=bool, flag_value=True, help='Set VPN Client Account is default')
 @vpn_auth_opts
 @click.option("--no-connect", type=bool, flag_value=True, help='Just add VPN account without open connection')
+@click.option("--hostname", 'dns_prefix', type=str, hidden=True,
+              help='Use custom hostname as prefix DNS instead of depends on VPN user')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @verbose_opts
 @permission
 def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, account: str, is_default: bool,
-          is_hostname: bool, no_connect: bool):
+          dns_prefix: str, no_connect: bool):
     executor = VPNClientExecutor(vpn_opts).probe()
     service_opts = executor.read_cache_service()
-    hostname = executor.generate_host_name(server_opts.hub, auth_opts.user, log_lvl=logger.DEBUG)
-    if is_hostname:
-        SystemHelper.change_host_name(hostname, log_lvl=logger.DEBUG)
+    hostname = dns_prefix or executor.generate_host_name(server_opts.hub, auth_opts.user, log_lvl=logger.DEBUG)
     acc = AccountInfo(server_opts.hub, account, hostname, is_default)
     logger.info(f'Setup VPN Client with VPN account {acc.account}...')
     auth_cmd, param = auth_opts.setup(acc.account)
