@@ -174,18 +174,28 @@ class DNSFlavour(ABC):
         """
         return None
 
-    def adapt_dnsmasq(self, vpn_service: str) -> Optional[Path]:
+    def adapt_dnsmasq(self, origin_resolv_conf: Path, vpn_service: str) -> Optional[Path]:
         """
         Adapt DNS flavour to works with dnsmasq
+        :param origin_resolv_conf: Origin resolv config
         :param vpn_service: VPN service name
         :return: runtime_resolv_config
         """
         pass
 
-    def setup(self, vpn_service: str, vpn_nameserver_cfg: Path):
+    def dnsmasq_options(self) -> dict:
+        """
+        Get the optimization dnsmasq options
+        :return: dnsmasq option
+        """
+        return {'cache_size': 1500, 'port': 53}
+
+    def setup(self, origin_resolv_conf: Path, vpn_service: str, vpn_resolv_cfg: Path, vpn_nameserver_cfg: Path):
         """
         Setup DNS flavour to works with VPN service
+        :param origin_resolv_conf: origin resolv conf
         :param vpn_service: VPN service name
+        :param vpn_resolv_cfg: VPN resolv runtime config
         :param vpn_nameserver_cfg: VPN nameserver runtime config
         :return:
         """
@@ -262,7 +272,7 @@ class MockDNSFlavour(DNSFlavour):
 
 class OpenResolvFlavour(DNSFlavour):
 
-    def adapt_dnsmasq(self, vpn_service: str) -> Optional[Path]:
+    def adapt_dnsmasq(self, origin_resolv_conf: Path, vpn_service: str) -> Optional[Path]:
         content = FileHelper.read_file_by_line(self.config.main_cfg)
         resolv = awk(next(iter(grep(content, r'dnsmasq_resolv=.+', re.MULTILINE)), None), sep='=', pos=1)
         return Path(resolv or self.config.runtime_resolv)
@@ -270,7 +280,7 @@ class OpenResolvFlavour(DNSFlavour):
 
 class SystemdResolvedFlavour(DNSFlavour):
 
-    def adapt_dnsmasq(self, vpn_service: str) -> Optional[Path]:
+    def adapt_dnsmasq(self, origin_resolv_conf: Path, vpn_service: str) -> Optional[Path]:
         return self._common_adapt_dnsmasq(vpn_service)
 
     def restore_config(self, vpn_service: str, keep_dnsmasq=True):
@@ -287,7 +297,7 @@ class NetworkManagerFlavour(DNSFlavour):
     def dnsmasq_config_dir(self) -> Optional[Path]:
         return Path(self.config.plugin_dir) if self.config.plugin_dir else None
 
-    def adapt_dnsmasq(self, vpn_service: str) -> Optional[Path]:
+    def adapt_dnsmasq(self, origin_resolv_conf: Path, vpn_service: str) -> Optional[Path]:
         return self._common_adapt_dnsmasq(vpn_service)
 
     def restore_config(self, vpn_service: str, keep_dnsmasq=True):
@@ -307,6 +317,12 @@ class ConnmanFlavour(DNSFlavour):
                     print(line, end='')
         if restart:
             self.service.restart(self.config.identity)
+
+    def adapt_dnsmasq(self, origin_resolv_conf: Path, vpn_service: str) -> Optional[Path]:
+        return FileHelper.get_target_link(self.config.config_dir) or self.config.config_dir
+
+    def dnsmasq_options(self) -> dict:
+        return {}
 
 
 class DNSMasqFlavour(DNSFlavour):
@@ -334,28 +350,31 @@ class DNSMasqFlavour(DNSFlavour):
     def _resolver(self, resolver: DNSFlavour):
         self.__resolver = resolver
 
-    def setup(self, vpn_service: str, vpn_nameserver_cfg: Path):
+    def setup(self, origin_resolv_conf: Path, vpn_service: str, vpn_resolv_cfg, vpn_nameserver_cfg: Path):
         if not self._available:
             logger.error('dnsmasq is not yet installed or is corrupted')
             sys.exit(ErrorCode.MISSING_REQUIREMENT)
-        logger.info(f'Generating System DNS config file and configure [dnsmasq]...')
-        FileHelper.rm(DNSResolver.DNS_SYSTEM_FILE)
-        FileHelper.write_file(DNSResolver.DNS_SYSTEM_FILE, self.__dnsmasq_resolv(vpn_service), mode=0o0644)
+        logger.info('Setup DNS resolver[dnsmasq]...')
         dnsmasq_vpn_cfg = self._dnsmasq_vpn_cfg(vpn_service)
         logger.debug(f'Add dnsmasq config for {vpn_service}[{dnsmasq_vpn_cfg}]...')
-        runtime_resolv_cfg = self._resolver.adapt_dnsmasq(vpn_service) if self._resolver else None
-        resolv_file = f'resolv-file={str(runtime_resolv_cfg)}' if runtime_resolv_cfg else ''
+        runtime_resolv_cfg = self._resolver.adapt_dnsmasq(origin_resolv_conf, vpn_service) if self._resolver else None
+        dnsmasq_opts = {
+            '{{DNS_RESOLVED_FILE}}': self.__build_dnsmasq_conf('resolv-file', runtime_resolv_cfg),
+            '{{PORT}}': self.__build_dnsmasq_conf('port', self.dnsmasq_options().get('port', None)),
+            '{{CACHE_SIZE}}': self.__build_dnsmasq_conf('cache-size', self.dnsmasq_options().get('cache_size', None))
+        }
         FileHelper.copy(self.resource_dir.joinpath(self.DNSMASQ_CONFIG_TMPL), dnsmasq_vpn_cfg, force=True)
-        FileHelper.replace_in_file(dnsmasq_vpn_cfg, {'{{DNS_RESOLVED_FILE}}': resolv_file}, backup='')
+        FileHelper.replace_in_file(dnsmasq_vpn_cfg, dnsmasq_opts, backup='')
         FileHelper.chmod(dnsmasq_vpn_cfg, mode=0o0644)
         logger.debug(f'Add dnsmasq nameserver runtime configuration [{vpn_nameserver_cfg}]...')
-        if FileHelper.is_readable(vpn_nameserver_cfg):
-            FileHelper.touch(vpn_nameserver_cfg, mode=0o0644)
         FileHelper.create_symlink(vpn_nameserver_cfg, self._dnsmasq_vpn_nameserver_cfg, force=True)
+        logger.info(f'Generating System DNS config file...')
+        FileHelper.write_file(vpn_resolv_cfg, self.__dnsmasq_resolv(vpn_service), mode=0o0644)
+        FileHelper.create_symlink(vpn_resolv_cfg, DNSResolver.DNS_SYSTEM_FILE, force=True)
         self._restart_dnsmasq()
 
-    def adapt_dnsmasq(self, vpn_service: str) -> Optional[Path]:
-        return self._resolver.adapt_dnsmasq(vpn_service) if self._resolver else None
+    def adapt_dnsmasq(self, origin_resolv_conf: Path, vpn_service: str) -> Optional[Path]:
+        return self._resolver.adapt_dnsmasq(origin_resolv_conf, vpn_service) if self._resolver else None
 
     def tweak_per_nic(self, nic: str):
         if self._resolver:
@@ -414,17 +433,21 @@ class DNSMasqFlavour(DNSFlavour):
         return f'### Generated by [{service_name}] service and managed by [dnsmasq] at [{now}]\n' \
                f'nameserver 127.0.0.1\n'
 
+    @staticmethod
+    def __build_dnsmasq_conf(key: str, value: Any):
+        return f'{key}={str(value)}' if value else ''
+
 
 class DNSResolverType(Enum):
     CONNMAN = DNSConfig('connman', '/etc/connman/main.conf', '/etc/systemd/system/connman.service.d',
-                        flavour_type=ConnmanFlavour)
+                        runtime_resolv='/run/connman/resolv.conf', flavour_type=ConnmanFlavour)
     """
     https://wiki.archlinux.org/index.php/ConnMan
     https://manpages.debian.org/unstable/connman/connman.conf.5.en.html
     """
 
     SYSTEMD_RESOLVED = DNSConfig('systemd-resolved', '/etc/systemd/resolved.conf',
-                                 '/etc/systemd/resolved.conf.d', '/run/systemd/resolve/resolv.conf',
+                                 '/etc/systemd/resolved.conf.d', runtime_resolv='/run/systemd/resolve/resolv.conf',
                                  flavour_type=SystemdResolvedFlavour)
     """
     Ubuntu 18/20 use `systemd-resolved`
@@ -488,14 +511,16 @@ class DNSResolverType(Enum):
 class DNSResolver(AppConvention):
     DNS_SYSTEM_FILE = Path('/etc/resolv.conf')
     DNS_ORIGIN_FILE = 'resolv.origin.conf'
+    VPN_DNS_RESOLV_CFG = 'vpn-resolv.conf'
     VPN_NAMESERVER_CFG = 'vpn-runtime-nameserver.conf'
 
     def __init__(self, resource_dir: str, runtime_dir: str, unix_service: UnixService, log_lvl: int = logger.DEBUG,
                  silent: bool = True):
         super(DNSResolver, self).__init__(resource_dir, runtime_dir, log_lvl, silent)
         self.service, self.kind, self._is_dnsmasq = unix_service, DNSResolverType.UNKNOWN, False
-        self.dns_origin_cfg = DNSResolver.DNS_SYSTEM_FILE.parent.joinpath(DNSResolver.DNS_ORIGIN_FILE)
-        self.dns_nameserver_runtime_cfg = self.runtime_dir.joinpath(self.VPN_NAMESERVER_CFG)
+        self.origin_resolv_cfg = DNSResolver.DNS_SYSTEM_FILE.parent.joinpath(DNSResolver.DNS_ORIGIN_FILE)
+        self.vpn_resolv_runtime_cfg = self.runtime_dir.joinpath(self.VPN_DNS_RESOLV_CFG)
+        self.vpn_nameserver_runtime_cfg = self.runtime_dir.joinpath(self.VPN_NAMESERVER_CFG)
 
     def probe(self) -> 'DNSResolver':
         self.kind = next(
@@ -515,16 +540,18 @@ class DNSResolver(AppConvention):
         return self.kind.is_dnsmasq() or self._is_dnsmasq
 
     def create_config(self, vpn_service: str):
-        resolver = self._resolver()
-        if not FileHelper.is_readable(self.dns_origin_cfg):
+        if not FileHelper.is_readable(self.origin_resolv_cfg):
             logger.info(f'Override and backup System DNS config file...')
-            FileHelper.backup(DNSResolver.DNS_SYSTEM_FILE, self.dns_origin_cfg, remove=False)
-        if not FileHelper.is_readable(self.dns_origin_cfg):
-            logger.error(f'Not found origin DNS config file [{self.dns_origin_cfg}]')
+            FileHelper.backup(DNSResolver.DNS_SYSTEM_FILE, self.origin_resolv_cfg, remove=False)
+        if not FileHelper.is_readable(self.origin_resolv_cfg):
+            logger.error(f'Not found origin DNS config file [{self.origin_resolv_cfg}]')
             sys.exit(ErrorCode.FILE_CORRUPTED)
-        if not FileHelper.is_readable(self.dns_nameserver_runtime_cfg):
-            FileHelper.touch(self.dns_nameserver_runtime_cfg, 0o0644)
-        resolver.setup(vpn_service, self.dns_nameserver_runtime_cfg)
+        if not FileHelper.is_readable(self.vpn_resolv_runtime_cfg):
+            FileHelper.touch(self.vpn_resolv_runtime_cfg, 0o0644)
+        if not FileHelper.is_readable(self.vpn_nameserver_runtime_cfg):
+            FileHelper.touch(self.vpn_nameserver_runtime_cfg, 0o0644)
+        self._resolver().setup(self.origin_resolv_cfg, vpn_service, self.vpn_resolv_runtime_cfg,
+                               self.vpn_nameserver_runtime_cfg)
 
     def tweak_on_nic(self, nic: str):
         self._resolver().tweak_per_nic(nic)
@@ -539,24 +566,24 @@ class DNSResolver(AppConvention):
         if nss is None:
             logger.info(f'Skip generating DNS entry in [{reason.name}][{new_nameservers}][{old_nameservers}]')
             return
-        resolver.update(reason, priv_root_dns, nss, self.dns_nameserver_runtime_cfg)
+        resolver.update(reason, priv_root_dns, nss, self.vpn_nameserver_runtime_cfg)
 
     def restore_config(self, vpn_service: str, keep_dnsmasq=True):
         if keep_dnsmasq:
             self.reset_vpn_nameservers()
         else:
             logger.info(f'Remove VPN nameserver config [{self.VPN_NAMESERVER_CFG}]...')
-            FileHelper.rm(self.dns_nameserver_runtime_cfg)
-            if FileHelper.is_readable(self.dns_origin_cfg):
+            FileHelper.rm(self.vpn_nameserver_runtime_cfg)
+            if FileHelper.is_readable(self.origin_resolv_cfg):
                 logger.info(f'Restore System DNS config file...')
-                FileHelper.backup(self.dns_origin_cfg, DNSResolver.DNS_SYSTEM_FILE)
+                FileHelper.backup(self.origin_resolv_cfg, DNSResolver.DNS_SYSTEM_FILE)
         self._resolver().restore_config(vpn_service, keep_dnsmasq)
 
     def reset_vpn_nameservers(self):
-        self._resolver().reset_nameservers(self.dns_nameserver_runtime_cfg)
+        self._resolver().reset_nameservers(self.vpn_nameserver_runtime_cfg)
 
     def query_vpn_nameservers(self, priv_root_dns: str) -> list:
-        return self._resolver().query(priv_root_dns, self.dns_nameserver_runtime_cfg)
+        return self._resolver().query(priv_root_dns, self.vpn_nameserver_runtime_cfg)
 
     def _resolver(self) -> DNSFlavour:
         if self.kind.is_dnsmasq():
@@ -571,7 +598,7 @@ class DNSResolver(AppConvention):
     def __validate_nameservers(self, reason: DHCPReason, new_ns: str = None, old_ns: str = None) -> Optional[list]:
         if reason.is_ignore():
             return None
-        if reason is DHCPReason.RENEW and new_ns == old_ns and FileHelper.is_readable(self.dns_nameserver_runtime_cfg):
+        if reason is DHCPReason.RENEW and new_ns == old_ns and FileHelper.is_readable(self.vpn_nameserver_runtime_cfg):
             return None
         nameservers = old_ns if reason.is_unreachable() else new_ns
         return [ns for ns in nameservers.split(',') if ns][0:2] if nameservers else None
