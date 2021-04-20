@@ -1,6 +1,6 @@
 # Changelog
 
-## [v1.0.0](https://github.com/qweio/iot-vpn/tree/vpnc/v1.0.0) (2021-04-20)
+## [v0.8.0](https://github.com/qweio/iot-vpn/tree/vpnc/v0.8.0) (2021-04-20)
 
 ### Added
 - Install and manage VPN client in *Unix service
