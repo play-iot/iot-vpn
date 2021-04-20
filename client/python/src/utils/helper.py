@@ -130,6 +130,10 @@ class FileHelper(object):
         return Path(path).is_symlink()
 
     @staticmethod
+    def is_exists(path: Union[str, Path]) -> bool:
+        return Path(path).exists() or FileHelper.is_symlink(path)
+
+    @staticmethod
     def get_target_link(path: Union[str, Path]):
         p = Path(path)
         if not FileHelper.is_symlink(p):
@@ -145,9 +149,9 @@ class FileHelper(object):
         src = Path(source)
         lk = Path(link)
         logger.log(log_lvl, f'Create symlink from [{src}] to [{lk}]...')
-        if not src.exists():
+        if not FileHelper.is_exists(src):
             raise RuntimeError(f'Given file[{src}] is not existed')
-        if lk.exists():
+        if FileHelper.is_exists(lk):
             if FileHelper.is_dir(lk):
                 raise RuntimeError(f'Given target link[{lk}] is directory')
             if not force:
