@@ -28,6 +28,7 @@ from src.utils.opts_vpn import AuthOpts, vpn_auth_opts, ServerOpts, vpn_server_o
 
 class ClientOpts(VpnDirectory):
     VPNCLIENT_ZIP = 'vpnclient.zip'
+    VPN_HOME = '/app/vpnclient'
 
     @property
     def log_file(self):
@@ -270,11 +271,11 @@ class VPNClientExecutor(VpnCmdExecutor):
 
     def cleanup_zombie_vpn(self, delay=1, log_lvl=logger.DEBUG):
         time.sleep(delay)
-        SystemHelper.ps_kill('vpnclient execsvc', silent=True, log_lvl=log_lvl)
-        self.resolver.ip_resolver.cleanup_zombie('vpn_')
+        SystemHelper.ps_kill(f'{self.vpn_dir}/vpnclient execsvc', silent=True, log_lvl=log_lvl)
+        self.resolver.ip_resolver.cleanup_zombie(f' {self.vpn_dir}.* vpn_')
 
 
-vpn_client_opts = vpn_dir_opts_factory(app_dir="/app/vpnclient", opt_func=ClientOpts)
+vpn_client_opts = vpn_dir_opts_factory(app_dir=ClientOpts.VPN_HOME, opt_func=ClientOpts)
 
 
 @click.group(name="vpnclient", context_settings=CLI_CTX_SETTINGS)
@@ -311,6 +312,7 @@ def __install(auto_startup: bool, dnsmasq: bool, vpn_opts: ClientOpts, unix_serv
         logger.error('dnsmasq is not yet installed. Install by [apt install dnsmasq]/[yum install dnsmasq] ' +
                      'or depends on package-manager of your distro')
         sys.exit(ErrorCode.MISSING_REQUIREMENT)
+    logger.info(f'Installing vpnclient into [{vpn_opts.vpn_dir}]...')
     FileHelper.mkdirs(Path(vpn_opts.vpn_dir).parent)
     FileHelper.unpack_archive(ClientOpts.get_resource(ClientOpts.VPNCLIENT_ZIP), vpn_opts.vpn_dir)
     FileHelper.mkdirs([vpn_opts.vpn_dir, vpn_opts.runtime_dir])
@@ -327,6 +329,7 @@ def __install(auto_startup: bool, dnsmasq: bool, vpn_opts: ClientOpts, unix_serv
                                   {'{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{VPN_CLIENT_CLI}}': cmd})
     resolver.dns_resolver.create_config(unix_service.service_name)
     executor.dump_cache_service(unix_service)
+    vpn_opts.export_env()
     logger.done()
 
 
@@ -353,6 +356,7 @@ def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = 
     if force:
         logger.info(f'Remove VPN Client in {vpn_opts.vpn_dir}...')
         shutil.rmtree(vpn_opts.vpn_dir, ignore_errors=True)
+        vpn_opts.remove_env()
     logger.done()
 
 

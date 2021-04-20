@@ -27,3 +27,4 @@ class AppEnv:
     BRAND = 'qweio'
     SLOGAN = 'Make in QWEiO, Vietnam'
     VPN_CORP_ENV = 'VPN_CORP'
+    VPN_HOME_ENV = 'VPN_HOME'

@@ -5,7 +5,8 @@ from typing import TypeVar
 
 import click
 
-from src.utils.helper import FileHelper
+from src.utils.constants import AppEnv
+from src.utils.helper import FileHelper, awk, grep
 from src.utils.opts_shared import DevModeDir
 
 
@@ -99,6 +100,7 @@ class VpnDirectory(DevModeDir):
     CORE_VERSION_FILE = 'vpn-version.txt'
     OPT_NAME = 'vpn_opts'
     RUNTIME_FOLDER = 'runtime'
+    PROFILE_D_ENV = f'/etc/profile.d/{AppEnv.BRAND}-vpn.sh'
 
     def __init__(self, app_dir: str):
         self.vpn_dir = app_dir
@@ -127,10 +129,26 @@ class VpnDirectory(DevModeDir):
     def get_vpn_version(self, fallback='unknown'):
         return FileHelper.read_file_by_line(os.path.join(self.vpn_dir, self.CORE_VERSION_FILE)) or fallback
 
+    def export_env(self):
+        FileHelper.write_file(VpnDirectory.PROFILE_D_ENV, f'export {AppEnv.VPN_HOME_ENV}="{self.vpn_dir}"', mode=0o0644)
+
+    @staticmethod
+    def remove_env():
+        FileHelper.rm(VpnDirectory.PROFILE_D_ENV)
+
+    @staticmethod
+    def read_env():
+        content = FileHelper.read_file_by_line(VpnDirectory.PROFILE_D_ENV)
+        env = awk(next(iter(grep(content, rf'{AppEnv.VPN_HOME_ENV}.+')), None), sep='=', pos=1)
+        return None if not env else env.replace('"', "")
+
 
 def vpn_dir_opts_factory(app_dir: str, opt_func=VpnDirectory):
     def dir_opts(func):
-        @click.option("-dd", "--vpn-dir", type=str, default=app_dir, help="VPN installation directory")
+        @click.option("-dd", "--vpn-dir", type=str,
+                      default=lambda: os.environ.get(AppEnv.VPN_HOME_ENV, VpnDirectory.read_env() or app_dir),
+                      show_default=f'"{app_dir}" or from "env.{AppEnv.VPN_HOME_ENV}"',
+                      help=f'VPN installation directory')
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             kwargs[VpnDirectory.OPT_NAME] = opt_func(kwargs.pop('vpn_dir'))

@@ -263,8 +263,8 @@ class MockDNSFlavour(DNSFlavour):
 class OpenResolvFlavour(DNSFlavour):
 
     def adapt_dnsmasq(self, vpn_service: str) -> Optional[Path]:
-        resolv = awk(next(iter(grep(FileHelper.read_file_by_line(self.config.main_cfg), r'server=/dnsmasq_resolv=/.+')),
-                          None), sep='=', pos=1)
+        content = FileHelper.read_file_by_line(self.config.main_cfg)
+        resolv = awk(next(iter(grep(content, r'dnsmasq_resolv=.+', re.MULTILINE)), None), sep='=', pos=1)
         return Path(resolv or self.config.runtime_resolv)
 
 
