@@ -194,7 +194,7 @@ jobs:
         if: ${{ needs.context.outputs.isRelease == 'true' }}
         run: |
           workflow=release-distribution-gh.yml
-          repo="${{ env.GITHUB_REPOSITORY }}"
+          repo="${{ github.repository }}"
           project="${{ env.APP_IMAGE }}"
           tag="${{ env.TAG_PREFIX }}${{ needs.context.outputs.version }}"
           sha="${{ needs.context.outputs.sha }}"
