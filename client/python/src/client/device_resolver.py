@@ -353,11 +353,11 @@ class DNSMasqFlavour(DNSFlavour):
 
     def setup(self, origin_resolv_conf: Path, vpn_service: str, vpn_resolv_cfg, vpn_nameserver_cfg: Path):
         if not self._available:
-            logger.error('dnsmasq is not yet installed or is corrupted')
+            logger.error('[dnsmasq] is not yet installed or is corrupted')
             sys.exit(ErrorCode.MISSING_REQUIREMENT)
         logger.info('Setup DNS resolver[dnsmasq]...')
         dnsmasq_vpn_cfg = self._dnsmasq_vpn_cfg(vpn_service)
-        logger.debug(f'Add dnsmasq config for {vpn_service}[{dnsmasq_vpn_cfg}]...')
+        logger.debug(f'Add [dnsmasq] config for {vpn_service}[{dnsmasq_vpn_cfg}]...')
         runtime_resolv_cfg = self._resolver.adapt_dnsmasq(origin_resolv_conf, vpn_service) if self._resolver else None
         dnsmasq_opts = {
             '{{DNS_RESOLVED_FILE}}': self.__build_dnsmasq_conf('resolv-file', runtime_resolv_cfg),
@@ -367,7 +367,7 @@ class DNSMasqFlavour(DNSFlavour):
         FileHelper.copy(self.resource_dir.joinpath(self.DNSMASQ_CONFIG_TMPL), dnsmasq_vpn_cfg, force=True)
         FileHelper.replace_in_file(dnsmasq_vpn_cfg, dnsmasq_opts, backup='')
         FileHelper.chmod(dnsmasq_vpn_cfg, mode=0o0644)
-        logger.debug(f'Add dnsmasq nameserver runtime configuration [{vpn_nameserver_cfg}]...')
+        logger.debug(f'Add [dnsmasq] VPN nameserver runtime configuration [{vpn_nameserver_cfg}]...')
         FileHelper.create_symlink(vpn_nameserver_cfg, self._dnsmasq_vpn_nameserver_cfg, force=True)
         logger.info(f'Generating System DNS config file...')
         FileHelper.write_file(vpn_resolv_cfg, self.__dnsmasq_resolv(vpn_service), mode=0o0644)
@@ -378,7 +378,7 @@ class DNSMasqFlavour(DNSFlavour):
         return self._resolver.adapt_dnsmasq(origin_resolv_conf, vpn_service) if self._resolver else None
 
     def dnsmasq_options(self):
-        options = self._resolver.dnsmasq_options()
+        options = self._resolver.dnsmasq_options() if self._resolver else None
         return {'cache_size': 1500, 'port': 53} if options is None else options
 
     def tweak_per_nic(self, nic: str):
@@ -394,9 +394,12 @@ class DNSMasqFlavour(DNSFlavour):
 
     def reset_nameservers(self, vpn_nameserver_cfg: Path):
         logger.info('Reset VPN DNS config file...')
-        FileHelper.write_file(vpn_nameserver_cfg, mode=0o644, content='')
-        FileHelper.create_symlink(vpn_nameserver_cfg, self._dnsmasq_vpn_nameserver_cfg, force=True)
-        self._restart_dnsmasq()
+        if FileHelper.is_writable(vpn_nameserver_cfg):
+            FileHelper.write_file(vpn_nameserver_cfg, mode=0o644, content='')
+            FileHelper.create_symlink(vpn_nameserver_cfg, self._dnsmasq_vpn_nameserver_cfg, force=True)
+            self._restart_dnsmasq()
+        else:
+            FileHelper.rm(self._dnsmasq_vpn_nameserver_cfg)
 
     def query(self, priv_root_dns: str, vpn_nameserver_cfg: Path) -> list:
         if not FileHelper.is_readable(vpn_nameserver_cfg):
@@ -546,7 +549,7 @@ class DNSResolver(AppConvention):
 
     def create_config(self, vpn_service: str):
         if not FileHelper.is_readable(self.origin_resolv_cfg):
-            logger.info(f'Override and backup System DNS config file...')
+            logger.info(f'Backup System DNS config file[{self.origin_resolv_cfg}]...')
             FileHelper.backup(DNSResolver.DNS_SYSTEM_FILE, self.origin_resolv_cfg, remove=False)
         if not FileHelper.is_readable(self.origin_resolv_cfg):
             logger.error(f'Not found origin DNS config file [{self.origin_resolv_cfg}]')
