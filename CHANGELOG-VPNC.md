@@ -4,7 +4,7 @@
 
 ### Bugfix
 
-- Regression fix #39
+- Regression fix [#38](https://github.com/qweio/iot-vpn/issues/38): Connman on BeagleBone
 
 ## [v0.8.0](https://github.com/qweio/iot-vpn/tree/vpnc/v0.8.0) (2021-04-20)
 
