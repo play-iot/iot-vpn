@@ -183,12 +183,12 @@ class DNSFlavour(ABC):
         """
         pass
 
-    def dnsmasq_options(self) -> dict:
+    def dnsmasq_options(self) -> Optional[dict]:
         """
         Get the optimization dnsmasq options
         :return: dnsmasq option
         """
-        return {'cache_size': 1500, 'port': 53}
+        return None
 
     def setup(self, origin_resolv_conf: Path, vpn_service: str, vpn_resolv_cfg: Path, vpn_nameserver_cfg: Path):
         """
@@ -375,6 +375,10 @@ class DNSMasqFlavour(DNSFlavour):
 
     def adapt_dnsmasq(self, origin_resolv_conf: Path, vpn_service: str) -> Optional[Path]:
         return self._resolver.adapt_dnsmasq(origin_resolv_conf, vpn_service) if self._resolver else None
+
+    def dnsmasq_options(self):
+        options = self._resolver.dnsmasq_options()
+        return {'cache_size': 1500, 'port': 53} if options is None else options
 
     def tweak_per_nic(self, nic: str):
         if self._resolver:
