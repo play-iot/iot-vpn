@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.8.1](https://github.com/qweio/iot-vpn/tree/vpnc/v0.8.1) (2021-04-20)
+
+### Bugfix
+
+- Regression fix #39
+
 ## [v0.8.0](https://github.com/qweio/iot-vpn/tree/vpnc/v0.8.0) (2021-04-20)
 
 ### Added
