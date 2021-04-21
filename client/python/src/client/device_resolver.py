@@ -319,7 +319,8 @@ class ConnmanFlavour(DNSFlavour):
             self.service.restart(self.config.identity)
 
     def adapt_dnsmasq(self, origin_resolv_conf: Path, vpn_service: str) -> Optional[Path]:
-        return FileHelper.get_target_link(self.config.config_dir) or self.config.config_dir
+        return FileHelper.get_target_link(origin_resolv_conf) or self.config.runtime_resolv if \
+            FileHelper.is_readable(self.config.runtime_resolv) else origin_resolv_conf
 
     def dnsmasq_options(self) -> dict:
         return {}
