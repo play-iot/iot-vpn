@@ -1,0 +1,41 @@
+---
+- name: Transfer binary
+  copy:
+    src: binary/qweio-vpnc-amd64
+    dest: "{{ vpn_dir }}/"
+    owner: root
+    group: root
+    mode: u+x,g+x
+  when: ansible_architecture == "x86_64"
+
+- name: Create symlink
+  file:
+    src: "{{ vpn_dir }}/qweio-vpnc-amd64"
+    dest: "{{ bin_path }}/qweio-vpnc"
+    owner: root
+    group: root
+    state: link
+
+- name: Install VPN client
+  command: qweio-vpnc install --auto-startup --dnsmasq -dd {{ vpn_dir }}/vpnclient -dn {{ vpn_service }} -vv
+  register: vpn_install
+  ignore_errors: True
+  no_log: True
+
+- name: Show VPN install error message
+  debug: 
+    var: vpn_install.stdout_lines
+  when: vpn_install.rc != 0
+
+- name: Configure VPN client
+  command: qweio-vpnc add -sh {{ vpn_server }} -sp {{ vpn_port }} -su {{ vpn_hub }} -ca {{ vpn_account }} -ct password -cu {{ vpn_user }} -cp {{ vpn_password }} -dd {{ vpn_dir }}/vpnclient -v
+  when: vpn_auth_type == "password"
+  register: vpn_configure
+  ignore_errors: True
+  no_log: True
+
+- name: Show VPN configure error message
+  debug:
+    var: vpn_configure.stderr_lines
+  when: vpn_configure.rc != 0
+
