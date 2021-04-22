@@ -7,7 +7,7 @@ Requirements
 ------------
 
 - Rename `qweio-vpnc` binary to match CPU architecture and put in `binary` folder like sample below.
-- Put credentials in `credentials` folder, naming the credential files to match what're stated in [`inventory.yml`](ansible/inventory.yml) file.
+- Put credentials in `credentials` folder, naming the credential files to match what're stated in [`inventory.yml`](../inventory.yml) file.
 
 ```
 .
