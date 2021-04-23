@@ -74,8 +74,10 @@ def _download_2_unzip(tmp_dir: str, _arch: str, _version: str, _type: VPNType) -
 def _compile(_folder: str, _type: VPNType):
     logger.info(f'Compiling vpn {_type.value}...')
     SystemHelper.exec_command(f'yes 1 | make -C {_folder}', shell=True, log_lvl=logger.DEBUG)
-    rm_files = [os.path.join(_folder, f) for f in ['code', 'lib', '.install.sh', 'Makefile', 'Authors.txt']]
-    FileHelper.rm(rm_files + FileHelper.find_files(_folder, 'ReadMeFirst_Important*'))
+    rm_files = [os.path.join(_folder, f) for f in
+                ['code', 'lib', '.install.sh', 'Makefile', 'Authors.txt', 'lang.config']]
+    FileHelper.rm(rm_files + FileHelper.find_files(_folder, 'ReadMe*'))
+    FileHelper.write_file(os.path.join(_folder, 'lang.config'), 'en', mode=0o0644)
     return _folder
 
 
