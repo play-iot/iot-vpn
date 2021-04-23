@@ -664,7 +664,7 @@ class IPResolver(AppConvention):
 
     def cleanup_zombie(self, process):
         logger.log(self.log_lvl, 'Cleanup the IP lease zombie processes...')
-        SystemHelper.ps_kill(f'{self.ip_tool}.*{process}.*', silent=True, log_lvl=logger.down_lvl(self.log_lvl))
+        SystemHelper.kill_by_process(f'{self.ip_tool}.*{process}.*', silent=True, log_lvl=self.log_lvl)
 
     def get_vpn_ip(self, nic: str):
         try:
