@@ -197,8 +197,8 @@ class FileHelper(object):
         return fallback_if_not_exists
 
     @staticmethod
-    def find_files(_dir: str, glob_path: str) -> list:
-        return glob.glob(os.path.join(_dir, glob_path))
+    def find_files(_dir: Union[str, Path], glob_path: str) -> list:
+        return glob.glob(str(Path(_dir).joinpath(glob_path)))
 
     @staticmethod
     def replace_in_file(filename: Union[str, Path], replacements: dict, backup='.bak', regex=False) -> bool:

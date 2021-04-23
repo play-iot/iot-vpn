@@ -30,24 +30,28 @@ class ClientOpts(VpnDirectory):
     VPN_HOME = '/app/vpnclient'
 
     @property
+    def config_file(self):
+        return self.vpn_dir.joinpath('vpn_client.config')
+
+    @property
+    def vpnclient(self):
+        return self.vpn_dir.joinpath('vpnclient')
+
+    @property
     def log_file(self):
         return self.get_log_file(datetime.today().strftime("%Y%m%d"))
 
     @property
-    def vpnclient(self):
-        return os.path.join(self.vpn_dir, 'vpnclient')
-
-    @property
     def pid_file(self):
-        return os.path.join(self.runtime_dir, 'vpn.pid')
+        return self.runtime_dir.joinpath('vpn.pid')
 
     @property
     def account_cache_file(self):
-        return os.path.join(self.runtime_dir, 'vpn.account.cache')
+        return self.runtime_dir.joinpath('vpn.account.cache')
 
     @property
     def service_cache_file(self):
-        return os.path.join(self.runtime_dir, 'vpn.service.cache')
+        return self.runtime_dir.joinpath('vpn.service.cache')
 
     def get_log_file(self, date):
         return os.path.join(self.vpn_dir, 'client_log', f'client_{date}.log')
@@ -281,20 +285,20 @@ class VPNClientExecutor(VpnCmdExecutor):
 
     def install(self, unix_service: UnixServiceOpts, auto_startup: bool = False):
         logger.info(f'Installing vpnclient into [{self.opts.vpn_dir}]...')
-        FileHelper.mkdirs(Path(self.opts.vpn_dir).parent)
+        FileHelper.mkdirs(self.opts.vpn_dir.parent)
         FileHelper.unpack_archive(ClientOpts.get_resource(ClientOpts.VPNCLIENT_ZIP), self.opts.vpn_dir)
         FileHelper.mkdirs([self.opts.vpn_dir, self.opts.runtime_dir])
         FileHelper.chmod(self.opts.runtime_dir, mode=0o0755)
         FileHelper.chmod([os.path.join(self.opts.vpn_dir, p) for p in ('vpnclient', 'vpncmd')], mode=0o0755)
         _, cmd = build_executable_command()
         self.device.unix_service.create(unix_service, {
-            '{{WORKING_DIR}}': str(self.opts.vpn_dir), '{{PID_FILE}}': str(self.opts.pid_file),
+            '{{WORKING_DIR}}': f'{self.opts.vpn_dir}', '{{PID_FILE}}': f'{self.opts.pid_file}',
             '{{VPN_DESC}}': unix_service.service_name,
             '{{START_CMD}}': f'{cmd} start --vpn-dir {self.opts.vpn_dir}',
             '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {self.opts.vpn_dir}'
         }, auto_startup)
         self.device.ip_resolver.add_hook(unix_service.service_name,
-                                         {'{{WORKING_DIR}}': str(self.opts.vpn_dir), '{{VPN_CLIENT_CLI}}': cmd})
+                                         {'{{WORKING_DIR}}': f'{self.opts.vpn_dir}', '{{VPN_CLIENT_CLI}}': cmd})
         self.device.dns_resolver.create_config(unix_service.service_name)
         self._dump_cache_service(unix_service)
         self.storage.empty()

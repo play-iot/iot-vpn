@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Optional, Type
+from typing import Any, Optional, Type, Union
 
 import netifaces
 
@@ -45,7 +45,8 @@ class UnixServiceType(Enum):
 
 class AppConvention(ABC):
 
-    def __init__(self, resource_dir: str, runtime_dir: str, log_lvl: int = logger.DEBUG, silent: bool = True):
+    def __init__(self, resource_dir: Union[str, Path], runtime_dir: Union[str, Path], log_lvl: int = logger.DEBUG,
+                 silent: bool = True):
         self.resource_dir = Path(resource_dir)
         self.runtime_dir = Path(runtime_dir)
         self.log_lvl = log_lvl
@@ -56,7 +57,7 @@ class UnixService(AppConvention):
 
     @staticmethod
     @abstractmethod
-    def factory(resource_dir: str, runtime_dir: str) -> 'UnixService':
+    def factory(resource_dir: Union[str, Path], runtime_dir: Union[str, Path]) -> 'UnixService':
         pass
 
     @property
@@ -522,8 +523,8 @@ class DNSResolver(AppConvention):
     VPN_DNS_RESOLV_CFG = 'vpn-resolv.conf'
     VPN_NAMESERVER_CFG = 'vpn-runtime-nameserver.conf'
 
-    def __init__(self, resource_dir: str, runtime_dir: str, unix_service: UnixService, log_lvl: int = logger.DEBUG,
-                 silent: bool = True):
+    def __init__(self, resource_dir: Union[str, Path], runtime_dir: Union[str, Path], unix_service: UnixService,
+                 log_lvl: int = logger.DEBUG, silent: bool = True):
         super(DNSResolver, self).__init__(resource_dir, runtime_dir, log_lvl, silent)
         self.service, self.kind, self._is_dnsmasq = unix_service, DNSResolverType.UNKNOWN, False
         self.origin_resolv_cfg = DNSResolver.DNS_SYSTEM_FILE.parent.joinpath(DNSResolver.DNS_ORIGIN_FILE)
@@ -702,7 +703,7 @@ class Systemd(UnixService):
     SERVICE_FILE_TMPL = 'qweio-vpn.service.tmpl'
 
     @staticmethod
-    def factory(resource_dir, runtime_dir) -> 'UnixService':
+    def factory(resource_dir: Union[str, Path], runtime_dir: Union[str, Path]) -> 'UnixService':
         if SystemHelper.verify_command(f'pidof {UnixServiceType.SYSTEMD.value}'):
             return Systemd(resource_dir=resource_dir, runtime_dir=runtime_dir)
         return None
@@ -762,7 +763,7 @@ class Procd(UnixService, ABC):
     """
 
     @staticmethod
-    def factory(resource_dir: str, runtime_dir: str) -> 'UnixService':
+    def factory(resource_dir: Union[str, Path], runtime_dir: Union[str, Path]) -> 'UnixService':
         if SystemHelper.verify_command(f'pidof {UnixServiceType.PROCD.value}'):
             raise NotImplementedError('Not yet supported OpenWRT')
         return None
@@ -773,7 +774,8 @@ class DHCPResolver(IPResolver):
     DHCLIENT_CONFIG_TMPL = 'dhclient-vpn.conf.tmpl'
 
     @staticmethod
-    def factory(resource_dir, runtime_dir: str, log_lvl: int, silent: bool = True) -> 'IPResolver':
+    def factory(resource_dir: Union[str, Path], runtime_dir: Union[str, Path], log_lvl: int,
+                silent: bool = True) -> 'IPResolver':
         if FileHelper.which(IPResolverType.DHCLIENT.value):
             return DHCPResolver(resource_dir, runtime_dir, log_lvl, silent)
         return None
@@ -832,7 +834,8 @@ class DeviceResolver:
         self.__ip_resolver = None
         self.__dns_resolver = None
 
-    def probe(self, resource_dir: str, runtime_dir: str, log_lvl=logger.DEBUG, silent=True) -> 'DeviceResolver':
+    def probe(self, resource_dir: Union[str, Path], runtime_dir: Union[str, Path], log_lvl=logger.DEBUG,
+              silent=True) -> 'DeviceResolver':
         self._service(Systemd.factory(resource_dir, runtime_dir) or Procd.factory(resource_dir, runtime_dir))
         self._ip_resolver(DHCPResolver.factory(resource_dir, runtime_dir, log_lvl, silent))
         self._dns_resolver(DNSResolver(resource_dir, runtime_dir, self.unix_service).probe())

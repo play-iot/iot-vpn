@@ -1,6 +1,7 @@
 import functools
 import os
 from abc import abstractmethod
+from pathlib import Path
 from typing import TypeVar
 
 import click
@@ -103,15 +104,15 @@ class VpnDirectory(DevModeDir):
     PROFILE_D_ENV = f'/etc/profile.d/{AppEnv.BRAND}-vpn.sh'
 
     def __init__(self, app_dir: str):
-        self.vpn_dir = app_dir
+        self.vpn_dir = Path(app_dir)
 
     @property
-    def vpncmd(self):
-        return os.path.join(self.vpn_dir, 'vpncmd')
+    def vpncmd(self) -> Path:
+        return self.vpn_dir.joinpath('vpncmd')
 
     @property
-    def runtime_dir(self):
-        return os.path.join(self.vpn_dir, self.RUNTIME_FOLDER)
+    def runtime_dir(self) -> Path:
+        return self.vpn_dir.joinpath(self.RUNTIME_FOLDER)
 
     @classmethod
     def resource_dir(cls) -> str:
@@ -123,14 +124,15 @@ class VpnDirectory(DevModeDir):
         pass
 
     def reload(self, vpn_dir):
-        self.vpn_dir = vpn_dir
+        self.vpn_dir = Path(vpn_dir)
         return self
 
     def get_vpn_version(self, fallback='unknown'):
-        return FileHelper.read_file_by_line(os.path.join(self.vpn_dir, self.CORE_VERSION_FILE)) or fallback
+        return FileHelper.read_file_by_line(self.vpn_dir.joinpath(self.CORE_VERSION_FILE)) or fallback
 
     def export_env(self):
-        FileHelper.write_file(VpnDirectory.PROFILE_D_ENV, f'export {AppEnv.VPN_HOME_ENV}="{self.vpn_dir}"', mode=0o0644)
+        FileHelper.write_file(VpnDirectory.PROFILE_D_ENV, f'export {AppEnv.VPN_HOME_ENV}="{self.vpn_dir}"',
+                              mode=0o0644)
 
     @staticmethod
     def remove_env():
