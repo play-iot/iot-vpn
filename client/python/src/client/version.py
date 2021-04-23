@@ -1,2 +1,2 @@
-APP_VERSION = '0.8.1'
+APP_VERSION = '0.9.0'
 HASH_VERSION = 'dev'
