@@ -776,7 +776,7 @@ class DHCPResolver(IPResolver):
     @staticmethod
     def factory(resource_dir: Union[str, Path], runtime_dir: Union[str, Path], log_lvl: int,
                 silent: bool = True) -> 'IPResolver':
-        if FileHelper.which(IPResolverType.DHCLIENT.value):
+        if SystemHelper.which(IPResolverType.DHCLIENT.value):
             return DHCPResolver(resource_dir, runtime_dir, log_lvl, silent)
         return None
 
@@ -827,6 +827,31 @@ class UDHCPCResolver(IPResolver, ABC):
         return IPResolverType.UDHCPC.value
 
 
+class PackageManager(ABC):
+
+    @property
+    @abstractmethod
+    def tool(self) -> str:
+        pass
+
+    def install(self, package):
+        SystemHelper.exec_command(f'{self.tool} install {package} -y', log_lvl=logger.INFO, silent=True)
+
+
+class YumPM(PackageManager):
+
+    @property
+    def tool(self) -> str:
+        return 'yum'
+
+
+class AptPM(PackageManager):
+
+    @property
+    def tool(self) -> str:
+        return 'apt'
+
+
 class DeviceResolver:
 
     def __init__(self):
@@ -852,6 +877,26 @@ class DeviceResolver:
     @property
     def dns_resolver(self) -> DNSResolver:
         return self.__dns_resolver
+
+    @property
+    def pm(self) -> Optional[PackageManager]:
+        if SystemHelper.which(AptPM().tool):
+            return AptPM()
+        if SystemHelper.which(YumPM().tool):
+            return YumPM()
+        return None
+
+    def install_dnsmasq(self, auto_install: bool = False):
+        if not auto_install:
+            logger.error('dnsmasq is not yet installed. Please install [dnsmasq] depends on your distro')
+            sys.exit(ErrorCode.MISSING_REQUIREMENT)
+        logger.info('Try to install [dnsmasq]...')
+        pm = self.pm
+        if not pm:
+            logger.error('Unknown package manager. Please install [dnsmasq] by yourself')
+            sys.exit(ErrorCode.MISSING_REQUIREMENT)
+        pm.install('dnsmasq')
+        self._dns_resolver(self.dns_resolver.probe())
 
     def _service(self, service: UnixService):
         self.__service = self.__not_null(service, 'INIT system')

@@ -410,6 +410,7 @@ def __download(downloader_opts: DownloaderOpt):
 
 @cli.command(name="install", help="Install VPN client and setup *nix service")
 @click.option("--auto-startup", type=bool, default=False, flag_value=True, help="Enable auto-startup VPN service")
+@click.option("--auto-dnsmasq", type=bool, default=False, flag_value=True, help="Give a try to install dnsmasq")
 @click.option("--dnsmasq/--no-dnsmasq", type=bool, default=True, flag_value=False,
               help="By default, dnsmasq is used as local DNS cache. Disabled it if using default System DNS resolver")
 @vpn_client_opts
@@ -419,7 +420,8 @@ def __download(downloader_opts: DownloaderOpt):
               help="If force is enabled, VPN service will be removed then reinstall without backup")
 @verbose_opts
 @permission
-def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, auto_startup: bool, dnsmasq: bool, force: bool):
+def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, auto_startup: bool, auto_dnsmasq: bool,
+              dnsmasq: bool, force: bool):
     if not dnsmasq:
         logger.error('Only support dnsmasq as DNS resolver in first version')
         sys.exit(ErrorCode.NOT_YET_SUPPORTED)
@@ -433,9 +435,7 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, auto_startup:
             sys.exit(ErrorCode.VPN_ALREADY_INSTALLED)
     device = executor.device
     if dnsmasq and not device.dns_resolver.is_dnsmasq_available():
-        logger.error('dnsmasq is not yet installed. Install by [apt install dnsmasq]/[yum install dnsmasq] ' +
-                     'or depends on package-manager of your distro')
-        sys.exit(ErrorCode.MISSING_REQUIREMENT)
+        executor.device.install_dnsmasq(auto_dnsmasq)
     logger.info(f'Installing VPN client into [{vpn_opts.vpn_dir}] and register service[{unix_service.service_name}]...')
     executor.install(unix_service, auto_startup)
     logger.done()

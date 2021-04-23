@@ -1,6 +1,7 @@
 import errno
 import os
 import re
+import shutil
 import signal
 import socket
 import subprocess
@@ -23,6 +24,10 @@ class SystemHelper(object):
             return True
         except:
             return False
+
+    @staticmethod
+    def which(command):
+        return True if shutil.which(command) else False
 
     @staticmethod
     def exec_command(command: str, shell=False, silent=False, log_lvl=logger.DEBUG) -> str:

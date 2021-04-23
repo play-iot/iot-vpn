@@ -179,10 +179,6 @@ class FileHelper(object):
         return True if next(filter(lambda x: mode & x, checks), None) else False
 
     @staticmethod
-    def which(command):
-        return True if shutil.which(command) else False
-
-    @staticmethod
     def read_file_by_line(path: Union[str, Path], line=-1, fallback_if_not_exists=None):
         if FileHelper.is_readable(path):
             count = 0
