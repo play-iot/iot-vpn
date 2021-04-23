@@ -18,7 +18,7 @@ class SystemHelper(object):
     @staticmethod
     def verify_command(command: str, shell=False, log_lvl=logger.DEBUG) -> bool:
         try:
-            SystemHelper.exec_command(command, shell=shell, silent=True, log_lvl=log_lvl)
+            SystemHelper.exec_command(command, shell=shell, silent=True, log_lvl=logger.down_lvl(log_lvl))
             return True
         except:
             return False
@@ -71,7 +71,7 @@ class SystemHelper(object):
     @staticmethod
     def ps_kill(process_name: str, silent=True, log_lvl=logger.DEBUG):
         pid = SystemHelper.exec_command(f"ps aux | grep -e '{process_name}' | awk '{{print $2}}'", shell=True,
-                                        silent=silent, log_lvl=log_lvl)
+                                        silent=silent, log_lvl=logger.down_lvl(log_lvl))
         if pid:
             SystemHelper.exec_command(f'kill -9 {pid}', silent=silent, log_lvl=log_lvl)
 

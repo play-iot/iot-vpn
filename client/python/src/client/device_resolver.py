@@ -716,7 +716,7 @@ class Systemd(UnixService):
         FileHelper.copy(self.resource_dir.joinpath(Systemd.SERVICE_FILE_TMPL), service_fqn, force=True)
         FileHelper.replace_in_file(service_fqn, replacements, backup='')
         FileHelper.chmod(service_fqn, mode=0o0644)
-        logger.info(f'Add new service [{opts.service_name}] in [{service_fqn}]')
+        logger.info(f'Add new service [{opts.service_name}] in [{service_fqn}]...')
         SystemHelper.exec_command("systemctl daemon-reload", silent=True, log_lvl=logger.INFO)
         if auto_startup:
             self.enable(opts.service_name)
@@ -749,7 +749,7 @@ class Systemd(UnixService):
 
     def status(self, service_name: str) -> ServiceStatus:
         status = SystemHelper.exec_command(f"systemctl status {service_name} | grep Active | awk '{{print $2$3}}'",
-                                           shell=True, silent=True, log_lvl=logger.DEBUG)
+                                           shell=True, silent=True, log_lvl=logger.TRACE)
         return ServiceStatus.parse(status)
 
     def to_service_fqn(self, service_dir: str, service_name: str):

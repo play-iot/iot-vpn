@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import os
 import re
-import shutil
 import sys
 import time
 from datetime import datetime
@@ -405,7 +404,7 @@ def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, ac
     setup_cmd = setup_cmd if no_connect else {**setup_cmd, **{'AccountConnect': acc.account}}
     setup_cmd = setup_cmd if not acc.is_default else {**setup_cmd, **{'AccountStartupSet': acc.account}}
     if not no_connect:
-        executor.disconnect_current()
+        executor.disconnect_current(silent=True)
     executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], acc.account, silent=True)
     executor.exec_command(setup_cmd)
     executor.storage.create_or_update(acc, connect=not no_connect)
@@ -456,7 +455,7 @@ def __set_default(vpn_opts: ClientOpts, account: str, connect: bool):
     executor.storage.set_default(account)
     if connect:
         executor.probe(log_lvl=logger.DEBUG)
-        executor.disconnect_current()
+        executor.disconnect_current(silent=False)
         executor.storage.set_current(account)
         executor.resolver.unix_service.restart(executor.read_cache_service().service_name)
     logger.done()
@@ -472,7 +471,7 @@ def __set_default(vpn_opts: ClientOpts, account: str, connect: bool):
 def __connect(vpn_opts: ClientOpts, account: str, is_default: bool):
     executor = VPNClientExecutor(vpn_opts).probe(log_lvl=logger.INFO)
     setup_cmd = ['AccountConnect', 'AccountStartupSet'] if is_default else ['AccountConnect']
-    executor.disconnect_current()
+    executor.disconnect_current(silent=True)
     executor.exec_command(setup_cmd, params=account, silent=True, log_lvl=logger.INFO)
     acc = AccountInfo.merge(executor.storage.find(account), AccountInfo('', account, '', is_default))
     executor.storage.create_or_update(acc, connect=True)
@@ -599,7 +598,7 @@ def __execute(vpn_opts: ClientOpts, command):
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @permission
-def __start(vpn_opts: ClientOpts):
+def __start_service(vpn_opts: ClientOpts):
     executor = VPNClientExecutor(vpn_opts).probe(silent=False, log_lvl=logger.INFO)
     executor.pre_exec(log_lvl=logger.INFO)
     vpn_acc = executor.storage.get_default()
@@ -613,7 +612,7 @@ def __start(vpn_opts: ClientOpts):
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @permission
-def __stop(vpn_opts: ClientOpts):
+def __stop_service(vpn_opts: ClientOpts):
     executor = VPNClientExecutor(vpn_opts).probe(silent=False, log_lvl=logger.INFO)
     executor.post_exec(log_lvl=logger.INFO)
     executor.cleanup_zombie_vpn()
