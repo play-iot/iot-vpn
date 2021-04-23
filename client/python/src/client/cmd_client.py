@@ -241,10 +241,13 @@ class VPNClientExecutor(VpnCmdExecutor):
             sys.exit(ErrorCode.VPN_START_FAILED)
 
     def post_exec(self, silent=False, log_lvl=logger.DEBUG, **kwargs):
-        if not self.is_installed(silent, log_lvl) or self.pid_handler.is_running():
+        if not self.is_installed(silent, log_lvl):
+            return
+        if self.pid_handler.is_running() and self.device.unix_service.status(self.vpn_service).is_running():
             return
         logger.log(log_lvl, 'Stop VPN Client...')
         SystemHelper.exec_command(f'{self.opts.vpnclient} stop', silent=silent, log_lvl=logger.down_lvl(log_lvl))
+        self.cleanup_zombie_vpn(1, log_lvl=logger.down_lvl(log_lvl))
         self.pid_handler.cleanup()
 
     def vpn_cmd_opt(self):
@@ -302,7 +305,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         accounts = [a.account for a in self.storage.list()]
         if len(accounts) > 0:
             self.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], accounts, silent=True)
-        self.stop_or_disable_vpn_service(service_opts.service_name, True, True, keep_dnsmasq=keep_dnsmasq)
+        self.shutdown_vpn_service(is_stop=True, is_disable=True, keep_dnsmasq=keep_dnsmasq)
         self.device.unix_service.remove(service_opts, force)
         self.device.ip_resolver.remove_hook(service_opts.service_name)
         self.device.ip_resolver.renew_all_ip()
@@ -325,7 +328,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         FileHelper.copy(self.opts.backup_dir.joinpath(self.opts.RUNTIME_FOLDER), self.opts.runtime_dir, force=True)
         FileHelper.rm(self.opts.backup_dir)
 
-    def connect_vpn(self, account: str, is_default, log_lvl: int = logger.INFO):
+    def connect_vpn(self, account: str, is_default: bool, log_lvl: int = logger.INFO):
         if not account:
             logger.error(f'VPN account is not correct')
             sys.exit(ErrorCode.INVALID_ARGUMENT)
@@ -334,12 +337,8 @@ class VPNClientExecutor(VpnCmdExecutor):
         self.exec_command(setup_cmd, params=account)
         acc = AccountInfo.merge(self.storage.find(account), AccountInfo('', account, '', is_default))
         self.storage.create_or_update(acc, connect=True)
-        if acc.is_default:
-            vpn_service = self.vpn_service
-            self.device.unix_service.enable(vpn_service)
-            self.device.unix_service.restart(vpn_service)
-        else:
-            self.device.ip_resolver.lease_ip(acc.account, self.opts.account_to_nic(acc.account))
+        self.lease_vpn_service(is_enable=acc.is_default, is_restart=acc.is_default, is_lease_ip=not acc.is_default,
+                               account=acc.account)
 
     def disconnect_vpn(self, log_lvl: int = logger.INFO, silent: bool = False) -> Optional[str]:
         account = self.storage.get_current() or self.storage.get_default()
@@ -354,14 +353,25 @@ class VPNClientExecutor(VpnCmdExecutor):
         self.device.ip_resolver.cleanup_zombie(f' {self.vpn_dir}.* {self.opts.account_to_nic(account)}')
         return account
 
-    def stop_or_disable_vpn_service(self, service_name: str, is_stop=True, is_disable=False, keep_dnsmasq=True):
+    def lease_vpn_service(self, is_enable: bool = True, is_restart: bool = True, is_lease_ip: bool = False,
+                          account: Optional[str] = None):
+        vpn_service = self.vpn_service
+        if is_enable:
+            self.device.unix_service.enable(vpn_service)
+        if is_restart:
+            self.device.unix_service.restart(vpn_service)
+        if is_lease_ip and account:
+            self.device.ip_resolver.lease_ip(account, self.opts.account_to_nic(account))
+
+    def shutdown_vpn_service(self, is_stop=True, is_disable=False, keep_dnsmasq=True):
+        vpn_service = self.vpn_service
         if is_stop:
-            self.device.unix_service.stop(service_name)
+            self.device.unix_service.stop(vpn_service)
         if is_disable:
-            self.device.unix_service.disable(service_name)
+            self.device.unix_service.disable(vpn_service)
         if is_stop or is_disable:
             self.cleanup_zombie_vpn()
-            self.device.dns_resolver.cleanup_config(service_name, keep_dnsmasq=keep_dnsmasq)
+            self.device.dns_resolver.cleanup_config(vpn_service, keep_dnsmasq=keep_dnsmasq)
 
     def cleanup_zombie_vpn(self, delay=1, log_lvl=logger.DEBUG):
         time.sleep(delay)
@@ -463,12 +473,12 @@ def __upgrade(vpn_opts: ClientOpts):
     def _decision(_executor: VPNClientExecutor, _default_acc: str, _current_acc: str):
         if not _default_acc and not _current_acc:
             return
-        if _default_acc:
-            if not _current_acc or _current_acc == _default_acc:
-                return _executor.device.unix_service.restart(_executor.vpn_service)
-        if _current_acc:
-            _executor.disconnect_vpn(log_lvl=logger.DEBUG, silent=True)
-            _executor.connect_vpn(_current_acc, _current_acc == _default_acc)
+        if _default_acc and not _current_acc:
+            return _executor.lease_vpn_service(is_enable=True, is_restart=False, is_lease_ip=False)
+        if not _default_acc and _current_acc:
+            return _executor.connect_vpn(_current_acc, False)
+        _executor.disconnect_vpn(log_lvl=logger.DEBUG, silent=True)
+        _executor.connect_vpn(_current_acc, _current_acc == _default_acc)
 
     executor = VPNClientExecutor(vpn_opts).probe()
     is_installed = executor.is_installed(silent=True)
@@ -523,13 +533,8 @@ def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, ac
     executor.storage.create_or_update(acc, connect=not no_connect)
     executor.device.ip_resolver.create_config(acc.account, {'{{HOST_NAME}}': hostname})
     executor.device.dns_resolver.tweak_on_nic(vpn_opts.account_to_nic(acc.account))
-    if acc.is_default:
-        vpn_service = executor.vpn_service
-        executor.device.unix_service.enable(vpn_service)
-        if not no_connect:
-            executor.device.unix_service.restart(vpn_service)
-    if no_connect:
-        executor.device.ip_resolver.lease_ip(acc.account, vpn_opts.account_to_nic(acc.account))
+    executor.lease_vpn_service(is_enable=acc.is_default, is_restart=acc.is_default and not no_connect,
+                               is_lease_ip=no_connect, account=acc.account)
     logger.done()
 
 
@@ -552,7 +557,7 @@ def __delete(vpn_opts: ClientOpts, accounts):
         is_stop = is_current or is_stop
         is_disable = is_default or is_disable
     if is_stop or is_disable:
-        executor.stop_or_disable_vpn_service(executor.vpn_service, is_stop=is_stop, is_disable=is_disable)
+        executor.shutdown_vpn_service(is_stop=is_stop, is_disable=is_disable)
     logger.done()
 
 
@@ -566,14 +571,13 @@ def __delete(vpn_opts: ClientOpts, accounts):
 def __set_default(vpn_opts: ClientOpts, account: str, connect: bool):
     logger.info(f'Set VPN account [{account}] as startup VPN connection ' +
                 f'{"then connect immediately" if connect else ""}...')
-    executor = VPNClientExecutor(vpn_opts).require_install()
+    executor = VPNClientExecutor(vpn_opts).require_install().probe()
     executor.exec_command('AccountStartupSet', params=account, log_lvl=logger.INFO)
     executor.storage.set_default(account)
     if connect:
-        executor.probe(log_lvl=logger.DEBUG)
         executor.disconnect_vpn(silent=False)
         executor.storage.set_current(account)
-        executor.device.unix_service.restart(executor.vpn_service)
+    executor.lease_vpn_service(is_enable=True, is_restart=connect, is_lease_ip=False, account=account)
     logger.done()
 
 
@@ -600,7 +604,7 @@ def __connect(vpn_opts: ClientOpts, account: str, is_default: bool):
 def __disconnect(disable: bool, vpn_opts: ClientOpts):
     executor = VPNClientExecutor(vpn_opts).require_install().probe(log_lvl=logger.INFO)
     executor.disconnect_vpn(silent=False)
-    executor.stop_or_disable_vpn_service(executor.vpn_service, is_stop=True, is_disable=disable)
+    executor.shutdown_vpn_service(is_stop=True, is_disable=disable)
     logger.done()
 
 
@@ -636,7 +640,7 @@ def __status(vpn_opts: ClientOpts):
 def __add_trust_server(vpn_opts: ClientOpts, account: str, cert_key: str):
     logger.info("Enable Trust VPN Server on VPN client...")
     commands = {'AccountServerCertSet': f'{account} /LOADCERT:{cert_key}', 'AccountServerCertEnable': account}
-    VPNClientExecutor(vpn_opts).require_install().exec_command(commands)
+    VPNClientExecutor(vpn_opts).require_install().probe().exec_command(commands)
     logger.done()
 
 
@@ -646,7 +650,7 @@ def __add_trust_server(vpn_opts: ClientOpts, account: str, cert_key: str):
 @verbose_opts
 @permission
 def __list(vpn_opts: ClientOpts):
-    VPNClientExecutor(vpn_opts).require_install().exec_command(['AccountList'], log_lvl=logger.INFO)
+    VPNClientExecutor(vpn_opts).require_install().probe().exec_command('AccountList', log_lvl=logger.INFO)
 
 
 @cli.command(name='detail', help='Get detail VPN configuration and status by one or many accounts')
@@ -659,7 +663,8 @@ def __detail(vpn_opts: ClientOpts, accounts):
     if accounts is None or len(accounts) == 0:
         logger.error('Must provide at least account')
         sys.exit(ErrorCode.INVALID_ARGUMENT)
-    VPNClientExecutor(vpn_opts).require_install().exec_command('AccountGet', params=accounts, log_lvl=logger.INFO)
+    VPNClientExecutor(vpn_opts).require_install().probe().exec_command('AccountGet', params=accounts,
+                                                                       log_lvl=logger.INFO)
 
 
 @cli.command(name='log', help='Get VPN log')
