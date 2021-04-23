@@ -346,7 +346,8 @@ def __install(auto_startup: bool, dnsmasq: bool, vpn_opts: ClientOpts, unix_serv
                                   {'{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{VPN_CLIENT_CLI}}': cmd})
     resolver.dns_resolver.create_config(unix_service.service_name)
     executor.dump_cache_service(unix_service)
-    vpn_opts.export_env()
+    executor.storage.empty()
+    executor.opts.export_env()
     logger.done()
 
 
@@ -370,9 +371,9 @@ def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = 
     executor.resolver.ip_resolver.renew_all_ip()
     executor.storage.empty()
     if force:
-        logger.info(f'Remove VPN Client in {vpn_opts.vpn_dir}...')
-        shutil.rmtree(vpn_opts.vpn_dir, ignore_errors=True)
-        vpn_opts.remove_env()
+        logger.info(f'Remove VPN Client in {executor.opts.vpn_dir}...')
+        FileHelper.rm(executor.opts.vpn_dir)
+        executor.opts.remove_env()
     logger.done()
 
 
