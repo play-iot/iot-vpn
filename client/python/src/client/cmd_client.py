@@ -195,7 +195,7 @@ class VPNPIDHandler:
         FileHelper.rm(self.opts.pid_file)
 
     def _find_pid(self, log_lvl=logger.DEBUG) -> int:
-        logger.log(log_lvl, 'Checking if VPN is running')
+        logger.log(log_lvl, 'Check if VPN is running...')
         return next((pid for pid in map(lambda x: self._check_pid(x, log_lvl), self._pid_files(log_lvl)) if pid), 0)
 
     def _pid_files(self, log_lvl=logger.DEBUG) -> list:
@@ -272,7 +272,6 @@ class VPNClientExecutor(VpnCmdExecutor):
         return self.is_installed(silent, log_lvl) and self.pid_handler.is_running(log_lvl)
 
     def install(self, unix_service: UnixServiceOpts, auto_startup: bool = False):
-        logger.info(f'Installing vpnclient into [{self.opts.vpn_dir}]...')
         FileHelper.mkdirs(self.opts.vpn_dir.parent)
         FileHelper.unpack_archive(ClientOpts.get_resource(ClientOpts.VPNCLIENT_ZIP), self.opts.vpn_dir)
         FileHelper.mkdirs([self.opts.vpn_dir, self.opts.runtime_dir])
@@ -312,7 +311,8 @@ class VPNClientExecutor(VpnCmdExecutor):
         current = self.storage.get_current()
         if not current:
             return
-        self.exec_command('AccountDisconnect', params=current, log_lvl=log_lvl, silent=silent)
+        logger.log(log_lvl, f'Disconnect VPN account [{current}]...')
+        self.exec_command('AccountDisconnect', params=current, log_lvl=logger.down_lvl(log_lvl), silent=silent)
         self.storage.set_current('')
         self.device.dns_resolver.reset_vpn_nameservers()
         self.device.ip_resolver.release_ip(current, self.opts.account_to_nic(current))
@@ -338,6 +338,10 @@ class VPNClientExecutor(VpnCmdExecutor):
     def _not_install_error_msg(self, cmd) -> str:
         return f'Missing VPN client. Might be the installation is corrupted. ' + \
                f'Use "{cmd} uninstall -f" then try reinstall by "{cmd} install"'
+
+    def _optimize_command_result(self, output):
+        r = grep(output, r'VPN Client>.+((?:\n.+)+)', re.MULTILINE)
+        return ''.join(r).replace('The command completed successfully.', '').strip()
 
     def _dump_cache_service(self, _unix_service_opts: UnixServiceOpts):
         JsonHelper.dump(self.opts.service_cache_file, _unix_service_opts)
@@ -384,7 +388,7 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, auto_startup:
         logger.error('Only support dnsmasq as DNS resolver in first version')
         sys.exit(ErrorCode.NOT_YET_SUPPORTED)
     executor = VPNClientExecutor(vpn_opts).probe(log_lvl=logger.INFO)
-    if executor.is_installed():
+    if executor.is_installed(silent=True):
         if force:
             logger.warn('VPN service is already installed. Try to remove then reinstall...')
             executor.uninstall(True, True)
@@ -396,6 +400,7 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, auto_startup:
         logger.error('dnsmasq is not yet installed. Install by [apt install dnsmasq]/[yum install dnsmasq] ' +
                      'or depends on package-manager of your distro')
         sys.exit(ErrorCode.MISSING_REQUIREMENT)
+    logger.info(f'Installing VPN client into [{vpn_opts.vpn_dir}] and register service[{unix_service.service_name}]...')
     executor.install(unix_service, auto_startup)
     logger.done()
 
@@ -409,6 +414,7 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, auto_startup:
 @verbose_opts
 @permission
 def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = True):
+    logger.info('Uninstall VPN service...')
     VPNClientExecutor(vpn_opts).probe().uninstall(force, keep_dnsmasq)
     logger.done()
 
@@ -427,10 +433,10 @@ def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = 
 @permission
 def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, account: str, is_default: bool,
           dns_prefix: str, no_connect: bool):
+    logger.info(f'Setup VPN Client with VPN account {account}...')
     executor = VPNClientExecutor(vpn_opts).probe()
     hostname = dns_prefix or executor.generate_host_name(server_opts.hub, auth_opts.user, log_lvl=logger.DEBUG)
     acc = AccountInfo(server_opts.hub, account, hostname, is_default)
-    logger.info(f'Setup VPN Client with VPN account {acc.account}...')
     setup_cmd = {
         'NicCreate': acc.account,
         'AccountCreate': f'{acc.account} /SERVER:{server_opts.server} /HUB:{acc.hub} /USERNAME:{auth_opts.user} /NICNAME:{acc.account}'
@@ -439,7 +445,7 @@ def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, ac
     setup_cmd = setup_cmd if no_connect else {**setup_cmd, **{'AccountConnect': acc.account}}
     setup_cmd = setup_cmd if not acc.is_default else {**setup_cmd, **{'AccountStartupSet': acc.account}}
     if not no_connect:
-        executor.disconnect_current(silent=True)
+        executor.disconnect_current(log_lvl=logger.DEBUG, silent=True)
     executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], acc.account, silent=True)
     executor.exec_command(setup_cmd)
     executor.storage.create_or_update(acc, connect=not no_connect)
@@ -462,6 +468,7 @@ def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, ac
 @verbose_opts
 @permission
 def __delete(vpn_opts: ClientOpts, accounts):
+    logger.info(f'Delete VPN account [{accounts}] and stop/disable VPN service if it\'s a current VPN connection...')
     if accounts is None or len(accounts) == 0:
         logger.error('Must provide at least account')
         sys.exit(ErrorCode.INVALID_ARGUMENT)
@@ -485,6 +492,8 @@ def __delete(vpn_opts: ClientOpts, accounts):
 @verbose_opts
 @permission
 def __set_default(vpn_opts: ClientOpts, account: str, connect: bool):
+    logger.info(f'Set VPN account [{account}] as startup VPN connection ' +
+                f'{"then connect immediately" if connect else ""}...')
     executor = VPNClientExecutor(vpn_opts)
     executor.exec_command('AccountStartupSet', params=account, log_lvl=logger.INFO)
     executor.storage.set_default(account)
@@ -505,9 +514,10 @@ def __set_default(vpn_opts: ClientOpts, account: str, connect: bool):
 @permission
 def __connect(vpn_opts: ClientOpts, account: str, is_default: bool):
     executor = VPNClientExecutor(vpn_opts).probe(log_lvl=logger.INFO)
+    logger.info(f'Connect VPN account [{account}]...')
     setup_cmd = ['AccountConnect', 'AccountStartupSet'] if is_default else ['AccountConnect']
-    executor.disconnect_current(silent=True)
-    executor.exec_command(setup_cmd, params=account, silent=True, log_lvl=logger.INFO)
+    executor.disconnect_current(log_lvl=logger.DEBUG, silent=True)
+    executor.exec_command(setup_cmd, params=account)
     acc = AccountInfo.merge(executor.storage.find(account), AccountInfo('', account, '', is_default))
     executor.storage.create_or_update(acc, connect=True)
     if acc.is_default:
@@ -561,7 +571,7 @@ def __status(vpn_opts: ClientOpts):
 @verbose_opts
 @permission
 def __add_trust_server(vpn_opts: ClientOpts, account: str, cert_key: str):
-    logger.info("Enable Trust VPN Server on VPN client")
+    logger.info("Enable Trust VPN Server on VPN client...")
     VPNClientExecutor(vpn_opts).exec_command({'AccountServerCertSet': '%s /LOADCERT:%s' % (account, cert_key),
                                               'AccountServerCertEnable': account})
     logger.done()

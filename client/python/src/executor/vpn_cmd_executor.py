@@ -56,7 +56,7 @@ class VpnCmdExecutor(ABC):
     def _run(self, commands, log_lvl, params, silent):
         if not self.is_installed(silent):
             return None
-        d, kv, o = None, True, None
+        d, kv, output = None, True, ''
         if isinstance(commands, str):
             if isinstance(params, (list, tuple)):
                 d, kv = {p: commands for p in params}, False
@@ -68,15 +68,21 @@ class VpnCmdExecutor(ABC):
             c, p = (k, v) if kv else (v, k)
             logger.decrease(log_lvl, f"Execute VPN Command '{c if ' ' not in c else c.split()[0]}'")
             o = SystemHelper.exec_command(f'{self.opts.vpncmd} {self.vpn_cmd_opt()} {c} {p}', silent=silent,
-                                          log_lvl=log_lvl)
+                                          log_lvl=logger.down_lvl(log_lvl))
+            o = self._optimize_command_result(o)
+            logger.log(log_lvl, o)
             logger.sep(log_lvl)
-        return o
+            output += o
+        return output
 
     def _is_install(self) -> bool:
         return True
 
     def _not_install_error_msg(self, cmd) -> str:
         return f'Missing VPN installation'
+
+    def _optimize_command_result(self, output):
+        return output
 
     @staticmethod
     def generate_host_name(hub: str, user: str, log_lvl=logger.DEBUG):
