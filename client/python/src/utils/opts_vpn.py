@@ -1,6 +1,7 @@
 import functools
 import os
 from abc import abstractmethod
+from pathlib import Path
 from typing import TypeVar
 
 import click
@@ -17,7 +18,7 @@ class AuthOpts(object):
             raise click.BadParameter("Missing user")
         self.user = user
 
-    def setup(self, account: str):
+    def setup(self, account: str) -> dict:
         raise NotImplementedError("Not yet supported")
 
 
@@ -29,9 +30,9 @@ class BasicAuthOpts(AuthOpts):
             raise click.BadParameter("Missing password")
         self.password = password
 
-    def setup(self, account: str):
+    def setup(self, account: str) -> dict:
         _type = "standard" if self.auth_type == "password" else "radius"
-        return "AccountPasswordSet", "%s /PASSWORD:%s /TYPE:%s" % (account, self.password, _type)
+        return {'AccountPasswordSet': f'{account} /PASSWORD:{self.password} /TYPE:{_type}'}
 
 
 class CertAuthOpts(AuthOpts):
@@ -43,8 +44,8 @@ class CertAuthOpts(AuthOpts):
         self.cert_key = cert_key
         self.private_key = private_key
 
-    def setup(self, account: str):
-        return "AccountCertSet", "%s /LOADCERT:%s /LOADKEY:%s" % (account, self.cert_key, self.private_key)
+    def setup(self, account: str) -> dict:
+        return {'AccountCertSet': f'{account} /LOADCERT:{self.cert_key} /LOADKEY:{self.private_key}'}
 
 
 class ServerOpts(object):
@@ -100,18 +101,23 @@ class VpnDirectory(DevModeDir):
     CORE_VERSION_FILE = 'vpn-version.txt'
     OPT_NAME = 'vpn_opts'
     RUNTIME_FOLDER = 'runtime'
+    BACKUP_FOLDER = 'vpn-backup'
     PROFILE_D_ENV = f'/etc/profile.d/{AppEnv.BRAND}-vpn.sh'
 
     def __init__(self, app_dir: str):
-        self.vpn_dir = app_dir
+        self.vpn_dir = Path(app_dir)
 
     @property
-    def vpncmd(self):
-        return os.path.join(self.vpn_dir, 'vpncmd')
+    def vpncmd(self) -> Path:
+        return self.vpn_dir.joinpath('vpncmd')
 
     @property
-    def runtime_dir(self):
-        return os.path.join(self.vpn_dir, self.RUNTIME_FOLDER)
+    def runtime_dir(self) -> Path:
+        return self.vpn_dir.joinpath(self.RUNTIME_FOLDER)
+
+    @property
+    def backup_dir(self) -> Path:
+        return self.vpn_dir.parent.joinpath(self.BACKUP_FOLDER)
 
     @classmethod
     def resource_dir(cls) -> str:
@@ -123,14 +129,15 @@ class VpnDirectory(DevModeDir):
         pass
 
     def reload(self, vpn_dir):
-        self.vpn_dir = vpn_dir
+        self.vpn_dir = Path(vpn_dir)
         return self
 
     def get_vpn_version(self, fallback='unknown'):
-        return FileHelper.read_file_by_line(os.path.join(self.vpn_dir, self.CORE_VERSION_FILE)) or fallback
+        return FileHelper.read_file_by_line(self.vpn_dir.joinpath(self.CORE_VERSION_FILE)) or fallback
 
     def export_env(self):
-        FileHelper.write_file(VpnDirectory.PROFILE_D_ENV, f'export {AppEnv.VPN_HOME_ENV}="{self.vpn_dir}"', mode=0o0644)
+        FileHelper.write_file(VpnDirectory.PROFILE_D_ENV, f'export {AppEnv.VPN_HOME_ENV}="{self.vpn_dir}"',
+                              mode=0o0644)
 
     @staticmethod
     def remove_env():

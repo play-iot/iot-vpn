@@ -1,6 +1,8 @@
 import errno
 import os
 import re
+import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -18,10 +20,14 @@ class SystemHelper(object):
     @staticmethod
     def verify_command(command: str, shell=False, log_lvl=logger.DEBUG) -> bool:
         try:
-            SystemHelper.exec_command(command, shell=shell, silent=True, log_lvl=log_lvl)
+            SystemHelper.exec_command(command, shell=shell, silent=True, log_lvl=logger.down_lvl(log_lvl))
             return True
         except:
             return False
+
+    @staticmethod
+    def which(command):
+        return True if shutil.which(command) else False
 
     @staticmethod
     def exec_command(command: str, shell=False, silent=False, log_lvl=logger.DEBUG) -> str:
@@ -69,11 +75,22 @@ class SystemHelper(object):
         raise RuntimeError()
 
     @staticmethod
-    def ps_kill(process_name: str, silent=True, log_lvl=logger.DEBUG):
+    def kill_by_process(process_name: str, silent=True, log_lvl=logger.DEBUG):
         pid = SystemHelper.exec_command(f"ps aux | grep -e '{process_name}' | awk '{{print $2}}'", shell=True,
-                                        silent=silent, log_lvl=log_lvl)
+                                        silent=silent, log_lvl=logger.down_lvl(log_lvl))
         if pid:
-            SystemHelper.exec_command(f'kill -9 {pid}', silent=silent, log_lvl=log_lvl)
+            SystemHelper.kill_by_pid(pid.split('\n'), silent=silent, log_lvl=logger.down_lvl(log_lvl))
+
+    @staticmethod
+    def kill_by_pid(pid: list, _signal=signal.SIGTERM, silent=True, log_lvl=logger.DEBUG):
+        for p in pid or []:
+            try:
+                logger.log(log_lvl, f'Kill PID [{p}::{_signal}]...')
+                os.kill(int(p), _signal)
+            except OSError as err:
+                SystemHelper.handle_kill_error(err, silent)
+            except ValueError as err:
+                logger.decrease(log_lvl, f'Error PID [{p}]. Error: {err}')
 
     @staticmethod
     def is_pid_exists(pid: int):
@@ -88,20 +105,26 @@ class SystemHelper(object):
         try:
             os.kill(pid, 0)
         except OSError as err:
-            if err.errno == errno.ESRCH:
-                # ESRCH == No such process
-                return False
-            elif err.errno == errno.EPERM:
-                # EPERM clearly means there's a process to deny access to
-                return True
-            else:
-                # According to "man 2 kill" possible error values are
-                # (EINVAL, EPERM, ESRCH) therefore we should never get
-                # here. If we do let's be explicit in considering this
-                # an error.
-                raise err
+            return SystemHelper.handle_kill_error(err)
         else:
             return True
+
+    @staticmethod
+    def handle_kill_error(err: OSError, silent=True):
+        if err.errno == errno.ESRCH:
+            # ESRCH == No such process
+            return False
+        elif err.errno == errno.EPERM:
+            # EPERM clearly means there's a process to deny access to
+            return True
+        else:
+            # According to "man 2 kill" possible error values are
+            # (EINVAL, EPERM, ESRCH) therefore we should never get
+            # here. If we do let's be explicit in considering this
+            # an error.
+            if not silent:
+                raise err
+            return False
 
     @staticmethod
     def change_host_name(hostname: str, log_lvl=logger.DEBUG):

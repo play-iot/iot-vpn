@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Optional, Type
+from typing import Any, Optional, Type, Union
 
 import netifaces
 
@@ -45,7 +45,8 @@ class UnixServiceType(Enum):
 
 class AppConvention(ABC):
 
-    def __init__(self, resource_dir: str, runtime_dir: str, log_lvl: int = logger.DEBUG, silent: bool = True):
+    def __init__(self, resource_dir: Union[str, Path], runtime_dir: Union[str, Path], log_lvl: int = logger.DEBUG,
+                 silent: bool = True):
         self.resource_dir = Path(resource_dir)
         self.runtime_dir = Path(runtime_dir)
         self.log_lvl = log_lvl
@@ -56,7 +57,7 @@ class UnixService(AppConvention):
 
     @staticmethod
     @abstractmethod
-    def factory(resource_dir: str, runtime_dir: str) -> 'UnixService':
+    def factory(resource_dir: Union[str, Path], runtime_dir: Union[str, Path]) -> 'UnixService':
         pass
 
     @property
@@ -522,8 +523,8 @@ class DNSResolver(AppConvention):
     VPN_DNS_RESOLV_CFG = 'vpn-resolv.conf'
     VPN_NAMESERVER_CFG = 'vpn-runtime-nameserver.conf'
 
-    def __init__(self, resource_dir: str, runtime_dir: str, unix_service: UnixService, log_lvl: int = logger.DEBUG,
-                 silent: bool = True):
+    def __init__(self, resource_dir: Union[str, Path], runtime_dir: Union[str, Path], unix_service: UnixService,
+                 log_lvl: int = logger.DEBUG, silent: bool = True):
         super(DNSResolver, self).__init__(resource_dir, runtime_dir, log_lvl, silent)
         self.service, self.kind, self._is_dnsmasq = unix_service, DNSResolverType.UNKNOWN, False
         self.origin_resolv_cfg = DNSResolver.DNS_SYSTEM_FILE.parent.joinpath(DNSResolver.DNS_ORIGIN_FILE)
@@ -561,6 +562,19 @@ class DNSResolver(AppConvention):
         self._resolver().setup(self.origin_resolv_cfg, vpn_service, self.vpn_resolv_runtime_cfg,
                                self.vpn_nameserver_runtime_cfg)
 
+    def cleanup_config(self, vpn_service: str, keep_dnsmasq=True):
+        self._resolver().restore_config(vpn_service, keep_dnsmasq)
+        if keep_dnsmasq:
+            self.reset_vpn_nameservers()
+        else:
+            logger.info(f'Remove VPN nameserver config [{self.vpn_nameserver_runtime_cfg}]...')
+            FileHelper.rm(self.vpn_nameserver_runtime_cfg)
+            logger.info(f'Remove VPN resolv config [{self.vpn_resolv_runtime_cfg}]...')
+            FileHelper.rm(self.vpn_resolv_runtime_cfg)
+            if FileHelper.is_readable(self.origin_resolv_cfg):
+                logger.info(f'Restore System DNS config file...')
+                FileHelper.backup(self.origin_resolv_cfg, DNSResolver.DNS_SYSTEM_FILE)
+
     def tweak_on_nic(self, nic: str):
         self._resolver().tweak_per_nic(nic)
 
@@ -568,24 +582,13 @@ class DNSResolver(AppConvention):
                 old_nameservers: str = None):
         resolver = self._resolver()
         if reason.is_release():
-            self.restore_config(vpn_service=vpn_service)
+            self.cleanup_config(vpn_service=vpn_service)
             return
         nss = self.__validate_nameservers(reason, new_nameservers, old_nameservers)
         if nss is None:
             logger.info(f'Skip generating DNS entry in [{reason.name}][{new_nameservers}][{old_nameservers}]')
             return
         resolver.update(reason, priv_root_dns, nss, self.vpn_nameserver_runtime_cfg)
-
-    def restore_config(self, vpn_service: str, keep_dnsmasq=True):
-        if keep_dnsmasq:
-            self.reset_vpn_nameservers()
-        else:
-            logger.info(f'Remove VPN nameserver config [{self.VPN_NAMESERVER_CFG}]...')
-            FileHelper.rm(self.vpn_nameserver_runtime_cfg)
-            if FileHelper.is_readable(self.origin_resolv_cfg):
-                logger.info(f'Restore System DNS config file...')
-                FileHelper.backup(self.origin_resolv_cfg, DNSResolver.DNS_SYSTEM_FILE)
-        self._resolver().restore_config(vpn_service, keep_dnsmasq)
 
     def reset_vpn_nameservers(self):
         self._resolver().reset_nameservers(self.vpn_nameserver_runtime_cfg)
@@ -662,7 +665,7 @@ class IPResolver(AppConvention):
 
     def cleanup_zombie(self, process):
         logger.log(self.log_lvl, 'Cleanup the IP lease zombie processes...')
-        SystemHelper.ps_kill(f'{self.ip_tool}.*{process}.*', silent=True, log_lvl=logger.down_lvl(self.log_lvl))
+        SystemHelper.kill_by_process(f'{self.ip_tool}.*{process}.*', silent=True, log_lvl=self.log_lvl)
 
     def get_vpn_ip(self, nic: str):
         try:
@@ -700,7 +703,7 @@ class Systemd(UnixService):
     SERVICE_FILE_TMPL = 'qweio-vpn.service.tmpl'
 
     @staticmethod
-    def factory(resource_dir, runtime_dir) -> 'UnixService':
+    def factory(resource_dir: Union[str, Path], runtime_dir: Union[str, Path]) -> 'UnixService':
         if SystemHelper.verify_command(f'pidof {UnixServiceType.SYSTEMD.value}'):
             return Systemd(resource_dir=resource_dir, runtime_dir=runtime_dir)
         return None
@@ -714,7 +717,7 @@ class Systemd(UnixService):
         FileHelper.copy(self.resource_dir.joinpath(Systemd.SERVICE_FILE_TMPL), service_fqn, force=True)
         FileHelper.replace_in_file(service_fqn, replacements, backup='')
         FileHelper.chmod(service_fqn, mode=0o0644)
-        logger.info(f'Add new service [{opts.service_name}] in [{service_fqn}]')
+        logger.info(f'Add new service [{opts.service_name}] in [{service_fqn}]...')
         SystemHelper.exec_command("systemctl daemon-reload", silent=True, log_lvl=logger.INFO)
         if auto_startup:
             self.enable(opts.service_name)
@@ -747,7 +750,7 @@ class Systemd(UnixService):
 
     def status(self, service_name: str) -> ServiceStatus:
         status = SystemHelper.exec_command(f"systemctl status {service_name} | grep Active | awk '{{print $2$3}}'",
-                                           shell=True, silent=True, log_lvl=logger.DEBUG)
+                                           shell=True, silent=True, log_lvl=logger.TRACE)
         return ServiceStatus.parse(status)
 
     def to_service_fqn(self, service_dir: str, service_name: str):
@@ -760,7 +763,7 @@ class Procd(UnixService, ABC):
     """
 
     @staticmethod
-    def factory(resource_dir: str, runtime_dir: str) -> 'UnixService':
+    def factory(resource_dir: Union[str, Path], runtime_dir: Union[str, Path]) -> 'UnixService':
         if SystemHelper.verify_command(f'pidof {UnixServiceType.PROCD.value}'):
             raise NotImplementedError('Not yet supported OpenWRT')
         return None
@@ -771,8 +774,9 @@ class DHCPResolver(IPResolver):
     DHCLIENT_CONFIG_TMPL = 'dhclient-vpn.conf.tmpl'
 
     @staticmethod
-    def factory(resource_dir, runtime_dir: str, log_lvl: int, silent: bool = True) -> 'IPResolver':
-        if FileHelper.which(IPResolverType.DHCLIENT.value):
+    def factory(resource_dir: Union[str, Path], runtime_dir: Union[str, Path], log_lvl: int,
+                silent: bool = True) -> 'IPResolver':
+        if SystemHelper.which(IPResolverType.DHCLIENT.value):
             return DHCPResolver(resource_dir, runtime_dir, log_lvl, silent)
         return None
 
@@ -823,6 +827,31 @@ class UDHCPCResolver(IPResolver, ABC):
         return IPResolverType.UDHCPC.value
 
 
+class PackageManager(ABC):
+
+    @property
+    @abstractmethod
+    def tool(self) -> str:
+        pass
+
+    def install(self, package):
+        SystemHelper.exec_command(f'{self.tool} install {package} -y', log_lvl=logger.INFO, silent=True)
+
+
+class YumPM(PackageManager):
+
+    @property
+    def tool(self) -> str:
+        return 'yum'
+
+
+class AptPM(PackageManager):
+
+    @property
+    def tool(self) -> str:
+        return 'apt'
+
+
 class DeviceResolver:
 
     def __init__(self):
@@ -830,7 +859,8 @@ class DeviceResolver:
         self.__ip_resolver = None
         self.__dns_resolver = None
 
-    def probe(self, resource_dir: str, runtime_dir: str, log_lvl=logger.DEBUG, silent=True) -> 'DeviceResolver':
+    def probe(self, resource_dir: Union[str, Path], runtime_dir: Union[str, Path], log_lvl=logger.DEBUG,
+              silent=True) -> 'DeviceResolver':
         self._service(Systemd.factory(resource_dir, runtime_dir) or Procd.factory(resource_dir, runtime_dir))
         self._ip_resolver(DHCPResolver.factory(resource_dir, runtime_dir, log_lvl, silent))
         self._dns_resolver(DNSResolver(resource_dir, runtime_dir, self.unix_service).probe())
@@ -847,6 +877,26 @@ class DeviceResolver:
     @property
     def dns_resolver(self) -> DNSResolver:
         return self.__dns_resolver
+
+    @property
+    def pm(self) -> Optional[PackageManager]:
+        if SystemHelper.which(AptPM().tool):
+            return AptPM()
+        if SystemHelper.which(YumPM().tool):
+            return YumPM()
+        return None
+
+    def install_dnsmasq(self, auto_install: bool = False):
+        if not auto_install:
+            logger.error('dnsmasq is not yet installed. Please install [dnsmasq] depends on your distro')
+            sys.exit(ErrorCode.MISSING_REQUIREMENT)
+        logger.info('Try to install [dnsmasq]...')
+        pm = self.pm
+        if not pm:
+            logger.error('Unknown package manager. Please install [dnsmasq] by yourself')
+            sys.exit(ErrorCode.MISSING_REQUIREMENT)
+        pm.install('dnsmasq')
+        self._dns_resolver(self.dns_resolver.probe())
 
     def _service(self, service: UnixService):
         self.__service = self.__not_null(service, 'INIT system')
