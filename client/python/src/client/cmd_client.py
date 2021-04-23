@@ -200,11 +200,11 @@ class VPNPIDHandler:
 
     def _pid_files(self, log_lvl=logger.DEBUG) -> list:
         files = FileHelper.find_files(self.opts.vpn_dir, '.pid_*')
-        logger.log(log_lvl, f'PID files: {",".join(files)}')
+        logger.log(log_lvl, f'PID files [{",".join(files)}]')
         return files
 
     def _dump_pid(self, log_lvl=logger.DEBUG):
-        logger.log(log_lvl, f'Current PID: {self.current_pid}')
+        logger.log(log_lvl, f'VPN PID [{self.current_pid}]')
         FileHelper.write_file(self.opts.pid_file, str(self.current_pid))
 
     @staticmethod
@@ -267,18 +267,6 @@ class VPNClientExecutor(VpnCmdExecutor):
             return awk(next(iter(grep(status, r'Session Status.+', flags=re.MULTILINE)), None), sep='|', pos=1)
         except:
             return None
-
-    def is_installed(self, silent=False, log_lvl=logger.DEBUG):
-        if (FileHelper.is_dir(self.opts.vpn_dir) and FileHelper.is_executable(self.opts.vpnclient)
-            and FileHelper.is_executable(self.opts.vpncmd)):
-            return True
-        _, cmd = build_executable_command()
-        msg = f'Missing VPN client. Might be the installation is corrupted. Use "{cmd} uninstall -f" then try again'
-        if silent:
-            logger.decrease(log_lvl, msg)
-            return False
-        logger.error(msg)
-        sys.exit(ErrorCode.FILE_CORRUPTED)
 
     def is_running(self, silent=True, log_lvl=logger.DEBUG):
         return self.is_installed(silent, log_lvl) and self.pid_handler.is_running(log_lvl)
@@ -343,6 +331,13 @@ class VPNClientExecutor(VpnCmdExecutor):
         time.sleep(delay)
         SystemHelper.kill_by_process(f'{self.vpn_dir}/vpnclient execsvc', silent=True, log_lvl=log_lvl)
         self.device.ip_resolver.cleanup_zombie(f' {self.vpn_dir}.* vpn_')
+
+    def _is_install(self) -> bool:
+        return FileHelper.is_executable(self.opts.vpnclient)
+
+    def _not_install_error_msg(self, cmd) -> str:
+        return f'Missing VPN client. Might be the installation is corrupted. ' + \
+               f'Use "{cmd} uninstall -f" then try reinstall by "{cmd} install"'
 
     def _dump_cache_service(self, _unix_service_opts: UnixServiceOpts):
         JsonHelper.dump(self.opts.service_cache_file, _unix_service_opts)

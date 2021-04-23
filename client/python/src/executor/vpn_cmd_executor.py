@@ -1,10 +1,11 @@
-import os
+import sys
 from abc import ABC, abstractmethod
 from typing import Union, Sequence, Dict
 
 from src.executor.shell_executor import SystemHelper
 from src.utils import logger as logger
-from src.utils.helper import encode_base64, decode_base64
+from src.utils.constants import ErrorCode
+from src.utils.helper import encode_base64, decode_base64, FileHelper, build_executable_command
 from src.utils.opts_vpn import VpnOpts
 
 
@@ -21,9 +22,16 @@ class VpnCmdExecutor(ABC):
     def vpn_dir(self):
         return self.opts.vpn_dir
 
-    @property
-    def vpn_cmd(self):
-        return self.opts.vpncmd
+    def is_installed(self, silent=False, log_lvl=logger.DEBUG):
+        if FileHelper.is_dir(self.opts.vpn_dir) and FileHelper.is_executable(self.opts.vpncmd) and self._is_install():
+            return True
+        _, cmd = build_executable_command()
+        msg = self._not_install_error_msg(cmd)
+        if silent:
+            logger.decrease(log_lvl, msg)
+            return False
+        logger.error(msg)
+        sys.exit(ErrorCode.VPN_NOT_YET_INSTALLED)
 
     @abstractmethod
     def vpn_cmd_opt(self):
@@ -46,9 +54,7 @@ class VpnCmdExecutor(ABC):
             self.post_exec(silent, logger.down_lvl(log_lvl), **kwargs)
 
     def _run(self, commands, log_lvl, params, silent):
-        if not self.vpn_cmd or not os.path.exists(self.vpn_cmd):
-            if silent is False:
-                raise RuntimeError('vpncmd does not exist')
+        if not self.is_installed(silent):
             return None
         d, kv, o = None, True, None
         if isinstance(commands, str):
@@ -61,10 +67,16 @@ class VpnCmdExecutor(ABC):
         for k, v in d.items():
             c, p = (k, v) if kv else (v, k)
             logger.decrease(log_lvl, f"Execute VPN Command '{c if ' ' not in c else c.split()[0]}'")
-            o = SystemHelper.exec_command(f'{self.vpn_cmd} {self.vpn_cmd_opt()} {c} {p}', silent=silent,
+            o = SystemHelper.exec_command(f'{self.opts.vpncmd} {self.vpn_cmd_opt()} {c} {p}', silent=silent,
                                           log_lvl=log_lvl)
             logger.sep(log_lvl)
         return o
+
+    def _is_install(self) -> bool:
+        return True
+
+    def _not_install_error_msg(self, cmd) -> str:
+        return f'Missing VPN installation'
 
     @staticmethod
     def generate_host_name(hub: str, user: str, log_lvl=logger.DEBUG):
