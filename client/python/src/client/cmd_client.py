@@ -173,34 +173,74 @@ class AccountStorage:
         JsonHelper.dump(self._account_file, data)
 
 
+class VPNPIDHandler:
+    def __init__(self, vpn_opts: ClientOpts):
+        self.opts = vpn_opts
+        self.current_pid = None
+
+    def is_running(self, log_lvl=logger.DEBUG) -> bool:
+        self.current_pid = self._find_pid(log_lvl)
+        if self.current_pid:
+            self._dump_pid(logger.down_lvl(log_lvl))
+            return True
+        self.cleanup()
+        return False
+
+    def cleanup(self):
+        FileHelper.rm(self._pid_files())
+        FileHelper.rm(self.opts.pid_file)
+
+    def _find_pid(self, log_lvl=logger.DEBUG) -> int:
+        logger.log(log_lvl, 'Checking if VPN is running')
+        return next((pid for pid in map(lambda x: self._check_pid(x, log_lvl), self._pid_files(log_lvl)) if pid), 0)
+
+    def _pid_files(self, log_lvl=logger.DEBUG) -> list:
+        files = FileHelper.find_files(self.opts.vpn_dir, '.pid_*')
+        logger.log(log_lvl, f'PID files: {",".join(files)}')
+        return files
+
+    def _dump_pid(self, log_lvl=logger.DEBUG):
+        logger.log(log_lvl, f'Current PID: {self.current_pid}')
+        FileHelper.write_file(self.opts.pid_file, str(self.current_pid))
+
+    @staticmethod
+    def _check_pid(pid_file: str, log_lvl=logger.DEBUG) -> int:
+        try:
+            logger.log(log_lvl, f'Read PID file {pid_file}')
+            pid = FileHelper.read_file_by_line(pid_file)
+            pid = int(pid)
+            if pid and pid > 0 and SystemHelper.is_pid_exists(pid):
+                return pid
+        except Exception as _:
+            FileHelper.rm(pid_file)
+        return 0
+
+
 class VPNClientExecutor(VpnCmdExecutor):
 
     def __init__(self, vpn_opts: ClientOpts):
         super().__init__(vpn_opts)
         self.storage = AccountStorage(self.opts.account_cache_file)
         self._device = DeviceResolver()
-        self.current_pid = None
+        self.pid_handler = VPNPIDHandler(self.opts)
 
     def pre_exec(self, silent=False, log_lvl=logger.DEBUG, **kwargs):
-        if not self._validate(silent, log_lvl):
+        if not self._validate(silent, log_lvl) or self.pid_handler.is_running():
             return
-        self.current_pid = self.__find_pid()
-        if self.current_pid:
-            self.__write_pid_file(logger.down_lvl(log_lvl))
-            return
-        FileHelper.rm(self.__pid_files())
-        logger.log(log_lvl, 'Start VPN Client')
+        self.pid_handler.cleanup()
+        logger.log(log_lvl, 'Start VPN Client...')
         SystemHelper.exec_command(f'{self.opts.vpnclient} start', log_lvl=logger.down_lvl(log_lvl))
         time.sleep(1)
-        self.current_pid = self.__find_pid(logger.down_lvl(log_lvl))
-        self.__write_pid_file(logger.down_lvl(log_lvl))
+        if not self.pid_handler.is_running():
+            logger.error('Unable start VPN Client')
+            sys.exit(ErrorCode.VPN_START_FAILED)
 
     def post_exec(self, silent=False, log_lvl=logger.DEBUG, **kwargs):
-        if not self._validate(silent, log_lvl) or self.current_pid:
+        if not self._validate(silent, log_lvl) or self.pid_handler.is_running():
             return
-        logger.log(log_lvl, 'Stop VPN Client')
+        logger.log(log_lvl, 'Stop VPN Client...')
         SystemHelper.exec_command(f'{self.opts.vpnclient} stop', silent=silent, log_lvl=logger.down_lvl(log_lvl))
-        FileHelper.rm(self.opts.pid_file)
+        self.pid_handler.cleanup()
 
     def vpn_cmd_opt(self):
         return '/CLIENT localhost /CMD'
@@ -219,30 +259,6 @@ class VPNClientExecutor(VpnCmdExecutor):
             return awk(next(iter(grep(status, r'Session Status.+', flags=re.MULTILINE)), None), sep='|', pos=1)
         except:
             return None
-
-    def __find_pid(self, log_lvl=logger.DEBUG) -> int:
-        logger.log(log_lvl, 'Checking if VPN is running')
-        return next((pid for pid in map(lambda x: self._check_pid(x, log_lvl), self.__pid_files(log_lvl)) if pid), 0)
-
-    def __pid_files(self, log_lvl=logger.DEBUG) -> list:
-        files = FileHelper.find_files(self.vpn_dir, '.pid_*')
-        logger.log(log_lvl, f'PID files: {",".join(files)}')
-        return files
-
-    def __write_pid_file(self, log_lvl=logger.DEBUG):
-        logger.log(log_lvl, f'Current PID: {self.current_pid}')
-        FileHelper.write_file(self.opts.pid_file, str(self.current_pid))
-
-    def _check_pid(self, pid_file: str, log_lvl=logger.DEBUG) -> int:
-        try:
-            logger.log(log_lvl, f'Read PID file {pid_file}')
-            pid = FileHelper.read_file_by_line(pid_file)
-            pid = int(pid)
-            if pid and pid > 0 and SystemHelper.is_pid_exists(pid):
-                return pid
-        except Exception as _:
-            FileHelper.rm(pid_file)
-        return 0
 
     def _validate(self, silent=False, log_lvl=logger.DEBUG):
         if (FileHelper.is_dir(self.opts.vpn_dir) and FileHelper.is_executable(self.opts.vpnclient)
@@ -342,7 +358,7 @@ def __install(auto_startup: bool, dnsmasq: bool, vpn_opts: ClientOpts, unix_serv
         '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {vpn_opts.vpn_dir}'
     }, auto_startup)
     device.ip_resolver.add_hook(unix_service.service_name,
-                                  {'{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{VPN_CLIENT_CLI}}': cmd})
+                                {'{{WORKING_DIR}}': str(vpn_opts.vpn_dir), '{{VPN_CLIENT_CLI}}': cmd})
     device.dns_resolver.create_config(unix_service.service_name)
     executor.dump_cache_service(unix_service)
     executor.storage.empty()
