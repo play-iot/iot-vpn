@@ -370,7 +370,7 @@ def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = 
     executor.resolver.ip_resolver.renew_all_ip()
     executor.storage.empty()
     if force:
-        logger.info(f'Remove VPN Client in {executor.opts.vpn_dir}...')
+        logger.info(f'Remove VPN Client [{executor.opts.vpn_dir}]...')
         FileHelper.rm(executor.opts.vpn_dir)
         executor.opts.remove_env()
     logger.done()
@@ -395,12 +395,11 @@ def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, ac
     hostname = dns_prefix or executor.generate_host_name(server_opts.hub, auth_opts.user, log_lvl=logger.DEBUG)
     acc = AccountInfo(server_opts.hub, account, hostname, is_default)
     logger.info(f'Setup VPN Client with VPN account {acc.account}...')
-    auth_cmd, param = auth_opts.setup(acc.account)
     setup_cmd = {
         'NicCreate': acc.account,
-        'AccountCreate': f'{acc.account} /SERVER:{server_opts.server} /HUB:{acc.hub} /USERNAME:{auth_opts.user} /NICNAME:{acc.account}',
-        auth_cmd: param
+        'AccountCreate': f'{acc.account} /SERVER:{server_opts.server} /HUB:{acc.hub} /USERNAME:{auth_opts.user} /NICNAME:{acc.account}'
     }
+    setup_cmd = {**setup_cmd, **auth_opts.setup(acc.account)}
     setup_cmd = setup_cmd if no_connect else {**setup_cmd, **{'AccountConnect': acc.account}}
     setup_cmd = setup_cmd if not acc.is_default else {**setup_cmd, **{'AccountStartupSet': acc.account}}
     if not no_connect:

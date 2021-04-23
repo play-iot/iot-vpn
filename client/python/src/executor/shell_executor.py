@@ -74,7 +74,7 @@ class SystemHelper(object):
         pid = SystemHelper.exec_command(f"ps aux | grep -e '{process_name}' | awk '{{print $2}}'", shell=True,
                                         silent=silent, log_lvl=logger.down_lvl(log_lvl))
         if pid:
-            SystemHelper.kill_by_pid(pid.split('\n'), silent=silent, log_lvl=log_lvl)
+            SystemHelper.kill_by_pid(pid.split('\n'), silent=silent, log_lvl=logger.down_lvl(log_lvl))
 
     @staticmethod
     def kill_by_pid(pid: list, _signal=signal.SIGTERM, silent=True, log_lvl=logger.DEBUG):
