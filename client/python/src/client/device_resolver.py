@@ -561,6 +561,19 @@ class DNSResolver(AppConvention):
         self._resolver().setup(self.origin_resolv_cfg, vpn_service, self.vpn_resolv_runtime_cfg,
                                self.vpn_nameserver_runtime_cfg)
 
+    def cleanup_config(self, vpn_service: str, keep_dnsmasq=True):
+        self._resolver().restore_config(vpn_service, keep_dnsmasq)
+        if keep_dnsmasq:
+            self.reset_vpn_nameservers()
+        else:
+            logger.info(f'Remove VPN nameserver config [{self.vpn_nameserver_runtime_cfg}]...')
+            FileHelper.rm(self.vpn_nameserver_runtime_cfg)
+            logger.info(f'Remove VPN resolv config [{self.vpn_resolv_runtime_cfg}]...')
+            FileHelper.rm(self.vpn_resolv_runtime_cfg)
+            if FileHelper.is_readable(self.origin_resolv_cfg):
+                logger.info(f'Restore System DNS config file...')
+                FileHelper.backup(self.origin_resolv_cfg, DNSResolver.DNS_SYSTEM_FILE)
+
     def tweak_on_nic(self, nic: str):
         self._resolver().tweak_per_nic(nic)
 
@@ -568,24 +581,13 @@ class DNSResolver(AppConvention):
                 old_nameservers: str = None):
         resolver = self._resolver()
         if reason.is_release():
-            self.restore_config(vpn_service=vpn_service)
+            self.cleanup_config(vpn_service=vpn_service)
             return
         nss = self.__validate_nameservers(reason, new_nameservers, old_nameservers)
         if nss is None:
             logger.info(f'Skip generating DNS entry in [{reason.name}][{new_nameservers}][{old_nameservers}]')
             return
         resolver.update(reason, priv_root_dns, nss, self.vpn_nameserver_runtime_cfg)
-
-    def restore_config(self, vpn_service: str, keep_dnsmasq=True):
-        if keep_dnsmasq:
-            self.reset_vpn_nameservers()
-        else:
-            logger.info(f'Remove VPN nameserver config [{self.VPN_NAMESERVER_CFG}]...')
-            FileHelper.rm(self.vpn_nameserver_runtime_cfg)
-            if FileHelper.is_readable(self.origin_resolv_cfg):
-                logger.info(f'Restore System DNS config file...')
-                FileHelper.backup(self.origin_resolv_cfg, DNSResolver.DNS_SYSTEM_FILE)
-        self._resolver().restore_config(vpn_service, keep_dnsmasq)
 
     def reset_vpn_nameservers(self):
         self._resolver().reset_nameservers(self.vpn_nameserver_runtime_cfg)

@@ -272,10 +272,19 @@ class VPNClientExecutor(VpnCmdExecutor):
         if not current:
             return
         self.exec_command('AccountDisconnect', params=current, log_lvl=log_lvl, silent=silent)
-        self.resolver.ip_resolver.release_ip(current, self.opts.account_to_nic(current))
         self.storage.set_current('')
         self.resolver.dns_resolver.reset_vpn_nameservers()
-        self.resolver.ip_resolver.cleanup_zombie(self.opts.account_to_nic(current))
+        self.resolver.ip_resolver.release_ip(current, self.opts.account_to_nic(current))
+        self.resolver.ip_resolver.cleanup_zombie(f' {self.vpn_dir}.* {self.opts.account_to_nic(current)}')
+
+    def stop_or_disable_vpn_service(self, service_name: str, is_stop=True, is_disable=False, keep_dnsmasq=True):
+        if is_stop:
+            self.resolver.unix_service.stop(service_name)
+        if is_disable:
+            self.resolver.unix_service.disable(service_name)
+        if is_stop or is_disable:
+            self.cleanup_zombie_vpn()
+            self.resolver.dns_resolver.cleanup_config(service_name, keep_dnsmasq=keep_dnsmasq)
 
     def cleanup_zombie_vpn(self, delay=1, log_lvl=logger.DEBUG):
         time.sleep(delay)
@@ -355,12 +364,11 @@ def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = 
     accounts = [a.account for a in executor.storage.list()]
     if len(accounts) > 0:
         executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], accounts, silent=True)
-    executor.storage.empty()
+    executor.stop_or_disable_vpn_service(service_opts.service_name, True, True, keep_dnsmasq=keep_dnsmasq)
     executor.resolver.unix_service.remove(service_opts, force)
-    executor.resolver.dns_resolver.restore_config(service_opts.service_name, keep_dnsmasq=keep_dnsmasq)
-    executor.cleanup_zombie_vpn()
     executor.resolver.ip_resolver.remove_hook(service_opts.service_name)
     executor.resolver.ip_resolver.renew_all_ip()
+    executor.storage.empty()
     if force:
         logger.info(f'Remove VPN Client in {vpn_opts.vpn_dir}...')
         shutil.rmtree(vpn_opts.vpn_dir, ignore_errors=True)
@@ -422,19 +430,15 @@ def __delete(vpn_opts: ClientOpts, accounts):
         logger.error('Must provide at least account')
         sys.exit(ErrorCode.INVALID_ARGUMENT)
     executor = VPNClientExecutor(vpn_opts).probe(log_lvl=logger.INFO)
-    service_opts = executor.read_cache_service()
-    _default, _current = None, None
+    is_disable, is_stop = False, False
     for account in accounts:
         executor.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], account, True, logger.INFO)
         is_default, is_current = executor.storage.remove(account)
-        _default = account if is_default else _default
-        _current = account if is_current else _current
-    if _current:
-        executor.resolver.ip_resolver.release_ip(_current, vpn_opts.account_to_nic(_current))
-        executor.resolver.dns_resolver.restore_config(service_opts.service_name)
-        executor.resolver.unix_service.stop(service_opts.service_name)
-    if _default:
-        executor.resolver.unix_service.disable(service_opts.service_name)
+        is_stop = is_current or is_stop
+        is_disable = is_default or is_disable
+    if is_stop or is_disable:
+        service_opts = executor.read_cache_service()
+        executor.stop_or_disable_vpn_service(service_opts.service_name, is_stop=is_stop, is_disable=is_disable)
     logger.done()
 
 
@@ -489,12 +493,8 @@ def __connect(vpn_opts: ClientOpts, account: str, is_default: bool):
 def __disconnect(disable: bool, vpn_opts: ClientOpts):
     executor = VPNClientExecutor(vpn_opts).probe(log_lvl=logger.INFO)
     service_opts = executor.read_cache_service()
-    executor.disconnect_current(silent=True)
-    executor.resolver.dns_resolver.restore_config(service_opts.service_name)
-    executor.resolver.unix_service.stop(service_opts.service_name)
-    executor.cleanup_zombie_vpn()
-    if disable:
-        executor.resolver.unix_service.disable(service_opts.service_name)
+    executor.disconnect_current(silent=False)
+    executor.stop_or_disable_vpn_service(service_opts.service_name, is_stop=True, is_disable=disable)
     logger.done()
 
 
