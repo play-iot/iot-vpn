@@ -78,14 +78,15 @@ class ClientOpts(VpnDirectory):
 
 class AccountInfo:
 
-    def __init__(self, hub: str, account: str, hostname: str, is_default: bool):
+    def __init__(self, hub: str, account: str, hostname: str, is_default: bool = False, is_current: bool = False):
         self.hub = hub
         self.account = account or hub
         self.hostname = hostname
         self.is_default = is_default
+        self.is_current = is_current
 
     def to_json(self):
-        return {self.account: {k: v for k, v in self.__dict__.items() if k != 'is_default'}}
+        return {self.account: {k: v for k, v in self.__dict__.items() if k not in ['is_default', 'is_current']}}
 
     @staticmethod
     def merge(_acc1: 'AccountInfo', _acc2: 'AccountInfo') -> 'AccountInfo':
@@ -96,7 +97,8 @@ class AccountInfo:
         if not _acc1:
             return _acc2
         return AccountInfo(_acc2.hub or _acc1.hub, _acc2.account or _acc2.account, _acc2.hostname or _acc1.hostname,
-                           _acc2.is_default if _acc2.is_default is None else _acc1.is_default)
+                           _acc2.is_default if _acc2.is_default is None else _acc1.is_default,
+                           _acc2.is_current if _acc2.is_current is None else _acc1.is_current)
 
 
 class AccountStorage:
@@ -114,21 +116,15 @@ class AccountStorage:
                    _default=account.account if account.is_default else None)
         return account
 
-    def get_default(self, data=None) -> Optional[str]:
-        return (data or self._load()).get('_default')
-
-    def get_current(self, data=None, info=False) -> Optional[Union[str, AccountInfo]]:
-        load = data or self._load()
-        current = load.get('_current')
-        return current if not info else self.find(current, data)
-
     def list(self) -> List[AccountInfo]:
         data = self._load()
         return [self._to_account_info(acc, data) for acc in self._accounts(data).values()]
 
     def find(self, account: str, data=None) -> Optional[AccountInfo]:
+        if not account:
+            return None
         data = data or self._load()
-        return next(self._to_account_info(acc, data) for k, acc in self._accounts(data).items() if k == account)
+        return next((self._to_account_info(acc, data) for k, acc in self._accounts(data).items() if k == account), None)
 
     def remove(self, accounts: Union[str, List[str]]) -> (bool, bool):
         data = self._load()
@@ -151,18 +147,30 @@ class AccountStorage:
     def set_current(self, account):
         self._dump(_current=account)
 
+    def get_default(self, data=None, info=False) -> Optional[Union[str, AccountInfo]]:
+        return self._lookup('_default', data, info)
+
+    def get_current(self, data=None, info=False) -> Optional[Union[str, AccountInfo]]:
+        return self._lookup('_current', data, info)
+
     def _accounts(self, data=None) -> dict:
         return (data or self._load()).get('_accounts', {})
 
+    def _lookup(self, key, data=None, info=False) -> Optional[Union[str, AccountInfo]]:
+        load = data or self._load()
+        acc = load.get(key, None)
+        return acc if not info else self.find(acc, data)
+
     def _to_account_info(self, acc, data=None) -> AccountInfo:
         acc['is_default'] = acc['account'] == self.get_default(data)
+        acc['is_current'] = acc['account'] == self.get_current(data)
         return AccountInfo(**acc)
 
     def _dump(self, _accounts: dict = None, _current: str = None, _default: str = None, data=None):
         data = data or self._load()
-        data['_accounts'] = data['_accounts'] if _accounts is None else _accounts
-        data['_current'] = data['_current'] if _current is None else _current
-        data['_default'] = data['_default'] if _default is None else _default
+        data['_accounts'] = self._accounts(data) if _accounts is None else _accounts
+        data['_current'] = self.get_current(data) if _current is None else _current
+        data['_default'] = self.get_default(data) if _default is None else _default
         JsonHelper.dump(self._account_file, data)
 
 
