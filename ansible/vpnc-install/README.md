@@ -26,3 +26,13 @@ Requirements
         ├── common.yml
         └── main.yml
 ```
+
+## Usage
+
+`clean_up` variable is used in case there's existing messy installation of VPN client on target host. Set it to `true` to perform the cleanup before installing.
+
+*default value is false*
+
+```
+ansible-playbook main.yml -e clean_up=true
+```
