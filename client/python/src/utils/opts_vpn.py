@@ -1,8 +1,6 @@
 import functools
 import os
-import tempfile
 from abc import abstractmethod
-from datetime import datetime
 from pathlib import Path
 from typing import TypeVar
 
@@ -149,8 +147,7 @@ class VpnDirectory(DevModeDir):
 
     @staticmethod
     def backup_dir() -> Path:
-        now = datetime.utcnow().timestamp()
-        return Path(tempfile.mkdtemp(prefix=VpnDirectory.BACKUP_FOLDER_PREFIX, suffix=str(now)))
+        return FileHelper.tmp_dir(prefix=VpnDirectory.BACKUP_FOLDER_PREFIX)
 
 
 def vpn_dir_opts_factory(app_dir: str, opt_func=VpnDirectory):

@@ -9,7 +9,9 @@ import re
 import shutil
 import stat
 import sys
+import tempfile
 import time
+from datetime import datetime
 from distutils.dir_util import copy_tree
 from itertools import islice
 from json import JSONDecodeError
@@ -105,6 +107,12 @@ class FileHelper(object):
             os.chmod(p, mode)
             if symlink:
                 os.symlink(p, symlink)
+
+    @staticmethod
+    def tmp_dir(prefix=None, suffix=datetime.utcnow().timestamp()) -> Path:
+        if prefix:
+            return Path(tempfile.gettempdir())
+        return Path(tempfile.mkdtemp(prefix=prefix, suffix=str(suffix)))
 
     @staticmethod
     def rm(files: Union[str, Path, list], force=True, recursive=True):
