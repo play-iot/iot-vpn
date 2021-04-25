@@ -474,7 +474,7 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, auto_startup:
 @verbose_opts
 @permission
 def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = True):
-    VPNClientExecutor(vpn_opts).require_install().probe().uninstall(force, keep_dnsmasq)
+    VPNClientExecutor(vpn_opts).probe().uninstall(force, keep_dnsmasq)
     logger.done()
 
 
@@ -499,12 +499,8 @@ def __upgrade(vpn_opts: ClientOpts):
         _executor.disconnect_vpn(log_lvl=logger.DEBUG, silent=True)
         _executor.connect_vpn(_current_acc, is_default=False)
 
-    executor = VPNClientExecutor(vpn_opts).probe()
-    is_installed = executor.is_installed(silent=True)
+    executor = VPNClientExecutor(vpn_opts).require_install().probe()
     is_running = executor.is_running(silent=True)
-    if not is_installed:
-        logger.error('VPN client is not yet installed')
-        sys.exit(ErrorCode.VPN_NOT_YET_INSTALLED)
     default_acc, current_acc, unix_service, backup_dir = executor.backup_config()
     if is_running:
         executor.disconnect_vpn(force=True)
@@ -630,7 +626,7 @@ def __disconnect(disable: bool, vpn_opts: ClientOpts):
 @permission
 def __status(vpn_opts: ClientOpts):
     executor = VPNClientExecutor(vpn_opts, adhoc_task=True).probe()
-    is_installed = executor.is_installed()
+    is_installed = executor.is_installed(silent=True)
     vpn_service = executor.vpn_service
     service_status = executor.device.unix_service.status(vpn_service)
     current_acc, vpn_ip, vpn_status = executor.storage.get_current(), None, None
@@ -764,7 +760,7 @@ def __stop_service(vpn_opts: ClientOpts):
 def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old_nameservers: str, debug: bool):
     def _manual_discover(_executor: VPNClientExecutor, _cur_acc: AccountInfo):
         dns_resolver = _executor.device.dns_resolver
-        loop_interval(lambda: None, lambda: len(dns_resolver.query_vpn_nameservers(_cur_acc.hub)) > 0,
+        loop_interval(lambda: len(dns_resolver.query_vpn_nameservers(_cur_acc.hub)) > 0,
                       'Unable read DHCP status', exit_if_error=True, max_retries=10)
         _nic = executor.opts.account_to_nic(current.account)
         _new_nameservers = ','.join(dns_resolver.query_vpn_nameservers(_cur_acc.hub))
