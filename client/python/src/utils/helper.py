@@ -454,10 +454,10 @@ def tree(dir_path: Union[str, Path], level: int = -1, limit_to_directories: bool
     print(f'\n{directories} directories' + (f', {files} files' if files else ''))
 
 
-def loop_interval(func: Callable[[], NoReturn], condition: Callable[[], bool], error_if_timeout: str,
-                  max_retries: int = 5, interval: int = 1, exit_if_error=False):
+def loop_interval(condition: Callable[[], bool], error_if_timeout: str, pre_func: Callable[[], NoReturn] = lambda: None,
+                  max_retries: int = 5, interval: float = 1, exit_if_error=False):
     for c in range(max_retries + 1):
-        func()
+        pre_func()
         if condition():
             return
         time.sleep(interval)
@@ -466,4 +466,4 @@ def loop_interval(func: Callable[[], NoReturn], condition: Callable[[], bool], e
         logger.error(msg)
         sys.exit(ErrorCode.TIMEOUT)
     else:
-        raise TimeoutError()
+        raise TimeoutError(msg)
