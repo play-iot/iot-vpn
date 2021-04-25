@@ -184,7 +184,8 @@ class VPNPIDHandler:
         self.current_pid = None
 
     def is_running(self, log_lvl=logger.DEBUG) -> bool:
-        self.current_pid = self._find_pid(log_lvl)
+        logger.log(log_lvl, 'Check if VPN is running...')
+        self.current_pid = self._find_pid(logger.down_lvl(log_lvl))
         if self.current_pid:
             self._dump_pid(logger.down_lvl(log_lvl))
             return True
@@ -195,21 +196,20 @@ class VPNPIDHandler:
         FileHelper.rm(self._pid_files())
         FileHelper.rm(self.opts.pid_file)
 
-    def _find_pid(self, log_lvl=logger.DEBUG) -> int:
-        logger.log(log_lvl, 'Check if VPN is running...')
+    def _find_pid(self, log_lvl=logger.TRACE) -> int:
         return next((pid for pid in map(lambda x: self._check_pid(x, log_lvl), self._pid_files(log_lvl)) if pid), 0)
 
-    def _pid_files(self, log_lvl=logger.DEBUG) -> list:
+    def _pid_files(self, log_lvl=logger.TRACE) -> list:
         files = FileHelper.find_files(self.opts.vpn_dir, '.pid_*')
         logger.log(log_lvl, f'PID files [{",".join(files)}]')
         return files
 
-    def _dump_pid(self, log_lvl=logger.DEBUG):
+    def _dump_pid(self, log_lvl=logger.TRACE):
         logger.log(log_lvl, f'VPN PID [{self.current_pid}]')
-        FileHelper.write_file(self.opts.pid_file, str(self.current_pid), mode=0o644)
+        FileHelper.write_file(self.opts.pid_file, str(self.current_pid), mode=0o644, log_lvl=log_lvl)
 
     @staticmethod
-    def _check_pid(pid_file: str, log_lvl=logger.DEBUG) -> int:
+    def _check_pid(pid_file: str, log_lvl=logger.TRACE) -> int:
         try:
             logger.log(log_lvl, f'Read PID file {pid_file}')
             pid = FileHelper.read_file_by_line(pid_file)
@@ -231,26 +231,25 @@ class VPNClientExecutor(VpnCmdExecutor):
         self.adhoc_task = adhoc_task
 
     def pre_exec(self, silent=False, log_lvl=logger.DEBUG, **kwargs):
+        logger.log(log_lvl, 'Start VPN Client if not yet running...')
         if not self.is_installed(silent, log_lvl) or self.pid_handler.is_running():
             return
-        self.pid_handler.cleanup()
-        logger.log(log_lvl, 'Start VPN Client...')
         SystemHelper.exec_command(f'{self.opts.vpnclient} start', log_lvl=logger.down_lvl(log_lvl))
         time.sleep(1)
-        if not self.pid_handler.is_running():
+        if not self.pid_handler.is_running(log_lvl=logger.down_lvl(log_lvl)):
             logger.error('Unable start VPN Client')
             sys.exit(ErrorCode.VPN_START_FAILED)
 
     def post_exec(self, silent=False, log_lvl=logger.DEBUG, **kwargs):
-        if not self.is_installed(silent, log_lvl):
+        logger.log(log_lvl, 'Stop VPN Client if applicable...')
+        if (not self.is_installed(silent, log_lvl) or not self.adhoc_task
+            or self.device.unix_service.status(self.vpn_service).is_running()):
             return
-        if self.pid_handler.is_running():
-            if not self.adhoc_task or self.device.unix_service.status(self.vpn_service).is_running():
-                return
-        logger.log(log_lvl, 'Stop VPN Client...')
-        SystemHelper.exec_command(f'{self.opts.vpnclient} stop', silent=silent, log_lvl=logger.down_lvl(log_lvl))
-        self.cleanup_zombie_vpn(1, log_lvl=logger.down_lvl(log_lvl))
-        self.pid_handler.cleanup()
+        lvl = logger.down_lvl(log_lvl)
+        if self.pid_handler.is_running(log_lvl=lvl):
+            SystemHelper.exec_command(f'{self.opts.vpnclient} stop', silent=silent, log_lvl=lvl)
+            self.cleanup_zombie_vpn(1, log_lvl=lvl)
+            self.pid_handler.cleanup()
 
     def vpn_cmd_opt(self):
         return '/CLIENT localhost /CMD'
@@ -526,7 +525,7 @@ def __upgrade(vpn_opts: ClientOpts):
 def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, account: str, is_default: bool,
           dns_prefix: str, no_connect: bool):
     executor = VPNClientExecutor(vpn_opts).require_install().probe()
-    hostname = dns_prefix or executor.generate_host_name(server_opts.hub, auth_opts.user, log_lvl=logger.DEBUG)
+    hostname = dns_prefix or executor.generate_host_name(server_opts.hub, auth_opts.user, log_lvl=logger.TRACE)
     acc = AccountInfo(server_opts.hub, account, hostname, is_default)
     logger.info(f'Setup VPN Client with VPN account [{acc.account}]...')
     setup_cmd = {

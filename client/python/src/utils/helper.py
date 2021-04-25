@@ -89,9 +89,9 @@ class FileHelper(object):
             os.chmod(p, mode)
 
     @staticmethod
-    def write_file(path: Union[str, Path], content: str, mode=0o0664, append=False):
+    def write_file(path: Union[str, Path], content: str, mode=0o0664, append=False, log_lvl=logger.DEBUG):
         p = Path(path)
-        logger.debug(f"Dump to file [{p}]")
+        logger.log(log_lvl, f"Dump to file [{p}]")
         with open(str(p.absolute()), 'w+' if not append else 'a+') as fp:
             fp.write(content)
             os.chmod(p, mode)
@@ -302,7 +302,7 @@ class JsonHelper:
     @staticmethod
     def dump(path: Union[str, Path], data: Any, mode=0o0644):
         logger.debug(f'Dump json to file [{path}]')
-        FileHelper.write_file(path, JsonHelper.to_json(data), mode)
+        FileHelper.write_file(path, JsonHelper.to_json(data), mode, log_lvl=logger.TRACE)
 
     @staticmethod
     def read(path: Union[str, Path], strict=True):
