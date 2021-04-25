@@ -29,6 +29,7 @@ on:
 env:
   APP_CODE: vpnc
   APP_IMAGE: qweio-vpnc
+  APP_FOLDER: client/python/src/client
   PYTHON_VERSION: 3.7.10-slim-stretch
   PLATFORMS: linux/amd64,linux/arm/v7
   DOCKER_FILE: docker/dockerfile/vpnclient.Dockerfile
@@ -75,7 +76,7 @@ jobs:
           releaseBranchPrefix: release/${{ env.APP_CODE }}/
           mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/${{ env.APP_CODE }}/.+$"
           patterns: |
-            client/python/src/client/version.py::(APP_VERSION\s?=\s?)(')([^']+)(')::2
+            ${{ env.APP_FOLDER }}/version.py::(APP_VERSION\s?=\s?)(')([^']+)(')::2
 
   build:
     runs-on: ubuntu-latest
@@ -94,13 +95,15 @@ jobs:
 
       - name: Inject Hash version
         run: |
-          sed -i 's/dev/${{ needs.context.outputs.sha }}/' client/python/src/client/version.py
+          hash_ver="${{ needs.context.outputs.sha }}"
+          hash_ver=[[ ${{ needs.context.outputs.isRelease }} == 'true' ]] && echo "$hash_ver" || echo "$hash_ver-${{ needs.context.outputs.branch }}"
+          sed -i "s/dev/$hash_ver/" ${{ env.APP_FOLDER }}/version.py
 
       - name: Inject brand and license
         run: |
           docker run --rm -v /tmp:/tmp zero88/ghrd:latest -a "banner.txt" -r ${{ env.BRAND_VERION }} -o /tmp ${{ env.BRAND_REPO }}
-          mv /tmp/banner.txt client/python/src/client/resources
-          cp LICENSE_BUNDLE.md client/python/src/client/resources
+          mv /tmp/banner.txt ${{ env.APP_FOLDER }}/resources
+          cp LICENSE_BUNDLE.md ${{ env.APP_FOLDER }}/resources
 
       - name: Cache Docker layers
         uses: actions/cache@v2
