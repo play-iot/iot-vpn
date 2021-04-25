@@ -630,18 +630,20 @@ def __disconnect(disable: bool, vpn_opts: ClientOpts):
 @permission
 def __status(vpn_opts: ClientOpts):
     executor = VPNClientExecutor(vpn_opts, adhoc_task=True).probe()
+    is_installed = executor.is_installed()
     vpn_service = executor.vpn_service
     service_status = executor.device.unix_service.status(vpn_service)
     current_acc, vpn_ip, vpn_status = executor.storage.get_current(), None, None
     if current_acc:
         vpn_ip = executor.device.ip_resolver.get_vpn_ip(ClientOpts.account_to_nic(current_acc))
         vpn_status = executor.vpn_status(current_acc)
-
-    logger.info(f'VPN Service        : {vpn_service} - {service_status.value}')
-    logger.info(f'Current VPN IP     : {vpn_ip}')
-    logger.info(f'Current VPN Account: {current_acc or None} - {vpn_status}')
+    install_state = 'Installed' if is_installed else 'Not yet installed'
+    logger.info(f'VPN Application   : {install_state} - {executor.opts.vpn_dir if is_installed else None}')
+    logger.info(f'VPN Service       : {vpn_service} - {service_status.value} - PID[{executor.pid_handler.current_pid}]')
+    logger.info(f'VPN Account       : {current_acc or None} - {vpn_status}')
+    logger.info(f'VPN IP address    : {vpn_ip}')
     logger.sep(logger.INFO)
-    if not vpn_status or not vpn_ip or service_status != service_status.RUNNING:
+    if is_installed and not vpn_status or not vpn_ip or service_status != service_status.RUNNING:
         sys.exit(ErrorCode.VPN_SERVICE_IS_NOT_WORKING)
 
 
