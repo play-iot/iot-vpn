@@ -101,7 +101,7 @@ class VpnDirectory(DevModeDir):
     CORE_VERSION_FILE = 'vpn-version.txt'
     OPT_NAME = 'vpn_opts'
     RUNTIME_FOLDER = 'runtime'
-    BACKUP_FOLDER = 'vpn-backup'
+    BACKUP_FOLDER_PREFIX = f'{AppEnv.BRAND}-backup'
     PROFILE_D_ENV = f'/etc/profile.d/{AppEnv.BRAND}-vpn.sh'
 
     def __init__(self, app_dir: str):
@@ -114,10 +114,6 @@ class VpnDirectory(DevModeDir):
     @property
     def runtime_dir(self) -> Path:
         return self.vpn_dir.joinpath(self.RUNTIME_FOLDER)
-
-    @property
-    def backup_dir(self) -> Path:
-        return self.vpn_dir.parent.joinpath(self.BACKUP_FOLDER)
 
     @classmethod
     def resource_dir(cls) -> str:
@@ -148,6 +144,10 @@ class VpnDirectory(DevModeDir):
         content = FileHelper.read_file_by_line(VpnDirectory.PROFILE_D_ENV)
         env = awk(next(iter(grep(content, rf'{AppEnv.VPN_HOME_ENV}.+')), None), sep='=', pos=1)
         return None if not env else env.replace('"', "")
+
+    @staticmethod
+    def backup_dir() -> Path:
+        return FileHelper.tmp_dir(prefix=VpnDirectory.BACKUP_FOLDER_PREFIX, with_timestamp=True)
 
 
 def vpn_dir_opts_factory(app_dir: str, opt_func=VpnDirectory):

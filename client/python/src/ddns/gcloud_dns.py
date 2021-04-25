@@ -28,8 +28,8 @@ class GCloudDNSProvider(CloudDNSProvider):
             dns_entries if dns.is_valid()]
         logger.info(f'Purge {len(changes.deletions)} DNS records then create {len(changes.additions)} DNS records')
         changes.create(self.client)
-        loop_interval(lambda: changes.reload(), lambda: changes.status != 'pending', 'Unable sync DNS',
-                      self.max_retries, self.interval, exit_if_error=True)
+        loop_interval(lambda: changes.status != 'pending', 'Unable sync DNS', pre_func=lambda: changes.reload(),
+                      max_retries=self.max_retries, interval=self.interval, exit_if_error=True)
         logger.info(f'Zone Changed: {changes._properties}')
 
     def to_dns(self, dns_entry: DNSEntry, dns_name: str):
@@ -53,6 +53,7 @@ class GCloudDNSProvider(CloudDNSProvider):
         if not zone.exists():
             zone.description = dns_description
             create_zone(self.client, zone)
-            loop_interval(lambda: zone.reload(), lambda: zone.created is not None,
-                          f'Unable create DNS zone[{zone_name}]', self.max_retries, self.interval, exit_if_error=True)
+            loop_interval(lambda: zone.created is not None, f'Unable create DNS zone[{zone_name}]',
+                          pre_func=lambda: zone.reload(), max_retries=self.max_retries, interval=self.interval,
+                          exit_if_error=True)
         return zone

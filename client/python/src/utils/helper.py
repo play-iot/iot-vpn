@@ -9,7 +9,9 @@ import re
 import shutil
 import stat
 import sys
+import tempfile
 import time
+from datetime import datetime
 from distutils.dir_util import copy_tree
 from itertools import islice
 from json import JSONDecodeError
@@ -89,9 +91,9 @@ class FileHelper(object):
             os.chmod(p, mode)
 
     @staticmethod
-    def write_file(path: Union[str, Path], content: str, mode=0o0664, append=False):
+    def write_file(path: Union[str, Path], content: str, mode=0o0664, append=False, log_lvl=logger.DEBUG):
         p = Path(path)
-        logger.debug(f"Dump to file [{p}]")
+        logger.log(log_lvl, f"Dump to file [{p}]")
         with open(str(p.absolute()), 'w+' if not append else 'a+') as fp:
             fp.write(content)
             os.chmod(p, mode)
@@ -105,6 +107,14 @@ class FileHelper(object):
             os.chmod(p, mode)
             if symlink:
                 os.symlink(p, symlink)
+
+    @staticmethod
+    def tmp_dir(prefix=None, with_timestamp=False) -> Path:
+        if not prefix:
+            return Path(tempfile.gettempdir())
+        if with_timestamp:
+            prefix = f'{prefix}-{datetime.utcnow().timestamp()}'
+        return Path(tempfile.mkdtemp(prefix=f'{prefix}-'))
 
     @staticmethod
     def rm(files: Union[str, Path, list], force=True, recursive=True):
@@ -302,7 +312,7 @@ class JsonHelper:
     @staticmethod
     def dump(path: Union[str, Path], data: Any, mode=0o0644):
         logger.debug(f'Dump json to file [{path}]')
-        FileHelper.write_file(path, JsonHelper.to_json(data), mode)
+        FileHelper.write_file(path, JsonHelper.to_json(data), mode, log_lvl=logger.TRACE)
 
     @staticmethod
     def read(path: Union[str, Path], strict=True):
@@ -444,10 +454,10 @@ def tree(dir_path: Union[str, Path], level: int = -1, limit_to_directories: bool
     print(f'\n{directories} directories' + (f', {files} files' if files else ''))
 
 
-def loop_interval(func: Callable[[], NoReturn], condition: Callable[[], bool], error_if_timeout: str,
-                  max_retries: int = 5, interval: int = 1, exit_if_error=False):
+def loop_interval(condition: Callable[[], bool], error_if_timeout: str, pre_func: Callable[[], NoReturn] = lambda: None,
+                  max_retries: int = 5, interval: float = 1, exit_if_error=False):
     for c in range(max_retries + 1):
-        func()
+        pre_func()
         if condition():
             return
         time.sleep(interval)
@@ -456,4 +466,4 @@ def loop_interval(func: Callable[[], NoReturn], condition: Callable[[], bool], e
         logger.error(msg)
         sys.exit(ErrorCode.TIMEOUT)
     else:
-        raise TimeoutError()
+        raise TimeoutError(msg)
