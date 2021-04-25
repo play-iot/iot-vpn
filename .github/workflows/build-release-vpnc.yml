@@ -96,8 +96,8 @@ jobs:
       - name: Inject Hash version
         run: |
           hash_ver="${{ needs.context.outputs.sha }}"
-          hash_ver=[[ ${{ needs.context.outputs.isRelease }} == 'true' ]] && echo "$hash_ver" || echo "$hash_ver-${{ needs.context.outputs.branch }}"
-          sed -i "s/dev/$hash_ver/" ${{ env.APP_FOLDER }}/version.py
+          [[ ${{ needs.context.outputs.isRelease }} == 'true' ]] || hash_ver="$hash_ver-${{ needs.context.outputs.branch }}"
+          sed -i "s/dev/${hash_ver//\//-}/" ${{ env.APP_FOLDER }}/version.py
 
       - name: Inject brand and license
         run: |
