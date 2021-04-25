@@ -109,10 +109,12 @@ class FileHelper(object):
                 os.symlink(p, symlink)
 
     @staticmethod
-    def tmp_dir(prefix=None, suffix=datetime.utcnow().timestamp()) -> Path:
-        if prefix:
+    def tmp_dir(prefix=None, with_timestamp=False) -> Path:
+        if not prefix:
             return Path(tempfile.gettempdir())
-        return Path(tempfile.mkdtemp(prefix=prefix, suffix=str(suffix)))
+        if with_timestamp:
+            prefix = f'{prefix}-{datetime.utcnow().timestamp()}'
+        return Path(tempfile.mkdtemp(prefix=f'{prefix}-'))
 
     @staticmethod
     def rm(files: Union[str, Path, list], force=True, recursive=True):

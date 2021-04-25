@@ -147,7 +147,7 @@ class VpnDirectory(DevModeDir):
 
     @staticmethod
     def backup_dir() -> Path:
-        return FileHelper.tmp_dir(prefix=VpnDirectory.BACKUP_FOLDER_PREFIX)
+        return FileHelper.tmp_dir(prefix=VpnDirectory.BACKUP_FOLDER_PREFIX, with_timestamp=True)
 
 
 def vpn_dir_opts_factory(app_dir: str, opt_func=VpnDirectory):
