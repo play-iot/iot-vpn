@@ -223,11 +223,12 @@ class VPNPIDHandler:
 
 class VPNClientExecutor(VpnCmdExecutor):
 
-    def __init__(self, vpn_opts: ClientOpts):
+    def __init__(self, vpn_opts: ClientOpts, adhoc_task=False):
         super().__init__(vpn_opts)
         self.storage = AccountStorage(self.opts.account_cache_file)
         self._device = DeviceResolver()
         self.pid_handler = VPNPIDHandler(self.opts)
+        self.adhoc_task = adhoc_task
 
     def pre_exec(self, silent=False, log_lvl=logger.DEBUG, **kwargs):
         if not self.is_installed(silent, log_lvl) or self.pid_handler.is_running():
@@ -243,8 +244,9 @@ class VPNClientExecutor(VpnCmdExecutor):
     def post_exec(self, silent=False, log_lvl=logger.DEBUG, **kwargs):
         if not self.is_installed(silent, log_lvl):
             return
-        if self.pid_handler.is_running() and self.device.unix_service.status(self.vpn_service).is_running():
-            return
+        if self.pid_handler.is_running():
+            if not self.adhoc_task or self.device.unix_service.status(self.vpn_service).is_running():
+                return
         logger.log(log_lvl, 'Stop VPN Client...')
         SystemHelper.exec_command(f'{self.opts.vpnclient} stop', silent=silent, log_lvl=logger.down_lvl(log_lvl))
         self.cleanup_zombie_vpn(1, log_lvl=logger.down_lvl(log_lvl))
@@ -614,7 +616,7 @@ def __disconnect(disable: bool, vpn_opts: ClientOpts):
 @verbose_opts
 @permission
 def __status(vpn_opts: ClientOpts):
-    executor = VPNClientExecutor(vpn_opts).probe()
+    executor = VPNClientExecutor(vpn_opts, adhoc_task=True).probe()
     vpn_service = executor.vpn_service
     service_status = executor.device.unix_service.status(vpn_service)
     current_acc, vpn_ip, vpn_status = executor.storage.get_current(), None, None
@@ -640,7 +642,7 @@ def __status(vpn_opts: ClientOpts):
 def __add_trust_server(vpn_opts: ClientOpts, account: str, cert_key: str):
     logger.info("Enable Trust VPN Server on VPN client...")
     commands = {'AccountServerCertSet': f'{account} /LOADCERT:{cert_key}', 'AccountServerCertEnable': account}
-    VPNClientExecutor(vpn_opts).require_install().probe().exec_command(commands)
+    VPNClientExecutor(vpn_opts, adhoc_task=True).require_install().probe().exec_command(commands)
     logger.done()
 
 
@@ -650,7 +652,8 @@ def __add_trust_server(vpn_opts: ClientOpts, account: str, cert_key: str):
 @verbose_opts
 @permission
 def __list(vpn_opts: ClientOpts):
-    VPNClientExecutor(vpn_opts).require_install().probe().exec_command('AccountList', log_lvl=logger.INFO)
+    VPNClientExecutor(vpn_opts, adhoc_task=True).require_install().probe().exec_command('AccountList',
+                                                                                        log_lvl=logger.INFO)
 
 
 @cli.command(name='detail', help='Get detail VPN configuration and status by one or many accounts')
@@ -663,8 +666,8 @@ def __detail(vpn_opts: ClientOpts, accounts):
     if accounts is None or len(accounts) == 0:
         logger.error('Must provide at least account')
         sys.exit(ErrorCode.INVALID_ARGUMENT)
-    VPNClientExecutor(vpn_opts).require_install().probe().exec_command('AccountGet', params=accounts,
-                                                                       log_lvl=logger.INFO)
+    VPNClientExecutor(vpn_opts, adhoc_task=True).require_install().probe().exec_command('AccountGet', params=accounts,
+                                                                                        log_lvl=logger.INFO)
 
 
 @cli.command(name='log', help='Get VPN log')
@@ -703,7 +706,7 @@ def __about(vpn_opts: ClientOpts, show_license: bool):
 @verbose_opts
 @permission
 def __execute(vpn_opts: ClientOpts, command):
-    VPNClientExecutor(vpn_opts).require_install().exec_command(command, log_lvl=logger.INFO)
+    VPNClientExecutor(vpn_opts, adhoc_task=True).require_install().exec_command(command, log_lvl=logger.INFO)
 
 
 @cli.command(name="start", help="Start VPN client by *nix service", hidden=True)
