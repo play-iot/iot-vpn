@@ -348,10 +348,12 @@ class VPNClientExecutor(VpnCmdExecutor):
         self.lease_vpn_service(is_enable=acc.is_default, is_restart=acc.is_default, is_lease_ip=not acc.is_default,
                                account=acc.account)
 
-    def disconnect_vpn(self, log_lvl: int = logger.INFO, silent: bool = False) -> Optional[str]:
+    def disconnect_vpn(self, log_lvl: int = logger.INFO, silent: bool = False, force=False):
         account = self.storage.get_current() or self.storage.get_default()
         if not account:
-            self.cleanup_zombie_vpn(log_lvl=logger.DEBUG)
+            logger.log(logger.down_lvl(log_lvl), 'Not found any VPN account')
+            if force:
+                self.cleanup_zombie_vpn(0, log_lvl)
             return None
         logger.log(log_lvl, f'Disconnect VPN account [{account}]...')
         self.exec_command('AccountDisconnect', params=account, log_lvl=logger.down_lvl(log_lvl), silent=silent)
@@ -359,7 +361,6 @@ class VPNClientExecutor(VpnCmdExecutor):
         self.device.dns_resolver.reset_vpn_nameservers()
         self.device.ip_resolver.release_ip(account, self.opts.account_to_nic(account))
         self.device.ip_resolver.cleanup_zombie(f' {self.vpn_dir}.* {self.opts.account_to_nic(account)}')
-        return account
 
     def lease_vpn_service(self, is_enable: bool = True, is_restart: bool = True, is_lease_ip: bool = False,
                           account: Optional[str] = None):
@@ -478,15 +479,20 @@ def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = 
 @verbose_opts
 @permission
 def __upgrade(vpn_opts: ClientOpts):
-    def _decision(_executor: VPNClientExecutor, _default_acc: str, _current_acc: str):
-        if not _default_acc and not _current_acc:
+    def _reconnect_vpn(_executor: VPNClientExecutor, _default_acc: str, _current_acc: str):
+        logger.debug(f'UPGRADE::Reconnect VPN previous state: default[{_default_acc}] - current[{_current_acc}]')
+        if not _current_acc and not _default_acc:
             return
-        if _default_acc and not _current_acc:
+        if not _current_acc and _default_acc:
+            logger.debug('UPGRADE::Enable VPN service but no connect...')
             return _executor.lease_vpn_service(is_enable=True, is_restart=False, is_lease_ip=False)
-        if not _default_acc and _current_acc:
-            return _executor.connect_vpn(_current_acc, False)
+        if _current_acc == _default_acc:
+            logger.debug('UPGRADE::Enable then restart VPN service...')
+            return _executor.lease_vpn_service(is_enable=True, is_restart=True, is_lease_ip=False)
+        logger.debug(f'UPGRADE::Start VPN service then connect to previous current acc [{_current_acc}]...')
+        _executor.device.unix_service.restart(_executor.vpn_service, delay=0)
         _executor.disconnect_vpn(log_lvl=logger.DEBUG, silent=True)
-        _executor.connect_vpn(_current_acc, _current_acc == _default_acc)
+        _executor.connect_vpn(_current_acc, is_default=False)
 
     executor = VPNClientExecutor(vpn_opts).probe()
     is_installed = executor.is_installed(silent=True)
@@ -496,12 +502,12 @@ def __upgrade(vpn_opts: ClientOpts):
         sys.exit(ErrorCode.VPN_NOT_YET_INSTALLED)
     default_acc, current_acc, unix_service, backup_dir = executor.backup_config()
     if is_running:
-        executor.disconnect_vpn()
+        executor.disconnect_vpn(force=True)
     executor.uninstall(force=True, keep_dnsmasq=True, unix_service=unix_service)
     logger.info(f'Re-install VPN client into [{vpn_opts.vpn_dir}]...')
     executor.install(unix_service=unix_service, auto_startup=False)
     executor.restore_config(backup_dir)
-    _decision(executor, default_acc, current_acc)
+    _reconnect_vpn(executor, default_acc, current_acc)
     logger.done()
 
 
