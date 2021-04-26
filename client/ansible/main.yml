@@ -5,3 +5,5 @@
   tasks:
     - include_role:
         name: vpnc-install
+      vars:
+        clean_up: True
