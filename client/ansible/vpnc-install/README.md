@@ -14,17 +14,17 @@ Requirements
 └── vpnc-install
     ├── README.md
     ├── defaults
-    │   └── main.yml
+    │   └── main.yml
     ├── files
-    │   ├── binary
-    │   │   ├── qweio-vpnc-amd64
-    │   │   └── qweio-vpnc-armv7
-    │   └── credentials
+    │   ├── binary
+    │   │   ├── qweio-vpnc-amd64
+    │   │   └── qweio-vpnc-armv7
+    │   └── credentials
     ├── tasks
-        ├── Debian.yml
-        ├── Redhat.yml
-        ├── common.yml
-        └── main.yml
+        ├── Debian.yml
+        ├── Redhat.yml
+        ├── common.yml
+        └── main.yml
 ```
 
 ## Usage
