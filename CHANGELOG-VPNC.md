@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.9.1](https://github.com/qweio/iot-vpn/tree/vpnc/v0.9.1) (2021-04-25)
+
+### Improvement
+
+- Resolve [#50](https://github.com/qweio/iot-vpn/issues/50)
+
 ## [v0.9.0](https://github.com/qweio/iot-vpn/tree/vpnc/v0.9.0) (2021-04-24)
 
 ### Improvement

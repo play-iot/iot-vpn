@@ -300,23 +300,24 @@ class VPNClientExecutor(VpnCmdExecutor):
         self.storage.empty()
         self.opts.export_env()
 
-    def uninstall(self, force: bool = False, keep_dnsmasq: bool = True, log_lvl: int = logger.INFO,
-                  unix_service: UnixServiceOpts = None):
+    def uninstall(self, keep_vpn: bool = True, keep_dnsmasq: bool = True, unix_service: UnixServiceOpts = None,
+                  log_lvl: int = logger.INFO):
         service_opts = unix_service or self._read_service_cache()
-        logger.info(f'Uninstall VPN service [{service_opts.service_name}]...')
+        vpn_service = unix_service.service_name
+        logger.info(f'Uninstall VPN service [{vpn_service}]...')
         accounts = [a.account for a in self.storage.list()]
         if len(accounts) > 0:
             self.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], accounts, silent=True)
-        self.shutdown_vpn_service(is_stop=True, is_disable=True, keep_dnsmasq=keep_dnsmasq)
-        self.device.unix_service.remove(service_opts, force)
-        self.device.ip_resolver.remove_hook(service_opts.service_name)
-        self.device.ip_resolver.renew_all_ip()
-        if force:
-            logger.log(log_lvl, f'Remove VPN Client [{self.opts.vpn_dir}]...')
-            FileHelper.rm(self.opts.vpn_dir)
-            self.opts.remove_env()
-        else:
+        self.shutdown_vpn_service(is_stop=True, is_disable=True, keep_dnsmasq=keep_dnsmasq, vpn_service=vpn_service)
+        if keep_vpn:
             self.storage.empty()
+        else:
+            logger.log(log_lvl, f'Remove VPN Client [{self.opts.vpn_dir}]...')
+            self.device.unix_service.remove(service_opts, force=True)
+            self.device.ip_resolver.remove_hook(vpn_service)
+            self.opts.remove_env()
+            FileHelper.rm(self.opts.vpn_dir)
+        self.device.ip_resolver.renew_all_ip()
 
     def backup_config(self):
         backup_dir = self.opts.backup_dir()
@@ -352,7 +353,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         if not account:
             logger.log(logger.down_lvl(log_lvl), 'Not found any VPN account')
             if force:
-                self.cleanup_zombie_vpn(0, log_lvl)
+                self.cleanup_zombie_vpn(1, log_lvl)
             return None
         logger.log(log_lvl, f'Disconnect VPN account [{account}]...')
         self.exec_command('AccountDisconnect', params=account, log_lvl=logger.down_lvl(log_lvl), silent=silent)
@@ -377,13 +378,12 @@ class VPNClientExecutor(VpnCmdExecutor):
                       'Unable connect VPN. Please check log for more detail', max_retries=10, interval=2)
         self.device.ip_resolver.lease_ip(account, self.opts.account_to_nic(account))
 
-    def shutdown_vpn_service(self, is_stop=True, is_disable=False, keep_dnsmasq=True):
-        vpn_service = self.vpn_service
-        if is_stop:
-            self.device.unix_service.stop(vpn_service)
+    def shutdown_vpn_service(self, is_stop=True, is_disable=False, keep_dnsmasq=True, vpn_service: str = None):
+        vpn_service = vpn_service or self.vpn_service
         if is_disable:
             self.device.unix_service.disable(vpn_service)
-        if is_stop or is_disable:
+        if is_stop:
+            self.device.unix_service.stop(vpn_service)
             self.cleanup_zombie_vpn()
             self.device.dns_resolver.cleanup_config(vpn_service, keep_dnsmasq=keep_dnsmasq)
 
@@ -453,7 +453,7 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, auto_startup:
     if executor.is_installed(silent=True):
         if force:
             logger.warn('VPN service is already installed. Try to remove then reinstall...')
-            executor.uninstall(True, True)
+            executor.uninstall(keep_vpn=False, keep_dnsmasq=True)
         else:
             logger.error('VPN service is already installed')
             sys.exit(ErrorCode.VPN_ALREADY_INSTALLED)
@@ -474,7 +474,7 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, auto_startup:
 @verbose_opts
 @permission
 def __uninstall(vpn_opts: ClientOpts, force: bool = False, keep_dnsmasq: bool = True):
-    VPNClientExecutor(vpn_opts).require_install().probe().uninstall(force, keep_dnsmasq)
+    VPNClientExecutor(vpn_opts).probe().uninstall(keep_vpn=not force, keep_dnsmasq=keep_dnsmasq)
     logger.done()
 
 
@@ -499,16 +499,12 @@ def __upgrade(vpn_opts: ClientOpts):
         _executor.disconnect_vpn(log_lvl=logger.DEBUG, silent=True)
         _executor.connect_vpn(_current_acc, is_default=False)
 
-    executor = VPNClientExecutor(vpn_opts).probe()
-    is_installed = executor.is_installed(silent=True)
+    executor = VPNClientExecutor(vpn_opts).require_install().probe()
     is_running = executor.is_running(silent=True)
-    if not is_installed:
-        logger.error('VPN client is not yet installed')
-        sys.exit(ErrorCode.VPN_NOT_YET_INSTALLED)
     default_acc, current_acc, unix_service, backup_dir = executor.backup_config()
     if is_running:
         executor.disconnect_vpn(force=True)
-    executor.uninstall(force=True, keep_dnsmasq=True, unix_service=unix_service)
+    executor.uninstall(keep_vpn=False, keep_dnsmasq=True, unix_service=unix_service)
     logger.info(f'Re-install VPN client into [{vpn_opts.vpn_dir}]...')
     executor.install(unix_service=unix_service, auto_startup=False)
     executor.restore_config(backup_dir)
@@ -630,7 +626,7 @@ def __disconnect(disable: bool, vpn_opts: ClientOpts):
 @permission
 def __status(vpn_opts: ClientOpts):
     executor = VPNClientExecutor(vpn_opts, adhoc_task=True).probe()
-    is_installed = executor.is_installed()
+    is_installed = executor.is_installed(silent=True)
     vpn_service = executor.vpn_service
     service_status = executor.device.unix_service.status(vpn_service)
     current_acc, vpn_ip, vpn_status = executor.storage.get_current(), None, None
@@ -764,7 +760,7 @@ def __stop_service(vpn_opts: ClientOpts):
 def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old_nameservers: str, debug: bool):
     def _manual_discover(_executor: VPNClientExecutor, _cur_acc: AccountInfo):
         dns_resolver = _executor.device.dns_resolver
-        loop_interval(lambda: None, lambda: len(dns_resolver.query_vpn_nameservers(_cur_acc.hub)) > 0,
+        loop_interval(lambda: len(dns_resolver.query_vpn_nameservers(_cur_acc.hub)) > 0,
                       'Unable read DHCP status', exit_if_error=True, max_retries=10)
         _nic = executor.opts.account_to_nic(current.account)
         _new_nameservers = ','.join(dns_resolver.query_vpn_nameservers(_cur_acc.hub))
