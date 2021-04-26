@@ -1,4 +1,4 @@
-# VPN DNS sync job
+# VPN DDNS k8s job
 
 Query VPN client session based on `hostname`, `vpn ip address` then creating DNS record in [Cloud DNS](https://console.cloud.google.com/net-services/dns/zones). The job is run on K8S cronjob
 
