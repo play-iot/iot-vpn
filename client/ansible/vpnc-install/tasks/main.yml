@@ -1,18 +1,12 @@
 ---
 
-# - name: Verify
-#   shell: dnsmasq -v 2>&1
-#   register: dnsmasqVersion
-
-# - debug: var=dnsmasqVersion.stdout_lines
-
 - name: Populate service facts
   ansible.builtin.service_facts:
 
-- include: Debian.yml
+- include: 01_Debian.yml
   when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
 
-- include: Redhat.yml
+- include: 01_Redhat.yml
   when: ansible_distribution == "Redhat" or ansible_distribution == "Fedora" or ansible_distribution == "CentOS"
 
-- include: common.yml
+- include: 02_common.yml
