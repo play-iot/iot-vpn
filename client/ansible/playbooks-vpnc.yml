@@ -3,7 +3,8 @@
   become_method: sudo
 
   tasks:
-    - include_role:
+    - name: Setup VPNC
+      include_role:
         name: vpnc-install
       vars:
         clean_up: True
