@@ -18,32 +18,32 @@
 
 ```bash
 # Build on slim and latest RTM version 
-./scripts/ss.d.vpnserver.sh build
+./scripts/docker.vpnserver.sh build
 
 # Build on slim and specific RTM version
-./scripts/ss.d.vpnserver.sh build slim rtm v4.34-9745-beta
+./scripts/docker.vpnserver.sh build slim rtm v4.34-9745-beta
 
 # Build on slim and src latest version
-./scripts/ss.d.vpnserver.sh build slim src 
+./scripts/docker.vpnserver.sh build slim src 
 
 # Build on slim and specific src version
-./scripts/ss.d.vpnserver.sh build slim src 5.01.9674
+./scripts/docker.vpnserver.sh build slim src 5.01.9674
 ```
 
 #### Run
 
 ```bash
 # Up on slim and latest RTM version
-./scripts/ss.d.vpnserver.sh up
+./scripts/docker.vpnserver.sh up
 
 # Up on slim and specific RTM version
-./scripts/ss.d.vpnserver.sh up slim rtm v4.34-9745-beta
+./scripts/docker.vpnserver.sh up slim rtm v4.34-9745-beta
 
 # Up on slim and src latest version
-./scripts/ss.d.vpnserver.sh up slim src 
+./scripts/docker.vpnserver.sh up slim src 
 
 # Up on slim and specific src version
-./scripts/ss.d.vpnserver.sh up slim src 5.01.9674
+./scripts/docker.vpnserver.sh up slim src 5.01.9674
 ```
 
 ### Use JSON-RPC
@@ -61,7 +61,7 @@ curl -k -X POST -H 'Content-Type: application/json' \
 
 ```bash
 # Build VPN Client CLI then copy to vagrant/shared
-./scripts/ss.b.vpnc_2_vagrant.sh
+./scripts/build.vpnc_2_vagrant.sh
 # go to any box in vagrant folder then up. Binary file will be synced to /vagrant/qweio-vpnc
 # with ubuntu20
 cd vagrant/ubuntu20 && vagrant up && vagrant ssh
@@ -91,10 +91,10 @@ docker run -v docker-registry-data:/var/lib/registry -p 5000:5000 --privileged -
 
 ```bash
 # build amd64 arch
-./scripts/ss.d.vpntool.sh client
+./scripts/docker.vpntool.sh client
 
 # build multiple arch (amd64/armv7)
-./scripts/ss.d.vpntool.sh client true
+./scripts/docker.vpntool.sh client true
 ```
 
 ## VPN DDNS
@@ -102,5 +102,5 @@ docker run -v docker-registry-data:/var/lib/registry -p 5000:5000 --privileged -
 [vpnddns.Dockerfile](./docker/dockerfile/vpnddns.Dockerfile)
 
 ```bash
-./scripts/ss.d.vpntool.sh ddns
+./scripts/docker.vpntool.sh ddns
 ```
