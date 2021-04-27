@@ -42,10 +42,13 @@ vagrant/shared/**
 
 client/go/**/bin
 client/python/src/debug
+
+client/k8s/**/svc.json
 client/k8s/**/*.env
 !client/k8s/**/.env
-client/k8s/**/svc.json
+
+client/ansible/out/**
 client/ansible/inventory/**
-!client/ansible/inventory/inventory.vagrant.yml
+!client/ansible/inventory/hosts.vagrant.yml
 
 **/*.spec
