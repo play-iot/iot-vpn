@@ -16,7 +16,10 @@
     mode: 0600
 
 - name: Configure VPN client with client certificate authentication
-  command: qweio-vpnc add -sh {{ vpn_server }} -sp {{ vpn_port }} -su {{ vpn_hub }} -ca {{ vpn_account }} -ct cert -cu {{ vpn_user }} -cpk "{{ vpn_dir }}/{{ vpn_prv_key }}" -cck "{{ vpn_dir }}/{{ vpn_cert }}" -dd {{ vpn_dir }}/vpnclient -v
+  command: |
+    qweio-vpnc add -sh {{ vpn_server }} -sp {{ vpn_port }} -su {{ vpn_hub }} -ca {{ vpn_account }} -ct cert \
+        -cu {{ vpn_user }} -cpk "{{ vpn_dir }}/{{ vpn_prv_key }}" -cck "{{ vpn_dir }}/{{ vpn_cert }}" \
+        -dd {{ vpn_dir }}/vpnclient -v
   register: vpn_configure
   ignore_errors: True
   when: vpn_install.rc == 0

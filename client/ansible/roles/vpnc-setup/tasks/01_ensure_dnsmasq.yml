@@ -1,0 +1,15 @@
+- name: Install dnsmasq on Debian family
+  apt:
+    name: dnsmasq
+    state: latest
+  when:
+    - ansible_facts['os_family']|lower == 'debian'
+    - ansible_facts.services['dnsmasq'] is not defined
+
+- name: Install dnsmasq on RedHat family
+  apt:
+    name: dnsmasq
+    state: latest
+  when:
+    - ansible_facts['os_family']|lower == 'redhat'
+    - ansible_facts.services['dnsmasq'] is not defined

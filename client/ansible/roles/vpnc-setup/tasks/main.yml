@@ -1,12 +1,23 @@
 ---
 
+- name: Populate base facts
+  ansible.builtin.setup:
+    gather_subset: 'min'
+
 - name: Populate service facts
   ansible.builtin.service_facts:
 
-- include: 01_Debian.yml
-  when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
+- name: Ensure dnsmasq install
+  include_tasks: 01_ensure_dnsmasq.yml
 
-- include: 01_Redhat.yml
-  when: ansible_distribution == "Redhat" or ansible_distribution == "Fedora" or ansible_distribution == "CentOS"
+- name: Prepare VPN binary
+  include_tasks: 02_prepare_binary.yml
 
-- include: 02_common.yml
+- name: Setup VPN service
+  include_tasks: 03_install_vpnc.yml
+
+- name: Add VPN account
+  include_tasks: 04_add_vpn_account.yml
+
+- name: Verify VPN status
+  include_tasks: 05_verify_vpn_status.yml

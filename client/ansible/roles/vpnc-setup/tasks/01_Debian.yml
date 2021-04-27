@@ -1,6 +1,0 @@
----
-- name: Install dnsmasq
-  apt:
-    name: dnsmasq
-    state: latest
-  when: ansible_facts.services["dnsmasq"] is not defined

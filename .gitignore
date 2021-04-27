@@ -48,7 +48,11 @@ client/k8s/**/*.env
 !client/k8s/**/.env
 
 client/ansible/out/**
+!client/ansible/out/.gitkeep
 client/ansible/inventory/**
 !client/ansible/inventory/hosts.vagrant.yml
+# TODO temp
+client/ansible/**/roles/**/files/**
+!client/ansible/**/roles/**/files/.gitkeep
 
 **/*.spec

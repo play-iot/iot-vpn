@@ -1,0 +1,8 @@
+#- name: Cleanup existing VPN installation
+#  command: qweio-vpnc uninstall -dd {{ vpn_dir }}/vpnclient -f
+#  when: clean_up|bool
+
+- name: Install VPN client
+  command: qweio-vpnc install --auto-startup --dnsmasq -dd {{ vpn_dir }}/vpnclient -dn {{ vpn_service }} -ds {{ service_dir }} -vv
+  register: vpn_install
+  ignore_errors: True

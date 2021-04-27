@@ -1,0 +1,16 @@
+---
+- name: Prepare VPN binary
+  copy:
+    src: "qweio-vpnc-{{ arch_mapping[ansible_architecture] }}"
+    dest: "{{ vpn_dir }}/qweio-vpnc"
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+
+- name: Create symlink
+  file:
+    src: "{{ vpn_dir }}/qweio-vpnc"
+    dest: "{{ bin_path }}/qweio-vpnc"
+    owner: root
+    group: root
+    state: link
