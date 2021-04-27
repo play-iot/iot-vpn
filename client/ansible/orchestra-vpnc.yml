@@ -5,6 +5,4 @@
   tasks:
     - name: Setup VPNC
       include_role:
-        name: vpnc-install
-      vars:
-        clean_up: True
+        name: vpnc-setup
