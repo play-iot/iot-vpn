@@ -2,7 +2,7 @@
 - name: Transfer client certificate
   copy:
     src: "credentials/{{ vpn_cert }}"
-    dest: "{{ vpn_dir }}/"
+    dest: "{{ app_dir }}/"
     owner: root
     group: root
     mode: 0600
@@ -10,16 +10,15 @@
 - name: Transfer client private key
   copy:
     src: "credentials/{{ vpn_prv_key }}"
-    dest: "{{ vpn_dir }}/"
+    dest: "{{ app_dir }}/"
     owner: root
     group: root
     mode: 0600
 
 - name: Configure VPN client with client certificate authentication
   command: |
-    qweio-vpnc add -sh {{ vpn_server }} -sp {{ vpn_port }} -su {{ vpn_hub }} -ca {{ vpn_account }} -ct cert \
-        -cu {{ vpn_user }} -cpk "{{ vpn_dir }}/{{ vpn_prv_key }}" -cck "{{ vpn_dir }}/{{ vpn_cert }}" \
-        -dd {{ vpn_dir }}/vpnclient -v
+    "{{ vpn_corp }}-vpnc add -sh {{ vpn_server }} -sp {{ vpn_port }} -su {{ vpn_hub }} -ca {{ vpn_account }} -ct cert \
+        -cu {{ vpn_user }} -cpk {{ app_dir }}/{{ vpn_prv_key }} -cck {{ app_dir }}/{{ vpn_cert }} -v"
   register: vpn_configure
   ignore_errors: True
   when: vpn_install.rc == 0

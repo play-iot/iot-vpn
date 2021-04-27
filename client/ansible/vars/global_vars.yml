@@ -1,3 +1,4 @@
 arch_mapping:
   armv7l: armv7
   x86_64: amd64
+vpn_corp: qweio

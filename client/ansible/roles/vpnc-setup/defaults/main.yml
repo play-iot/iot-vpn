@@ -1,10 +1,10 @@
 ---
-clean_up: False
-bin_path: "/usr/local/bin"
-vpn_dir: "/app"
+bin_dir: "/usr/local/bin"
+service_dir: "/etc/systemd/system"
+app_dir: "/app"
+vpn_dir: "{{ app_dir }}/vpnclient"
+
 vpn_server: "myserver"
 vpn_port: "443"
 vpn_hub: "myhub"
-vpn_service: "qweio-vpn"
 vpn_account: "{{ vpn_hub }}"
-service_dir: "/etc/systemd/system"

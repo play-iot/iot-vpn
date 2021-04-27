@@ -4,9 +4,6 @@
   ansible.builtin.setup:
     gather_subset: 'min'
 
-- name: Populate service facts
-  ansible.builtin.service_facts:
-
 - name: Ensure dnsmasq install
   include_tasks: 01_ensure_dnsmasq.yml
 
