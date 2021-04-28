@@ -1,0 +1,28 @@
+- name: Rollout new VPNC version
+  hosts: all
+  become: yes
+  become_method: sudo
+  gather_facts: no
+  vars_files:
+    - vars/global_vars.yml
+
+  tasks:
+    - name: Prepare artifact
+      import_role:
+        name: get-artifact
+
+    - name: Prepare credentials
+      import_role:
+        name: get-credential
+
+    - name: Verify VPNC state
+      import_role:
+        name: vpnc-state
+
+    - name: Setup VPNC
+      import_role:
+        name: vpnc-install
+
+    - name: Check VPNC state
+      import_role:
+        name: vpnc-state

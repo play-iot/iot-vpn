@@ -34,3 +34,9 @@ all:
         centos7:
         centos8:
         fedora32:
+    routine:
+      hosts:
+        ubuntu18:
+        debian9:
+        centos7:
+        fedora32:

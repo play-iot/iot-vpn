@@ -1,0 +1,3 @@
+---
+- name: Upgrade VPNC version
+  include_tasks: 02_check_vpnc_service.yml

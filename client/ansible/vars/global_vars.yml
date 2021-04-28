@@ -2,3 +2,8 @@ arch_mapping:
   armv7l: armv7
   x86_64: amd64
 vpn_corp: qweio
+
+bin_dir: /usr/local/bin
+service_dir: /etc/systemd/system
+app_dir: /app
+vpn_dir: "{{ app_dir }}/vpnclient"

@@ -1,0 +1,3 @@
+- name: Install VPN client
+  command: "{{ vpn_corp }}-vpnc install --dnsmasq -dd {{ vpn_dir }} -ds {{ service_dir }}"
+  register: vpn_install

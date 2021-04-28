@@ -1,0 +1,16 @@
+- name: Check whether VPNC CLI is installed in system path
+  when: ansible_facts['os_family'] != 'Windows'
+  command: "which {{ vpn_corp }}-vpnc"
+  register: vpnc_installed
+  ignore_errors: yes
+
+- name: Check VPNC CLI version
+  when: vpnc_installed.rc == 0
+  command: "{{ vpn_corp }}-vpnc version --json"
+  register: vpnc_version
+  ignore_errors: yes
+
+- name: Debug version
+  when: vpnc_installed.rc == 0 and debug is defined
+  ansible.builtin.debug:
+    msg: "{{ vpnc_version | ternary(vpnc_version.stdout | from_json, vpnc_version) }}"

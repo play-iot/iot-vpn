@@ -1,0 +1,10 @@
+---
+- name: Populate base facts
+  ansible.builtin.setup:
+    gather_subset: 'min'
+
+- name: Check VPNC CLI install
+  include_tasks: 01_check_vpnc_cli.yml
+
+- name: Check VPNC service status
+  include_tasks: 02_check_vpnc_service.yml

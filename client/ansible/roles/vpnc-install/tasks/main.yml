@@ -1,9 +1,5 @@
 ---
 
-- name: Populate base facts
-  ansible.builtin.setup:
-    gather_subset: 'min'
-
 - name: Ensure dnsmasq install
   include_tasks: 01_ensure_dnsmasq.yml
 

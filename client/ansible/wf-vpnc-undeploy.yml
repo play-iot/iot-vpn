@@ -1,0 +1,9 @@
+- name: Uninstall VPNC
+  hosts: all
+  become: yes
+  become_method: sudo
+  gather_facts: no
+  vars_files:
+    - vars/global_vars.yml
+
+  tasks:

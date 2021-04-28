@@ -1,0 +1,4 @@
+vpn_server: "myserver"
+vpn_port: "443"
+vpn_hub: "myhub"
+vpn_account: "{{ vpn_hub }}"
