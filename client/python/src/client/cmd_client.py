@@ -10,7 +10,7 @@ from typing import Optional, Union, List
 import click
 
 import src.utils.logger as logger
-from src.client.device_resolver import DeviceResolver, DHCPReason, ServiceStatus
+from src.client.device_resolver import DeviceResolver, DHCPReason
 from src.client.version import APP_VERSION, HASH_VERSION
 from src.executor.shell_executor import SystemHelper
 from src.executor.vpn_cmd_executor import VpnCmdExecutor
@@ -181,13 +181,16 @@ class AccountStorage:
 class VPNPIDHandler:
     def __init__(self, vpn_opts: ClientOpts):
         self.opts = vpn_opts
-        self.current_pid = None
+
+    @property
+    def current_pid(self):
+        return self._find_pid()
 
     def is_running(self, log_lvl=logger.DEBUG) -> bool:
         logger.log(log_lvl, 'Check if VPN is running...')
-        self.current_pid = self._find_pid(logger.down_lvl(log_lvl))
-        if self.current_pid:
-            self._dump_pid(logger.down_lvl(log_lvl))
+        pid = self._find_pid(logger.down_lvl(log_lvl))
+        if pid:
+            self._dump_pid(pid, logger.down_lvl(log_lvl))
             return True
         self.cleanup()
         return False
@@ -204,9 +207,9 @@ class VPNPIDHandler:
         logger.log(log_lvl, f'PID files [{",".join(files)}]')
         return files
 
-    def _dump_pid(self, log_lvl=logger.TRACE):
-        logger.log(log_lvl, f'VPN PID [{self.current_pid}]')
-        FileHelper.write_file(self.opts.pid_file, str(self.current_pid), mode=0o644, log_lvl=log_lvl)
+    def _dump_pid(self, pid, log_lvl=logger.TRACE):
+        logger.log(log_lvl, f'VPN PID [{pid}]')
+        FileHelper.write_file(self.opts.pid_file, str(pid), mode=0o644, log_lvl=log_lvl)
 
     @staticmethod
     def _check_pid(pid_file: str, log_lvl=logger.TRACE) -> int:
@@ -271,6 +274,8 @@ class VPNClientExecutor(VpnCmdExecutor):
         return self
 
     def vpn_status(self, vpn_acc: str):
+        if not vpn_acc:
+            return None
         try:
             status = self.exec_command('AccountStatusGet', params=vpn_acc, silent=True, log_lvl=logger.DEBUG)
             return awk(next(iter(grep(status, r'Session Status.+', flags=re.MULTILINE)), None), sep='|', pos=1).strip()
@@ -630,27 +635,27 @@ def __status(vpn_opts: ClientOpts, is_json: bool):
     is_installed = executor.is_installed(silent=True)
     vpn_service = executor.vpn_service
     vpn_acc = executor.storage.get_current()
+    service_status = executor.device.unix_service.status(vpn_service)
     status = {
         'app_state': is_installed, 'app_state_msg': 'Installed' if is_installed else 'Not yet installed',
         'app_dir': executor.opts.vpn_dir if is_installed else None,
-        'service': executor.vpn_service,
-        'service_status': executor.device.unix_service.status(vpn_service).value,
-        'pid': executor.pid_handler.current_pid,
-        'vpn_status': None, 'vpn_account': vpn_acc, 'vpn_ip': None
+        'service': executor.vpn_service, 'service_status': service_status.value,
+        'vpn_pid': executor.pid_handler.current_pid, 'vpn_account': vpn_acc,
+        'vpn_status': False, 'vpn_status_msg': None, 'vpn_ip': None
     }
     if vpn_acc:
-        status['vpn_status'] = executor.vpn_status(status.get('vpn_acc'))
+        status['vpn_status_msg'] = executor.vpn_status(vpn_acc)
+        status['vpn_status'] = 'Connection Completed (Session Established)' == status['vpn_status_msg']
         status['vpn_ip'] = executor.device.ip_resolver.get_vpn_ip(ClientOpts.account_to_nic(vpn_acc))
     if is_json:
         print(JsonHelper.to_json(status))
     else:
         logger.info(f'VPN Application   : {status["app_state_msg"]} - {status["app_dir"]}')
-        logger.info(f'VPN Service       : {status["service"]} - {status["service_status"]} - PID[{status["pid"]}]')
-        logger.info(f'VPN Account       : {status["vpn_account"]} - {status["vpn_status"]}')
+        logger.info(f'VPN Service       : {status["service"]} - {status["service_status"]} - PID[{status["vpn_pid"]}]')
+        logger.info(f'VPN Account       : {status["vpn_account"]} - {status["vpn_status_msg"]}')
         logger.info(f'VPN IP address    : {status["vpn_ip"]}')
         logger.sep(logger.INFO)
-    if (is_installed and not status["vpn_status"] or not status["vpn_ip"] or
-        not ServiceStatus.parse(status["service_status"]).is_running()):
+    if is_installed and not status["vpn_status"] or not status["vpn_ip"] or not service_status.is_running():
         sys.exit(ErrorCode.VPN_SERVICE_IS_NOT_WORKING)
 
 
