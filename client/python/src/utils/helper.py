@@ -303,8 +303,17 @@ class JsonHelper:
 
     @staticmethod
     def to_json(_data: Any):
+        def _serialize(_d: Any):
+            if isinstance(_d, Path):
+                return str(_d.absolute())
+            if isinstance(_d, dict):
+                return {k: _serialize(v) for k, v in _d.items()}
+            if isinstance(_d, object) and hasattr(_d, '__dict__'):
+                return _serialize(_d.__dict__)
+            return _d
+
         if isinstance(_data, object):
-            return json.dumps(_data, default=lambda o: o.__dict__, sort_keys=True, indent=2)
+            return json.dumps(_data, default=lambda o: _serialize(o), sort_keys=True, indent=2)
         if isinstance(_data, collections.Sequence):
             return [JsonHelper.to_json(d) for d in _data]
         return json.dumps(_data, sort_keys=True, indent=2)
