@@ -1,10 +1,10 @@
 - name: Check VPNC service status
-  when: vpnc_installed.rc == 0
+  when: is_exec.rc == 0 and is_ver.rc == 0
   command: "{{ vpn_corp }}-vpnc status --json"
-  register: vpnc_status
+  register: is_status
   ignore_errors: yes
 
-- name: Debug VPNC service status
-  when: vpnc_installed.rc == 0 and debug is defined
-  ansible.builtin.debug:
-    msg: "{{ vpnc_status | ternary(vpnc_status.stdout | from_json, vpnc_status) }}"
+- name: Evaluate VPNC service status
+  when: is_exec.rc == 0 and is_ver.rc == 0
+  ansible.builtin.set_fact:
+    vpnc_state: "{{ vpnc_state | combine({ 'status': is_status.stdout | from_json, 'status_rc': is_status.rc }) }}"

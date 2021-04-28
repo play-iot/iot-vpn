@@ -1,16 +1,23 @@
 - name: Check whether VPNC CLI is installed in system path
   when: ansible_facts['os_family'] != 'Windows'
   command: "which {{ vpn_corp }}-vpnc"
-  register: vpnc_installed
+  register: is_exec
   ignore_errors: yes
+
+- name: Evaluate VPNC installed
+  ansible.builtin.set_fact:
+    vpnc_state: "{{ vpnc_state | combine({  'is_exec': is_exec.rc == 0,
+                                            'error': None if is_exec.rc == 0 else is_exec.msg }) }}"
 
 - name: Check VPNC CLI version
-  when: vpnc_installed.rc == 0
+  when: is_exec.rc == 0
   command: "{{ vpn_corp }}-vpnc version --json"
-  register: vpnc_version
+  register: is_ver
   ignore_errors: yes
 
-- name: Debug version
-  when: vpnc_installed.rc == 0 and debug is defined
-  ansible.builtin.debug:
-    msg: "{{ vpnc_version | ternary(vpnc_version.stdout | from_json, vpnc_version) }}"
+- name: Evaluate VPNC version
+  when: is_exec.rc == 0
+  ansible.builtin.set_fact:
+    vpnc_state: "{{ vpnc_state | combine({  'is_broken': is_ver.rc != 0,
+                                            'version': (is_ver.stdout | from_json) if is_ver.rc == 0 else None,
+                                            'error': None if is_ver.rc == 0 else is_ver.msg }) }}"

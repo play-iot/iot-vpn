@@ -1,10 +1,19 @@
 ---
-- name: Populate base facts
+- name: Populate remote machine
   ansible.builtin.setup:
     gather_subset: 'min'
+
+- name: Init VPNC state output
+  ansible.builtin.set_fact:
+    vpnc_state: { 'is_exec': False, 'is_broken': False, 'error': None, 'version': None, 'status': None, 'status_rc': 0 }
 
 - name: Check VPNC CLI install
   include_tasks: 01_check_vpnc_cli.yml
 
 - name: Check VPNC service status
   include_tasks: 02_check_vpnc_service.yml
+
+- name: Debug VPNC state output
+  when: debug is defined
+  ansible.builtin.debug:
+    msg: "{{ vpnc_state }}"
