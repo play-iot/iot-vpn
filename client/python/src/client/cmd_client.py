@@ -10,7 +10,7 @@ from typing import Optional, Union, List
 import click
 
 import src.utils.logger as logger
-from src.client.device_resolver import DeviceResolver, DHCPReason
+from src.client.device_resolver import DeviceResolver, DHCPReason, ServiceStatus
 from src.client.version import APP_VERSION, HASH_VERSION
 from src.executor.shell_executor import SystemHelper
 from src.executor.vpn_cmd_executor import VpnCmdExecutor
@@ -620,26 +620,37 @@ def __disconnect(disable: bool, vpn_opts: ClientOpts):
 
 
 @cli.command(name='status', help='Get current VPN status')
+@click.option('--json', 'is_json', default=False, flag_value=True, help='Output to json')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @verbose_opts
 @permission
-def __status(vpn_opts: ClientOpts):
+def __status(vpn_opts: ClientOpts, is_json: bool):
     executor = VPNClientExecutor(vpn_opts, adhoc_task=True).probe()
     is_installed = executor.is_installed(silent=True)
     vpn_service = executor.vpn_service
-    service_status = executor.device.unix_service.status(vpn_service)
-    current_acc, vpn_ip, vpn_status = executor.storage.get_current(), None, None
-    if current_acc:
-        vpn_ip = executor.device.ip_resolver.get_vpn_ip(ClientOpts.account_to_nic(current_acc))
-        vpn_status = executor.vpn_status(current_acc)
-    install_state = 'Installed' if is_installed else 'Not yet installed'
-    logger.info(f'VPN Application   : {install_state} - {executor.opts.vpn_dir if is_installed else None}')
-    logger.info(f'VPN Service       : {vpn_service} - {service_status.value} - PID[{executor.pid_handler.current_pid}]')
-    logger.info(f'VPN Account       : {current_acc or None} - {vpn_status}')
-    logger.info(f'VPN IP address    : {vpn_ip}')
-    logger.sep(logger.INFO)
-    if is_installed and not vpn_status or not vpn_ip or service_status != service_status.RUNNING:
+    vpn_acc = executor.storage.get_current()
+    status = {
+        'app_state': is_installed, 'app_state_msg': 'Installed' if is_installed else 'Not yet installed',
+        'app_dir': executor.opts.vpn_dir if is_installed else None,
+        'service': executor.vpn_service,
+        'service_status': executor.device.unix_service.status(vpn_service).value,
+        'pid': executor.pid_handler.current_pid,
+        'vpn_status': None, 'vpn_account': vpn_acc, 'vpn_ip': None
+    }
+    if vpn_acc:
+        status['vpn_status'] = executor.vpn_status(status.get('vpn_acc'))
+        status['vpn_ip'] = executor.device.ip_resolver.get_vpn_ip(ClientOpts.account_to_nic(vpn_acc))
+    if is_json:
+        print(JsonHelper.to_json(status))
+    else:
+        logger.info(f'VPN Application   : {status["app_state_msg"]} - {status["app_dir"]}')
+        logger.info(f'VPN Service       : {status["service"]} - {status["service_status"]} - PID[{status["pid"]}]')
+        logger.info(f'VPN Account       : {status["vpn_account"]} - {status["vpn_status"]}')
+        logger.info(f'VPN IP address    : {status["vpn_ip"]}')
+        logger.sep(logger.INFO)
+    if (is_installed and not status["vpn_status"] or not status["vpn_ip"] or
+        not ServiceStatus.parse(status["service_status"]).is_running()):
         sys.exit(ErrorCode.VPN_SERVICE_IS_NOT_WORKING)
 
 
@@ -696,10 +707,11 @@ def __log(vpn_opts: ClientOpts, date, lines, follow, another):
 
 
 @cli.command(name="version", help="VPN Version")
+@click.option('--json', 'is_json', default=False, flag_value=True, help='Output to json')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
-def __version(vpn_opts: ClientOpts):
-    about.show(vpn_opts, APP_VERSION, HASH_VERSION)
+def __version(vpn_opts: ClientOpts, is_json: bool):
+    about.show(vpn_opts, APP_VERSION, HASH_VERSION, is_json=is_json)
 
 
 @cli.command(name="about", help="Show VPN software info")
