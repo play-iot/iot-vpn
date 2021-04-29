@@ -640,7 +640,7 @@ def __status(vpn_opts: ClientOpts, is_json: bool, domains: list):
     executor = VPNClientExecutor(vpn_opts, adhoc_task=True).probe()
     installed = executor.is_installed(silent=True)
     vpn_service = executor.vpn_service
-    vpn_acc = executor.storage.get_current()
+    vpn_acc = executor.storage.get_current() or None
     svc_status = executor.device.unix_service.status(vpn_service)
     dns_status = True
     status = {
