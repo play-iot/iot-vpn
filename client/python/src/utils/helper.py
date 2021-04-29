@@ -7,6 +7,7 @@ import os
 import platform
 import re
 import shutil
+import socket
 import stat
 import sys
 import tempfile
@@ -25,59 +26,72 @@ DEFAULT_ENCODING = "UTF-8"
 PY_VERSION = platform.sys.version_info
 
 
-def get_base_path(base=None) -> str:
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        return sys._MEIPASS
-    except Exception as _:
-        return base or os.getcwd()
+class EnvHelper:
+
+    @staticmethod
+    def get_base_path(base=None) -> str:
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            return sys._MEIPASS
+        except Exception as _:
+            return base or os.getcwd()
+
+    @staticmethod
+    def is_binary_mode():
+        try:
+            sys._MEIPASS
+            return True
+        except:
+            return False
+
+    @staticmethod
+    def tweak_os_env():
+        env = dict(os.environ)
+        lp_key = 'LD_LIBRARY_PATH'  # for GNU/Linux and *BSD.
+        lp_orig = env.get(lp_key + '_ORIG')
+        if lp_orig is not None:
+            env[lp_key] = lp_orig  # restore the original, unmodified value
+        else:
+            env.pop(lp_key, None)
+        return env
+
+    @staticmethod
+    def resource_finder(relative_path, base=None, resource_dir="resources") -> str:
+        """ Get absolute path to resource, works for dev and for PyInstaller """
+        return os.path.join(EnvHelper.get_base_path(base), resource_dir, relative_path)
+
+    @staticmethod
+    def get_dev_dir():
+        return Path(os.path.dirname(__file__)).parent.joinpath('debug')
+
+    @staticmethod
+    def build_executable_command():
+        executable = sys.executable
+        if getattr(sys, 'frozen', False):
+            return str(Path(executable).parent.absolute()), executable
+        params = sys.argv[0:2] if sys.argv[0] == 'index.py' else sys.argv[0]
+        # params.insert(0, os.path.join(Path(sys.argv[0]).relative_to(working_dir)))
+        return os.getcwd(), f'{executable} {" ".join(params)}'
+
+    @staticmethod
+    def binary_name():
+        executable = sys.executable
+        if getattr(sys, 'frozen', False):
+            return Path(executable).name
+        return None
+
+    @staticmethod
+    def check_supported_python_version():
+        is_unsupported = True if PY_VERSION.major == 2 else PY_VERSION.minor < 5
+        if is_unsupported:
+            raise NotImplementedError("Not support Python version less than 3.5")
+
+    @staticmethod
+    def is_py3_5():
+        return PY_VERSION.major == 3 and PY_VERSION.minor == 5
 
 
-def is_binary_mode():
-    try:
-        sys._MEIPASS
-        return True
-    except:
-        return False
-
-
-def tweak_os_env():
-    env = dict(os.environ)
-    lp_key = 'LD_LIBRARY_PATH'  # for GNU/Linux and *BSD.
-    lp_orig = env.get(lp_key + '_ORIG')
-    if lp_orig is not None:
-        env[lp_key] = lp_orig  # restore the original, unmodified value
-    else:
-        env.pop(lp_key, None)
-    return env
-
-
-def resource_finder(relative_path, base=None, resource_dir="resources") -> str:
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    return os.path.join(get_base_path(base), resource_dir, relative_path)
-
-
-def get_dev_dir():
-    return Path(os.path.dirname(__file__)).parent.joinpath('debug')
-
-
-def build_executable_command():
-    executable = sys.executable
-    if getattr(sys, 'frozen', False):
-        return str(Path(executable).parent.absolute()), executable
-    params = sys.argv[0:2] if sys.argv[0] == 'index.py' else sys.argv[0]
-    # params.insert(0, os.path.join(Path(sys.argv[0]).relative_to(working_dir)))
-    return os.getcwd(), f'{executable} {" ".join(params)}'
-
-
-def binary_name():
-    executable = sys.executable
-    if getattr(sys, 'frozen', False):
-        return Path(executable).name
-    return None
-
-
-class FileHelper(object):
+class FileHelper:
 
     @staticmethod
     def mkdirs(folders: Union[str, Path, list], mode=0o0755):
@@ -298,6 +312,79 @@ class FileHelper(object):
             os.remove(p)
         return to
 
+    @staticmethod
+    def tail(file: str, prev=1, _buffer=1024, follow=False) -> Iterator[str]:
+        def _last(_f: TextIO, _l: int):
+            while True:
+                try:
+                    _f.seek(-1 * _buffer, os.SEEK_END)
+                except IOError:
+                    _f.seek(0)
+                found = _f.readlines()
+                if len(found) >= _l or _f.tell() == 0:
+                    return found[-_l:], _f.tell()
+
+        if not FileHelper.is_readable(file):
+            yield f'File {file} is not existed'
+            sys.exit(ErrorCode.FILE_NOT_FOUND)
+        with open(file, 'r') as fp:
+            _lines, _pos = _last(fp, prev)
+        yield from _lines
+        if not follow:
+            return
+        with open(file, 'r') as fp:
+            interval = 0.2
+            fp.seek(0, os.SEEK_END)
+            while True:
+                rd = fp.read()
+                cur = fp.tell()
+                if not rd or cur == _pos:
+                    time.sleep(interval)
+                    fp.seek(_pos - cur, os.SEEK_SET)
+                else:
+                    _pos = cur
+                    yield rd
+
+    @staticmethod
+    def tree(dir_path: Union[str, Path], level: int = -1, limit_to_directories: bool = False,
+             length_limit: int = 1000, printer: Callable[[bool, str], None] = None):
+        space = '    '
+        branch = '│   '
+        tee = '├── '
+        last = '└── '
+        dir_path = Path(dir_path)
+        files = 0
+        directories = 0
+
+        def inner(_dir_path: Path, prefix: str = '', _level=-1):
+            nonlocal files, directories
+            if not _level:
+                return
+            if limit_to_directories:
+                contents = [d for d in _dir_path.iterdir() if d.is_dir()]
+            else:
+                contents = list(_dir_path.iterdir())
+            pointers = [tee] * (len(contents) - 1) + [last]
+            for pointer, path in zip(pointers, contents):
+                if path.is_dir():
+                    yield prefix + pointer + path.name
+                    directories += 1
+                    extension = branch if pointer == tee else space
+                    yield from inner(path, prefix=prefix + extension, _level=_level - 1)
+                elif not limit_to_directories:
+                    yield prefix + pointer + path.name
+                    files += 1
+
+        if printer:
+            printer(True, dir_path.name)
+        print(dir_path.name)
+        iterator = inner(dir_path, _level=level)
+        for line in islice(iterator, length_limit):
+            print(line)
+        if next(iterator, None):
+            print(f'... length_limit, {length_limit}, reached, counted:')
+        print(f'\n{directories} directories' + (f', {files} files' if files else ''))
+
 
 class JsonHelper:
 
@@ -341,126 +428,56 @@ class JsonHelper:
                 return _error(path, strict)
 
 
-def check_supported_python_version():
-    is_unsupported = True if PY_VERSION.major == 2 else PY_VERSION.minor < 5
-    if is_unsupported:
-        raise NotImplementedError("Not support Python version less than 3.5")
+class TextHelper:
 
+    @staticmethod
+    def encode_base64(value: Union[Any, bytes], url_safe=False, without_padding=False) -> str:
+        if not isinstance(value, bytes):
+            value = str(value).encode(DEFAULT_ENCODING)
+        v = base64.urlsafe_b64encode(value) if url_safe else base64.b64encode(value)
+        v = v.decode(DEFAULT_ENCODING)
+        return v.rstrip("=") if without_padding else v
 
-def is_py3_5():
-    return PY_VERSION.major == 3 and PY_VERSION.minor == 5
+    @staticmethod
+    def decode_base64(value: str, url_safe=False, without_padding=False, lenient=False) -> str:
+        v = value + ("=" * (4 - (len(value) % 4))) if without_padding else value
+        try:
+            v = base64.urlsafe_b64decode(v) if url_safe else base64.b64decode(v)
+            return v.decode(DEFAULT_ENCODING)
+        except (TypeError, ValueError, UnicodeError) as err:
+            if lenient:
+                logger.debug(f'Failed when decoding base64. Value[{value}]. Error[{err}]')
+                return value
+            raise
 
+    @staticmethod
+    def grep(value: str, pattern: str, flags=re.MULTILINE) -> list:
+        if not value:
+            return []
+        return re.findall(pattern, value, flags=flags)
 
-def encode_base64(value: Union[Any, bytes], url_safe=False, without_padding=False) -> str:
-    if not isinstance(value, bytes):
-        value = str(value).encode(DEFAULT_ENCODING)
-    v = base64.urlsafe_b64encode(value) if url_safe else base64.b64encode(value)
-    v = v.decode(DEFAULT_ENCODING)
-    return v.rstrip("=") if without_padding else v
-
-
-def decode_base64(value: str, url_safe=False, without_padding=False, lenient=False) -> str:
-    v = value + ("=" * (4 - (len(value) % 4))) if without_padding else value
-    try:
-        v = base64.urlsafe_b64decode(v) if url_safe else base64.b64decode(v)
-        return v.decode(DEFAULT_ENCODING)
-    except (TypeError, ValueError, UnicodeError) as err:
-        if lenient:
-            logger.debug(f'Failed when decoding base64. Value[{value}]. Error[{err}]')
+    @staticmethod
+    def awk(value: str, sep=' ', pos=-1) -> Optional[Union[str, list]]:
+        if not value:
+            return None
+        if not sep:
             return value
-        raise
-
-
-def grep(value: str, pattern: str, flags=re.VERBOSE) -> list:
-    if not value:
-        return []
-    return re.findall(pattern, value, flags=flags)
-
-
-def awk(value: str, sep=' ', pos=-1) -> Optional[Union[str, list]]:
-    if not value:
+        v = value.split(sep)
+        if pos == -1:
+            return v
+        if pos < len(v):
+            return v[pos]
         return None
-    if not sep:
-        return value
-    v = value.split(sep)
-    if pos == -1:
-        return v
-    if pos < len(v):
-        return v[pos]
-    return None
 
 
-def tail(file: str, prev=1, _buffer=1024, follow=False) -> Iterator[str]:
-    def _last(_f: TextIO, _l: int):
-        while True:
-            try:
-                _f.seek(-1 * _buffer, os.SEEK_END)
-            except IOError:
-                _f.seek(0)
-            found = _f.readlines()
-            if len(found) >= _l or _f.tell() == 0:
-                return found[-_l:], _f.tell()
+class NetworkHelper:
 
-    if not os.path.exists(file):
-        yield f'File {file} is not existed'
-        sys.exit(ErrorCode.FILE_NOT_FOUND)
-    with open(file, 'r') as fp:
-        _lines, _pos = _last(fp, prev)
-    yield from _lines
-    if not follow:
-        return
-    with open(file, 'r') as fp:
-        interval = 0.2
-        fp.seek(0, os.SEEK_END)
-        while True:
-            rd = fp.read()
-            cur = fp.tell()
-            if not rd or cur == _pos:
-                time.sleep(interval)
-                fp.seek(_pos - cur, os.SEEK_SET)
-            else:
-                _pos = cur
-                yield rd
-
-
-def tree(dir_path: Union[str, Path], level: int = -1, limit_to_directories: bool = False,
-         length_limit: int = 1000, printer: Callable[[bool, str], None] = None):
-    space = '    '
-    branch = '│   '
-    tee = '├── '
-    last = '└── '
-    dir_path = Path(dir_path)
-    files = 0
-    directories = 0
-
-    def inner(_dir_path: Path, prefix: str = '', _level=-1):
-        nonlocal files, directories
-        if not _level:
-            return
-        if limit_to_directories:
-            contents = [d for d in _dir_path.iterdir() if d.is_dir()]
-        else:
-            contents = list(_dir_path.iterdir())
-        pointers = [tee] * (len(contents) - 1) + [last]
-        for pointer, path in zip(pointers, contents):
-            if path.is_dir():
-                yield prefix + pointer + path.name
-                directories += 1
-                extension = branch if pointer == tee else space
-                yield from inner(path, prefix=prefix + extension, _level=_level - 1)
-            elif not limit_to_directories:
-                yield prefix + pointer + path.name
-                files += 1
-
-    if printer:
-        printer(True, dir_path.name)
-    print(dir_path.name)
-    iterator = inner(dir_path, _level=level)
-    for line in islice(iterator, length_limit):
-        print(line)
-    if next(iterator, None):
-        print(f'... length_limit, {length_limit}, reached, counted:')
-    print(f'\n{directories} directories' + (f', {files} files' if files else ''))
+    @staticmethod
+    def lookup_ipv4_by_domain(domain: str) -> (str, bool):
+        try:
+            return socket.gethostbyname(domain), True
+        except socket.gaierror as err:
+            return f'{err}', False
 
 
 def loop_interval(condition: Callable[[], bool], error_if_timeout: str, pre_func: Callable[[], NoReturn] = lambda: None,

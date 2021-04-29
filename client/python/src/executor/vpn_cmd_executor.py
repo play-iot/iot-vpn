@@ -5,7 +5,7 @@ from typing import Union, Sequence, Dict
 from src.executor.shell_executor import SystemHelper
 from src.utils import logger as logger
 from src.utils.constants import ErrorCode
-from src.utils.helper import encode_base64, decode_base64, FileHelper, build_executable_command
+from src.utils.helper import FileHelper, TextHelper, EnvHelper
 from src.utils.opts_vpn import VpnOpts
 
 
@@ -25,7 +25,7 @@ class VpnCmdExecutor(ABC):
     def is_installed(self, silent=False, log_lvl=logger.DEBUG):
         if FileHelper.is_dir(self.opts.vpn_dir) and FileHelper.is_executable(self.opts.vpncmd) and self._is_install():
             return True
-        _, cmd = build_executable_command()
+        _, cmd = EnvHelper.build_executable_command()
         msg = self._not_install_error_msg(cmd)
         if silent:
             logger.decrease(log_lvl, msg)
@@ -86,13 +86,13 @@ class VpnCmdExecutor(ABC):
 
     @staticmethod
     def generate_host_name(hub: str, user: str, log_lvl=logger.DEBUG):
-        hostname = encode_base64(hub + '::' + user, url_safe=True, without_padding=True)
+        hostname = TextHelper.encode_base64(hub + '::' + user, url_safe=True, without_padding=True)
         logger.log(log_lvl, f"Generate hostname from VPN hub and VPN user to '{hostname}'")
         return hostname
 
     @staticmethod
     def decode_host_name(hostname: str) -> str:
-        value = decode_base64(hostname, url_safe=True, without_padding=True, lenient=True)
+        value = TextHelper.decode_base64(hostname, url_safe=True, without_padding=True, lenient=True)
         if '::' not in value:
             return value
         try:

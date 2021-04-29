@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509.oid import NameOID
 
-from src.utils.helper import FileHelper, DEFAULT_ENCODING, encode_base64, JsonHelper
+from src.utils.helper import DEFAULT_ENCODING, FileHelper, JsonHelper, TextHelper
 from src.utils.opts_shared import CLI_CTX_SETTINGS, OutputOpts, out_dir_opts_factory
 
 # FIXME: Need to study algorithm and cryptography type
@@ -203,7 +203,7 @@ def __do_encrypt(value, algorithm="sha256", enabled_base64=False):
     digest = hashes.Hash(hash_algorithm, crypto_default_backend())
     digest.update(value.encode("utf-8"))
     encrypt = digest.finalize()
-    return encode_base64(encrypt) if enabled_base64 else encrypt.hex()
+    return TextHelper.encode_base64(encrypt) if enabled_base64 else encrypt.hex()
 
 
 def __serialize_private_key(private_key):

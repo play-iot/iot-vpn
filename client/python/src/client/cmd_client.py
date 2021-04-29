@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import os
-import re
 import sys
 import time
 from datetime import datetime
@@ -17,8 +16,8 @@ from src.executor.vpn_cmd_executor import VpnCmdExecutor
 from src.utils import about
 from src.utils.constants import ErrorCode, AppEnv
 from src.utils.downloader import download, VPNType, downloader_opt_factory, DownloaderOpt
-from src.utils.helper import resource_finder, FileHelper, build_executable_command, grep, awk, tail, \
-    get_base_path, tree, loop_interval, JsonHelper, binary_name
+from src.utils.helper import FileHelper, loop_interval, JsonHelper, \
+    TextHelper, EnvHelper, NetworkHelper
 from src.utils.opts_shared import CLI_CTX_SETTINGS, permission, verbose_opts, UnixServiceOpts, unix_service_opts, \
     dev_mode_opts
 from src.utils.opts_vpn import AuthOpts, vpn_auth_opts, ServerOpts, vpn_server_opts, VpnDirectory, \
@@ -59,7 +58,7 @@ class ClientOpts(VpnDirectory):
 
     @classmethod
     def get_resource(cls, file_name) -> str:
-        return resource_finder(file_name, os.path.dirname(__file__))
+        return EnvHelper.resource_finder(file_name, os.path.dirname(__file__))
 
     @staticmethod
     def account_to_nic(account: str) -> str:
@@ -75,7 +74,7 @@ class ClientOpts(VpnDirectory):
 
     @staticmethod
     def vpn_service_name() -> str:
-        binary = binary_name()
+        binary = EnvHelper.binary_name()
         brand = binary.split('-', 1)[0] if binary else AppEnv.BRAND
         return (os.environ.get(AppEnv.VPN_CORP_ENV) or brand) + '-vpn'
 
@@ -278,7 +277,8 @@ class VPNClientExecutor(VpnCmdExecutor):
             return None
         try:
             status = self.exec_command('AccountStatusGet', params=vpn_acc, silent=True, log_lvl=logger.DEBUG)
-            return awk(next(iter(grep(status, r'Session Status.+', flags=re.MULTILINE)), None), sep='|', pos=1).strip()
+            return TextHelper.awk(next(iter(TextHelper.grep(status, r'Session Status.+')), None), sep='|',
+                                  pos=1).strip()
         except:
             return None
 
@@ -291,7 +291,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         FileHelper.mkdirs([self.opts.vpn_dir, self.opts.runtime_dir])
         FileHelper.chmod(self.opts.runtime_dir, mode=0o0755)
         FileHelper.chmod([os.path.join(self.opts.vpn_dir, p) for p in ('vpnclient', 'vpncmd')], mode=0o0755)
-        _, cmd = build_executable_command()
+        _, cmd = EnvHelper.build_executable_command()
         self.device.unix_service.create(unix_service, {
             '{{WORKING_DIR}}': f'{self.opts.vpn_dir}', '{{PID_FILE}}': f'{self.opts.pid_file}',
             '{{VPN_DESC}}': unix_service.service_name,
@@ -405,7 +405,7 @@ class VPNClientExecutor(VpnCmdExecutor):
                f'Use "{cmd} uninstall -f" then try reinstall by "{cmd} install"'
 
     def _optimize_command_result(self, output):
-        r = grep(output, r'VPN Client>.+((?:\n.+)+)', re.MULTILINE)
+        r = TextHelper.grep(output, r'VPN Client>.+((?:\n.+)+)')
         return ''.join(r).replace('The command completed successfully.', '').strip()
 
     def _dump_cache_service(self, _unix_service_opts: UnixServiceOpts):
@@ -626,20 +626,22 @@ def __disconnect(disable: bool, vpn_opts: ClientOpts):
 
 @cli.command(name='status', help='Get current VPN status')
 @click.option('--json', 'is_json', default=False, flag_value=True, help='Output to json')
+@click.option('-d', '--domain', 'domains', multiple=True, help='Test connection to one or more domains')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @verbose_opts
 @permission
-def __status(vpn_opts: ClientOpts, is_json: bool):
+def __status(vpn_opts: ClientOpts, is_json: bool, domains: list):
     executor = VPNClientExecutor(vpn_opts, adhoc_task=True).probe()
-    is_installed = executor.is_installed(silent=True)
+    installed = executor.is_installed(silent=True)
     vpn_service = executor.vpn_service
     vpn_acc = executor.storage.get_current()
-    service_status = executor.device.unix_service.status(vpn_service)
+    svc_status = executor.device.unix_service.status(vpn_service)
+    dns_status = True
     status = {
-        'app_state': is_installed, 'app_state_msg': 'Installed' if is_installed else 'Not yet installed',
-        'app_dir': executor.opts.vpn_dir if is_installed else None,
-        'service': executor.vpn_service, 'service_status': service_status.value,
+        'app_state': installed, 'app_state_msg': 'Installed' if installed else 'Not yet installed',
+        'app_dir': executor.opts.vpn_dir if installed else None,
+        'service': executor.vpn_service, 'service_status': svc_status.value,
         'vpn_pid': executor.pid_handler.current_pid, 'vpn_account': vpn_acc,
         'vpn_status': False, 'vpn_status_msg': None, 'vpn_ip': None
     }
@@ -647,6 +649,11 @@ def __status(vpn_opts: ClientOpts, is_json: bool):
         status['vpn_status_msg'] = executor.vpn_status(vpn_acc)
         status['vpn_status'] = 'Connection Completed (Session Established)' == status['vpn_status_msg']
         status['vpn_ip'] = executor.device.ip_resolver.get_vpn_ip(ClientOpts.account_to_nic(vpn_acc))
+    if domains:
+        _domains = {domain: NetworkHelper.lookup_ipv4_by_domain(domain) for domain in domains}
+        dns_status = next(filter(lambda r: r[1] is False, _domains.values()), ('', True))[1]
+        status['domains'] = {k: v[0] for k, v in _domains.items()}
+        status['dns_status'] = dns_status
     if is_json:
         print(JsonHelper.to_json(status))
     else:
@@ -654,8 +661,11 @@ def __status(vpn_opts: ClientOpts, is_json: bool):
         logger.info(f'VPN Service       : {status["service"]} - {status["service_status"]} - PID[{status["vpn_pid"]}]')
         logger.info(f'VPN Account       : {status["vpn_account"]} - {status["vpn_status_msg"]}')
         logger.info(f'VPN IP address    : {status["vpn_ip"]}')
+        if domains:
+            logger.info(f'DNS status        : {"Good" if status["dns_status"] else "Unable resolve all given domains"}')
+            [logger.info(f'Domain IPv4       : {k} - {v}') for k, v in status['domains'].items()]
         logger.sep(logger.INFO)
-    if is_installed and not status["vpn_status"] or not status["vpn_ip"] or not service_status.is_running():
+    if installed and not status["vpn_status"] or not status["vpn_ip"] or not svc_status.is_running() or not dns_status:
         sys.exit(ErrorCode.VPN_SERVICE_IS_NOT_WORKING)
 
 
@@ -707,7 +717,7 @@ def __detail(vpn_opts: ClientOpts, accounts):
 @permission
 def __log(vpn_opts: ClientOpts, date, lines, follow, another):
     f = another or vpn_opts.log_file if not date else vpn_opts.get_log_file(date)
-    for line in tail(f, prev=lines, follow=follow):
+    for line in FileHelper.tail(f, prev=lines, follow=follow):
         print(line.strip())
 
 
@@ -813,7 +823,7 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
 @cli.command(name="tree", help="Tree inside binary", hidden=True)
 @click.option("-l", "--level", type=int, default=1, help="Tree level")
 def __inside(level):
-    tree(dir_path=get_base_path(), level=level)
+    FileHelper.tree(dir_path=EnvHelper.get_base_path(), level=level)
 
 
 if __name__ == "__main__":

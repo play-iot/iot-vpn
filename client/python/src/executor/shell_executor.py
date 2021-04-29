@@ -10,9 +10,9 @@ from subprocess import CompletedProcess
 from typing import Union
 
 from src.utils import logger as logger
-from src.utils.helper import is_py3_5, DEFAULT_ENCODING, FileHelper, tweak_os_env
+from src.utils.helper import DEFAULT_ENCODING, FileHelper, EnvHelper
 
-TWEAK_ENV = tweak_os_env()
+TWEAK_ENV = EnvHelper.tweak_os_env()
 
 
 class SystemHelper(object):
@@ -37,7 +37,7 @@ class SystemHelper(object):
         prev = None
         for idx, cmd in enumerate(list_cmd, 1):
             logger.trace("\tsub_command::%s::%s", cmd, prev)
-            kwargs = {} if is_py3_5() else {"encoding": "utf-8"}
+            kwargs = {} if EnvHelper.is_py3_5() else {"encoding": "utf-8"}
             complete = subprocess.run(cmd.split() if not shell else cmd, input=prev, env=TWEAK_ENV, shell=shell,
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
             ret = complete.returncode
@@ -61,16 +61,16 @@ class SystemHelper(object):
         stderr = complete.stderr if isinstance(complete, CompletedProcess) else complete['stderr']
         ret = complete.returncode if isinstance(complete, CompletedProcess) else complete['returncode']
         if ret == 0 or ret is None:
-            return stdout.strip() if not is_py3_5() else stdout.decode(DEFAULT_ENCODING).strip()
+            return stdout.strip() if not EnvHelper.is_py3_5() else stdout.decode(DEFAULT_ENCODING).strip()
         if not silent:
             logger.log(log_level, "+" * 40)
             logger.log(log_level, "\tcommand: %s", " ".join(complete.args))
             logger.log(log_level, "-" * 40)
             logger.log(log_level, "\tstdout: %s",
-                       stdout.strip() if not is_py3_5() else stdout.decode(DEFAULT_ENCODING).strip())
+                       stdout.strip() if not EnvHelper.is_py3_5() else stdout.decode(DEFAULT_ENCODING).strip())
             logger.log(log_level, "-" * 40)
             logger.log(log_level, "\tstderr: %s",
-                       stderr.strip() if not is_py3_5() else stdout.decode(DEFAULT_ENCODING).strip())
+                       stderr.strip() if not EnvHelper.is_py3_5() else stdout.decode(DEFAULT_ENCODING).strip())
             logger.log(log_level, "+" * 40)
         raise RuntimeError()
 
