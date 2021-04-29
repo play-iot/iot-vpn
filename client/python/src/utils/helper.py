@@ -7,6 +7,7 @@ import os
 import platform
 import re
 import shutil
+import socket
 import stat
 import sys
 import tempfile
@@ -467,6 +468,16 @@ class TextHelper:
         if pos < len(v):
             return v[pos]
         return None
+
+
+class NetworkHelper:
+
+    @staticmethod
+    def lookup_ipv4_by_domain(domain: str) -> (str, bool):
+        try:
+            return socket.gethostbyname(domain), True
+        except socket.gaierror as err:
+            return f'{err}', False
 
 
 def loop_interval(condition: Callable[[], bool], error_if_timeout: str, pre_func: Callable[[], NoReturn] = lambda: None,

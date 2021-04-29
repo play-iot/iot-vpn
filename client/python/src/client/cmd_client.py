@@ -17,7 +17,7 @@ from src.utils import about
 from src.utils.constants import ErrorCode, AppEnv
 from src.utils.downloader import download, VPNType, downloader_opt_factory, DownloaderOpt
 from src.utils.helper import FileHelper, loop_interval, JsonHelper, \
-    TextHelper, EnvHelper
+    TextHelper, EnvHelper, NetworkHelper
 from src.utils.opts_shared import CLI_CTX_SETTINGS, permission, verbose_opts, UnixServiceOpts, unix_service_opts, \
     dev_mode_opts
 from src.utils.opts_vpn import AuthOpts, vpn_auth_opts, ServerOpts, vpn_server_opts, VpnDirectory, \
@@ -626,20 +626,22 @@ def __disconnect(disable: bool, vpn_opts: ClientOpts):
 
 @cli.command(name='status', help='Get current VPN status')
 @click.option('--json', 'is_json', default=False, flag_value=True, help='Output to json')
+@click.option('-d', '--domain', 'domains', multiple=True, help='Test connection to one or more domains')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @verbose_opts
 @permission
-def __status(vpn_opts: ClientOpts, is_json: bool):
+def __status(vpn_opts: ClientOpts, is_json: bool, domains: list):
     executor = VPNClientExecutor(vpn_opts, adhoc_task=True).probe()
-    is_installed = executor.is_installed(silent=True)
+    installed = executor.is_installed(silent=True)
     vpn_service = executor.vpn_service
     vpn_acc = executor.storage.get_current()
-    service_status = executor.device.unix_service.status(vpn_service)
+    svc_status = executor.device.unix_service.status(vpn_service)
+    dns_status = True
     status = {
-        'app_state': is_installed, 'app_state_msg': 'Installed' if is_installed else 'Not yet installed',
-        'app_dir': executor.opts.vpn_dir if is_installed else None,
-        'service': executor.vpn_service, 'service_status': service_status.value,
+        'app_state': installed, 'app_state_msg': 'Installed' if installed else 'Not yet installed',
+        'app_dir': executor.opts.vpn_dir if installed else None,
+        'service': executor.vpn_service, 'service_status': svc_status.value,
         'vpn_pid': executor.pid_handler.current_pid, 'vpn_account': vpn_acc,
         'vpn_status': False, 'vpn_status_msg': None, 'vpn_ip': None
     }
@@ -647,6 +649,11 @@ def __status(vpn_opts: ClientOpts, is_json: bool):
         status['vpn_status_msg'] = executor.vpn_status(vpn_acc)
         status['vpn_status'] = 'Connection Completed (Session Established)' == status['vpn_status_msg']
         status['vpn_ip'] = executor.device.ip_resolver.get_vpn_ip(ClientOpts.account_to_nic(vpn_acc))
+    if domains:
+        _domains = {domain: NetworkHelper.lookup_ipv4_by_domain(domain) for domain in domains}
+        dns_status = next(filter(lambda r: r[1] is False, _domains.values()), ('', True))[1]
+        status['domains'] = {k: v[0] for k, v in _domains.items()}
+        status['dns_status'] = dns_status
     if is_json:
         print(JsonHelper.to_json(status))
     else:
@@ -654,8 +661,11 @@ def __status(vpn_opts: ClientOpts, is_json: bool):
         logger.info(f'VPN Service       : {status["service"]} - {status["service_status"]} - PID[{status["vpn_pid"]}]')
         logger.info(f'VPN Account       : {status["vpn_account"]} - {status["vpn_status_msg"]}')
         logger.info(f'VPN IP address    : {status["vpn_ip"]}')
+        if domains:
+            logger.info(f'DNS status        : {"Good" if status["dns_status"] else "Unable resolve all given domains"}')
+            [logger.info(f'Domain IPv4       : {k} - {v}') for k, v in status['domains'].items()]
         logger.sep(logger.INFO)
-    if is_installed and not status["vpn_status"] or not status["vpn_ip"] or not service_status.is_running():
+    if installed and not status["vpn_status"] or not status["vpn_ip"] or not svc_status.is_running() or not dns_status:
         sys.exit(ErrorCode.VPN_SERVICE_IS_NOT_WORKING)
 
 
