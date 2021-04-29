@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import os
-import re
 import sys
 import time
 from datetime import datetime
@@ -17,8 +16,8 @@ from src.executor.vpn_cmd_executor import VpnCmdExecutor
 from src.utils import about
 from src.utils.constants import ErrorCode, AppEnv
 from src.utils.downloader import download, VPNType, downloader_opt_factory, DownloaderOpt
-from src.utils.helper import resource_finder, FileHelper, build_executable_command, grep, awk, tail, \
-    get_base_path, tree, loop_interval, JsonHelper, binary_name
+from src.utils.helper import FileHelper, loop_interval, JsonHelper, \
+    TextHelper, EnvHelper
 from src.utils.opts_shared import CLI_CTX_SETTINGS, permission, verbose_opts, UnixServiceOpts, unix_service_opts, \
     dev_mode_opts
 from src.utils.opts_vpn import AuthOpts, vpn_auth_opts, ServerOpts, vpn_server_opts, VpnDirectory, \
@@ -59,7 +58,7 @@ class ClientOpts(VpnDirectory):
 
     @classmethod
     def get_resource(cls, file_name) -> str:
-        return resource_finder(file_name, os.path.dirname(__file__))
+        return EnvHelper.resource_finder(file_name, os.path.dirname(__file__))
 
     @staticmethod
     def account_to_nic(account: str) -> str:
@@ -75,7 +74,7 @@ class ClientOpts(VpnDirectory):
 
     @staticmethod
     def vpn_service_name() -> str:
-        binary = binary_name()
+        binary = EnvHelper.binary_name()
         brand = binary.split('-', 1)[0] if binary else AppEnv.BRAND
         return (os.environ.get(AppEnv.VPN_CORP_ENV) or brand) + '-vpn'
 
@@ -278,7 +277,8 @@ class VPNClientExecutor(VpnCmdExecutor):
             return None
         try:
             status = self.exec_command('AccountStatusGet', params=vpn_acc, silent=True, log_lvl=logger.DEBUG)
-            return awk(next(iter(grep(status, r'Session Status.+', flags=re.MULTILINE)), None), sep='|', pos=1).strip()
+            return TextHelper.awk(next(iter(TextHelper.grep(status, r'Session Status.+')), None), sep='|',
+                                  pos=1).strip()
         except:
             return None
 
@@ -291,7 +291,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         FileHelper.mkdirs([self.opts.vpn_dir, self.opts.runtime_dir])
         FileHelper.chmod(self.opts.runtime_dir, mode=0o0755)
         FileHelper.chmod([os.path.join(self.opts.vpn_dir, p) for p in ('vpnclient', 'vpncmd')], mode=0o0755)
-        _, cmd = build_executable_command()
+        _, cmd = EnvHelper.build_executable_command()
         self.device.unix_service.create(unix_service, {
             '{{WORKING_DIR}}': f'{self.opts.vpn_dir}', '{{PID_FILE}}': f'{self.opts.pid_file}',
             '{{VPN_DESC}}': unix_service.service_name,
@@ -405,7 +405,7 @@ class VPNClientExecutor(VpnCmdExecutor):
                f'Use "{cmd} uninstall -f" then try reinstall by "{cmd} install"'
 
     def _optimize_command_result(self, output):
-        r = grep(output, r'VPN Client>.+((?:\n.+)+)', re.MULTILINE)
+        r = TextHelper.grep(output, r'VPN Client>.+((?:\n.+)+)')
         return ''.join(r).replace('The command completed successfully.', '').strip()
 
     def _dump_cache_service(self, _unix_service_opts: UnixServiceOpts):
@@ -707,7 +707,7 @@ def __detail(vpn_opts: ClientOpts, accounts):
 @permission
 def __log(vpn_opts: ClientOpts, date, lines, follow, another):
     f = another or vpn_opts.log_file if not date else vpn_opts.get_log_file(date)
-    for line in tail(f, prev=lines, follow=follow):
+    for line in FileHelper.tail(f, prev=lines, follow=follow):
         print(line.strip())
 
 
@@ -813,7 +813,7 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
 @cli.command(name="tree", help="Tree inside binary", hidden=True)
 @click.option("-l", "--level", type=int, default=1, help="Tree level")
 def __inside(level):
-    tree(dir_path=get_base_path(), level=level)
+    FileHelper.tree(dir_path=EnvHelper.get_base_path(), level=level)
 
 
 if __name__ == "__main__":

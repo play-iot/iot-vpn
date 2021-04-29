@@ -1,5 +1,6 @@
 import functools
 import os
+import re
 from abc import abstractmethod
 from pathlib import Path
 from typing import TypeVar
@@ -7,7 +8,7 @@ from typing import TypeVar
 import click
 
 from src.utils.constants import AppEnv
-from src.utils.helper import FileHelper, awk, grep
+from src.utils.helper import FileHelper, TextHelper
 from src.utils.opts_shared import DevModeDir
 
 
@@ -142,7 +143,8 @@ class VpnDirectory(DevModeDir):
     @staticmethod
     def read_env():
         content = FileHelper.read_file_by_line(VpnDirectory.PROFILE_D_ENV)
-        env = awk(next(iter(grep(content, rf'{AppEnv.VPN_HOME_ENV}.+')), None), sep='=', pos=1)
+        env = TextHelper.awk(next(iter(TextHelper.grep(content, rf'{AppEnv.VPN_HOME_ENV}=.+', flags=re.VERBOSE)), None),
+                             sep='=', pos=1)
         return None if not env else env.replace('"', "")
 
     @staticmethod

@@ -1,5 +1,4 @@
 import os
-import re
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Iterator, Optional, Tuple, Sequence
@@ -10,7 +9,7 @@ from src.ddns.version import APP_VERSION, HASH_VERSION
 from src.executor.vpn_cmd_executor import VpnCmdExecutor
 from src.utils import logger, about
 from src.utils.downloader import downloader_opt_factory, VPNType, DownloaderOpt, download
-from src.utils.helper import resource_finder, awk, grep, JsonHelper
+from src.utils.helper import JsonHelper, TextHelper, EnvHelper
 from src.utils.opts_shared import CLI_CTX_SETTINGS, verbose_opts, dev_mode_opts
 from src.utils.opts_vpn import vpn_server_opts, ServerOpts, vpn_dir_opts_factory, VpnDirectory
 
@@ -94,7 +93,7 @@ class DDNSOpts(VpnDirectory):
 
     @classmethod
     def get_resource(cls, file_name) -> str:
-        return resource_finder(file_name, os.path.dirname(__file__))
+        return EnvHelper.resource_finder(file_name, os.path.dirname(__file__))
 
 
 vpn_ddns_opts = vpn_dir_opts_factory(app_dir='/app/vpnbridge', opt_func=DDNSOpts)
@@ -117,12 +116,12 @@ class VPNHubExecutor(VpnCmdExecutor):
         return f'/SERVER {self.server_opts.server} /hub:{self.server_opts.hub} /password:{self.hub_pwd} /CMD'
 
     def _parse_entry_value(self, idx: int, row: str):
-        value = awk(row, sep='|', pos=1)
+        value = TextHelper.awk(row, sep='|', pos=1)
         return self.decode_host_name(value) if idx == 2 else value
 
     @staticmethod
     def _parse_row(row: Iterator[Tuple], columns: dict) -> Iterator[dict]:
-        return map(lambda each: {columns[idx]: awk(r, sep='|', pos=1) for idx, r in enumerate(each)}, row)
+        return map(lambda each: {columns[idx]: TextHelper.awk(r, sep='|', pos=1) for idx, r in enumerate(each)}, row)
 
     def list_user_sessions(self) -> Iterator[UserSession]:
         sessions = self.query_sessions()
@@ -131,7 +130,7 @@ class VPNHubExecutor(VpnCmdExecutor):
 
     def query_sessions(self) -> dict:
         sessions = self.exec_command('SessionList')
-        row = zip(grep(sessions, r'Session Name.+', re.MULTILINE), grep(sessions, r'User Name.+', re.MULTILINE))
+        row = zip(TextHelper.grep(sessions, r'Session Name.+'), TextHelper.grep(sessions, r'User Name.+'))
         return {v.get('session_name'): self._lookup_session(v) for v in
                 self._parse_row(row, {0: 'session_name', 1: 'user_name'})}
 
@@ -148,10 +147,10 @@ class VPNHubExecutor(VpnCmdExecutor):
         if user_session.get('user_name', None) == UserSession.NAT_SESSION_USER:
             return None
         session = self.exec_command(f'SessionGet {user_session.get("session_name")}')
-        row = zip(grep(session, r'Client IP Address[^(\n]+\|.+', re.MULTILINE),
-                  grep(session, r'Client Host Name[^(\n]+\|.+', re.MULTILINE),
-                  grep(session, r'Client IP Address.+\(Reported\).+\|.+', re.MULTILINE),
-                  grep(session, r'Client Host Name.+\(Reported\).+\|.+', re.MULTILINE))
+        row = zip(TextHelper.grep(session, r'Client IP Address[^(\n]+\|.+'),
+                  TextHelper.grep(session, r'Client Host Name[^(\n]+\|.+'),
+                  TextHelper.grep(session, r'Client IP Address.+\(Reported\).+\|.+'),
+                  TextHelper.grep(session, r'Client Host Name.+\(Reported\).+\|.+'))
         extra = next(self._parse_row(row, {0: 'public_ip', 1: 'public_hostname', 2: 'local_ip', 3: 'local_hostname'}),
                      None)
         if not extra:
@@ -160,13 +159,13 @@ class VPNHubExecutor(VpnCmdExecutor):
 
     def _query_mac_table(self):
         mac_table = self.exec_command('MacTable')
-        row = zip(grep(mac_table, r'Session Name.+', re.MULTILINE), grep(mac_table, r'MAC Address.+\|.+', re.MULTILINE))
+        row = zip(TextHelper.grep(mac_table, r'Session Name.+'), TextHelper.grep(mac_table, r'MAC Address.+\|.+'))
         return {v['mac']: v for v in self._parse_row(row, {0: 'session_name', 1: 'mac'})}
 
     def _query_dhcp_table(self):
         dhcp_table = self.exec_command('DhcpTable')
-        row = zip(grep(dhcp_table, r'MAC Address.+', re.MULTILINE), grep(dhcp_table, r'Allocated IP.+', re.MULTILINE),
-                  grep(dhcp_table, r'Client Host Name.+', re.MULTILINE))
+        row = zip(TextHelper.grep(dhcp_table, r'MAC Address.+'), TextHelper.grep(dhcp_table, r'Allocated IP.+'),
+                  TextHelper.grep(dhcp_table, r'Client Host Name.+'))
         return {v['mac']: v for v in self._parse_row(row, {0: 'mac', 1: 'vpn_ip', 2: 'hostname'})}
 
 
@@ -179,7 +178,7 @@ def cli():
 
 
 @cli.command(name="download", help="Download VPN bridge", hidden=True)
-@downloader_opt_factory(resource_finder('.', os.path.dirname(__file__)))
+@downloader_opt_factory(EnvHelper.resource_finder('.', os.path.dirname(__file__)))
 @dev_mode_opts(hidden=False, opt_name=DownloaderOpt.OPT_NAME)
 def __download(downloader_opts: DownloaderOpt):
     download(VPNType.BRIDGE, downloader_opts)

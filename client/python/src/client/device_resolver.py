@@ -15,7 +15,7 @@ import netifaces
 import src.utils.logger as logger
 from src.executor.shell_executor import SystemHelper
 from src.utils.constants import ErrorCode
-from src.utils.helper import FileHelper, grep, awk
+from src.utils.helper import FileHelper, TextHelper
 from src.utils.opts_shared import UnixServiceOpts
 
 
@@ -274,7 +274,7 @@ class OpenResolvFlavour(DNSFlavour):
 
     def adapt_dnsmasq(self, origin_resolv_conf: Path, vpn_service: str) -> Optional[Path]:
         content = FileHelper.read_file_by_line(self.config.main_cfg)
-        resolv = awk(next(iter(grep(content, r'dnsmasq_resolv=.+', re.MULTILINE)), None), sep='=', pos=1)
+        resolv = TextHelper.awk(next(iter(TextHelper.grep(content, r'dnsmasq_resolv=.+')), None), sep='=', pos=1)
         return Path(resolv or self.config.runtime_resolv)
 
 
@@ -402,8 +402,8 @@ class DNSMasqFlavour(DNSFlavour):
     def query(self, priv_root_dns: str, vpn_nameserver_cfg: Path) -> list:
         if not FileHelper.is_readable(vpn_nameserver_cfg):
             return []
-        nss = grep(FileHelper.read_file_by_line(vpn_nameserver_cfg, fallback_if_not_exists=''),
-                   fr'server=/{priv_root_dns}/.+')
+        nss = TextHelper.grep(FileHelper.read_file_by_line(vpn_nameserver_cfg, fallback_if_not_exists=''),
+                              fr'server=/{priv_root_dns}/.+', flags=re.VERBOSE)
         return [ns[len(f'server='):].strip() for ns in nss]
 
     def restore_config(self, vpn_service: str, keep_dnsmasq=True):

@@ -7,7 +7,7 @@ from functools import partial
 import click
 
 from src.utils import logger
-from src.utils.helper import is_binary_mode, get_dev_dir
+from src.utils.helper import EnvHelper
 
 CLI_CTX_SETTINGS = dict(help_option_names=["-h", "--help"], max_content_width=120)
 click.option = partial(click.option, show_default=True)
@@ -98,8 +98,8 @@ def dev_mode_opts(opt_name: str, hidden=True):
         def wrapper(*args, **kwargs):
             opts = kwargs[opt_name]
             dev = kwargs.pop('dev')
-            if dev and not is_binary_mode():
-                dev_dir = get_dev_dir()
+            if dev and not EnvHelper.is_binary_mode():
+                dev_dir = EnvHelper.get_dev_dir()
                 logger.warn(f'[DEV MODE] Reload vpn_dir to {dev_dir}')
                 kwargs[opt_name] = opts.reload(dev_dir)
             return func(*args, **kwargs)
