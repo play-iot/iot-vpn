@@ -9,6 +9,11 @@
   tasks:
     - import_tasks: tasks/min_facts.yml
 
+    - name: Verify VPNC state
+      import_role:
+        name: vpnc-state
+
     - name: Uninstall VPNC
+      when: vpnc_state.is_exec and not vpnc_state.is_broken
       import_role:
         name: vpnc-undeploy

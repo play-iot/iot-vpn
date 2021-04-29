@@ -5,18 +5,19 @@
   ignore_errors: yes
 
 - name: Evaluate VPNC installed
+  when: not ansible_check_mode
   ansible.builtin.set_fact:
     vpnc_state: "{{ vpnc_state | combine({  'is_exec': is_exec.rc == 0,
                                             'error': None if is_exec.rc == 0 else is_exec.msg }) }}"
 
 - name: Check VPNC CLI version
-  when: is_exec.rc == 0
+  when: not ansible_check_mode and is_exec.rc == 0
   command: "{{ vpnc_cli }} version --json"
   register: is_ver
   ignore_errors: yes
 
 - name: Evaluate VPNC version
-  when: is_exec.rc == 0
+  when: not ansible_check_mode and is_exec.rc == 0
   ansible.builtin.set_fact:
     vpnc_state: "{{ vpnc_state | combine({  'is_broken': is_ver.rc != 0,
                                             'version': (is_ver.stdout | from_json) if is_ver.rc == 0 else None,

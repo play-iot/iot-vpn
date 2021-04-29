@@ -1,3 +1,9 @@
 ---
-- name: Undeploy VPNC
-  include_tasks: 02_check_vpnc_service.yml
+- name: Uninstall VPN client
+  command: "{{ vpnc_cli }} uninstall {{ '-f' if arg_vpn_uninstall_force else '' }} {{ '--keep-dnsmasq' if arg_vpn_keep_dnsmasq else '--no-keep-dnsmasq' }}"
+  register: vpnc_uninstall
+
+- name: Debug VPNC uninstall output
+  when: debug is defined
+  ansible.builtin.debug:
+    msg: "{{ vpnc_uninstall }}"
