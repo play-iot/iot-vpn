@@ -1,11 +1,6 @@
----
-- name: Transfer VPNC CLI binary by arch
-  copy:
-    src: "qweio-vpnc-{{ arch_mapping[ansible_architecture] }}"
-    dest: "{{ arg_app_dir }}/{{ vpnc_cli }}"
-    owner: root
-    group: root
-    mode: u=rwx,g=rx,o=rx
+- name: Prepare VPN binary
+  include_role:
+    name: prepare-artifact
 
 - name: Upgrade VPNC version
   command: "{{ vpnc_cli }} upgrade"

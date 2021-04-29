@@ -10,29 +10,30 @@
     - import_tasks: tasks/min_facts.yml
 
     - name: Prepare artifact
-      import_role:
+      include_role:
         name: get-artifact
 
     - name: Prepare credentials
-      import_role:
+      include_role:
         name: get-credential
 
-    - name: Verify VPNC state
-      import_role:
+    - name: Check VPNC state
+      include_role:
         name: vpnc-state
 
-    - name: Install VPNC
+    - name: Install VPNC if not yet installed
       when: not vpnc_state.is_exec or vpnc_state.is_broken
-      import_role:
+      include_role:
         name: vpnc-install
       vars:
         arg_vpn_install_force: True
 
-    - name: Upgrade VPNC
+      #TODO: Need check semver
+    - name: Upgrade VPNC if already installed
       when: vpnc_state.is_exec and not vpnc_state.is_broken
-      import_role:
+      include_role:
         name: vpnc-upgrade
 
-    - name: Check VPNC state
-      import_role:
+    - name: Verify VPNC state
+      include_role:
         name: vpnc-state

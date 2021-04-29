@@ -1,4 +1,3 @@
----
 - name: Transfer VPNC CLI binary by arch
   copy:
     src: "{{vpnc_artifact}}-{{ arch_mapping[ansible_architecture] }}"
