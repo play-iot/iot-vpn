@@ -4,6 +4,7 @@ arch_mapping:
 
 vpn_corp: qweio
 vpnc_cli: "{{ vpn_corp }}-vpnc"
+vpnc_artifact: qweio-vpnc
 arg_app_dir: /app
 arg_vpn_dir: "{{ arg_app_dir }}/vpnclient"
 unix_bin_dir: /usr/local/bin
