@@ -247,11 +247,13 @@ class FileHelper:
         return shutil.make_archive(into, root_dir=to, base_dir='.', format=_format, logger=logger)
 
     @staticmethod
-    def copy(file_or_folder: Union[str, Path], dest: Union[str, Path], force=False):
+    def copy(file_or_folder: Union[str, Path], dest: Union[str, Path], force=False, skip_if_no_source=True):
         p = Path(file_or_folder)
         t = Path(dest)
         logger.debug(f'Copy [{p}] to [{t}]...')
-        if not p.exists():
+        if not FileHelper.is_exists(p):
+            if skip_if_no_source:
+                return
             raise RuntimeError(f'Given path[{file_or_folder}] is not existed')
         if FileHelper.is_dir(t):
             FileHelper.mkdirs(t)

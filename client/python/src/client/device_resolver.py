@@ -65,12 +65,17 @@ class UnixService(AppConvention):
     def kind(self) -> UnixServiceType:
         pass
 
+    @property
     @abstractmethod
-    def create(self, opts: UnixServiceOpts, replacements: dict, auto_restart: bool = False):
+    def standard_service_dir(self) -> str:
         pass
 
     @abstractmethod
-    def remove(self, opts: UnixServiceOpts, force: bool = False):
+    def create(self, svc_opts: UnixServiceOpts, replacements: dict, auto_restart: bool = False):
+        pass
+
+    @abstractmethod
+    def remove(self, svc_opts: UnixServiceOpts, force: bool = False):
         pass
 
     @abstractmethod
@@ -705,22 +710,26 @@ class Systemd(UnixService):
     def kind(self) -> UnixServiceType:
         return UnixServiceType.SYSTEMD
 
-    def create(self, opts: UnixServiceOpts, replacements: dict, auto_startup: bool = False):
-        service_fqn = self.to_service_fqn(opts.service_dir, opts.service_name)
+    @property
+    def standard_service_dir(self) -> str:
+        return '/lib/systemd/system'
+
+    def create(self, svc_opts: UnixServiceOpts, replacements: dict, auto_startup: bool = False):
+        service_fqn = self.to_service_fqn(svc_opts.service_dir, svc_opts.service_name)
         FileHelper.copy(self.resource_dir.joinpath(Systemd.SERVICE_FILE_TMPL), service_fqn, force=True)
         FileHelper.replace_in_file(service_fqn, replacements, backup='')
         FileHelper.chmod(service_fqn, mode=0o0644)
-        logger.info(f'Add new service [{opts.service_name}] in [{service_fqn}]...')
+        logger.info(f'Add new service [{svc_opts.service_name}] in [{service_fqn}]...')
         SystemHelper.exec_command("systemctl daemon-reload", silent=True, log_lvl=logger.INFO)
         if auto_startup:
-            self.enable(opts.service_name)
+            self.enable(svc_opts.service_name)
 
-    def remove(self, opts: UnixServiceOpts, force: bool = False):
-        service_fqn = self.to_service_fqn(opts.service_dir, opts.service_name)
-        self.stop(opts.service_name)
-        self.disable(opts.service_name)
+    def remove(self, svc_opts: UnixServiceOpts, force: bool = False):
+        service_fqn = self.to_service_fqn(svc_opts.service_dir, svc_opts.service_name)
+        self.stop(svc_opts.service_name)
+        self.disable(svc_opts.service_name)
         if force and FileHelper.is_exists(service_fqn):
-            logger.info(f'Remove System service [{opts.service_name}]...')
+            logger.info(f'Remove System service [{svc_opts.service_name}]...')
             FileHelper.rm(service_fqn)
         SystemHelper.exec_command("systemctl daemon-reload", silent=True, log_lvl=logger.INFO)
 
@@ -747,7 +756,7 @@ class Systemd(UnixService):
         return ServiceStatus.parse(status)
 
     def to_service_fqn(self, service_dir: str, service_name: str):
-        return os.path.join(service_dir or '/lib/systemd/system', f'{service_name}.service')
+        return os.path.join(service_dir, f'{service_name}.service')
 
 
 class Procd(UnixService, ABC):

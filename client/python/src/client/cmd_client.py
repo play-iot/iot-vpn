@@ -262,7 +262,7 @@ class VPNClientExecutor(VpnCmdExecutor):
 
     @property
     def vpn_service(self) -> str:
-        return self._read_service_cache().service_name
+        return self._standard_service_opt().service_name
 
     def require_install(self) -> 'VPNClientExecutor':
         self.is_installed()
@@ -285,30 +285,31 @@ class VPNClientExecutor(VpnCmdExecutor):
     def is_running(self, silent=True, log_lvl=logger.DEBUG):
         return self.is_installed(silent, log_lvl) and self.pid_handler.is_running(log_lvl)
 
-    def install(self, unix_service: UnixServiceOpts, auto_startup: bool = False):
+    def install(self, service_opts: UnixServiceOpts, auto_startup: bool = False):
         FileHelper.mkdirs(self.opts.vpn_dir.parent)
         FileHelper.unpack_archive(ClientOpts.get_resource(ClientOpts.VPN_ZIP), self.opts.vpn_dir)
         FileHelper.mkdirs([self.opts.vpn_dir, self.opts.runtime_dir])
         FileHelper.chmod(self.opts.runtime_dir, mode=0o0755)
         FileHelper.chmod([os.path.join(self.opts.vpn_dir, p) for p in ('vpnclient', 'vpncmd')], mode=0o0755)
         _, cmd = EnvHelper.build_executable_command()
-        self.device.unix_service.create(unix_service, {
+        svc_opts = self._standard_service_opt(service_opts)
+        self.device.unix_service.create(svc_opts, {
             '{{WORKING_DIR}}': f'{self.opts.vpn_dir}', '{{PID_FILE}}': f'{self.opts.pid_file}',
-            '{{VPN_DESC}}': unix_service.service_name,
+            '{{VPN_DESC}}': svc_opts.service_name,
             '{{START_CMD}}': f'{cmd} start --vpn-dir {self.opts.vpn_dir}',
             '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {self.opts.vpn_dir}'
         }, auto_startup)
-        self.device.ip_resolver.add_hook(unix_service.service_name,
+        self.device.ip_resolver.add_hook(svc_opts.service_name,
                                          {'{{WORKING_DIR}}': f'{self.opts.vpn_dir}', '{{VPN_CLIENT_CLI}}': cmd})
-        self.device.dns_resolver.create_config(unix_service.service_name)
-        self._dump_cache_service(unix_service)
+        self.device.dns_resolver.create_config(svc_opts.service_name)
+        self._dump_cache_service(svc_opts)
         self.storage.empty()
         self.opts.export_env()
 
-    def uninstall(self, keep_vpn: bool = True, keep_dnsmasq: bool = True, unix_service: UnixServiceOpts = None,
+    def uninstall(self, keep_vpn: bool = True, keep_dnsmasq: bool = True, service_opts: UnixServiceOpts = None,
                   log_lvl: int = logger.INFO):
-        service_opts = unix_service or self._read_service_cache()
-        vpn_service = unix_service.service_name
+        svc_opts = self._standard_service_opt(service_opts)
+        vpn_service = svc_opts.service_name
         logger.info(f'Uninstall VPN service [{vpn_service}]...')
         accounts = [a.account for a in self.storage.list()]
         if len(accounts) > 0:
@@ -318,7 +319,7 @@ class VPNClientExecutor(VpnCmdExecutor):
             self.storage.empty()
         else:
             logger.log(log_lvl, f'Remove VPN Client [{self.opts.vpn_dir}]...')
-            self.device.unix_service.remove(service_opts, force=True)
+            self.device.unix_service.remove(svc_opts, force=True)
             self.device.ip_resolver.remove_hook(vpn_service)
             self.opts.remove_env()
             FileHelper.rm(self.opts.vpn_dir)
@@ -332,8 +333,8 @@ class VPNClientExecutor(VpnCmdExecutor):
         FileHelper.copy(self.opts.runtime_dir, backup_dir.joinpath(self.opts.RUNTIME_FOLDER), force=True)
         default_acc = self.storage.get_default()
         current_acc = self.storage.get_current()
-        unix_service = self._read_service_cache()
-        return default_acc, current_acc, unix_service, backup_dir
+        svc_opt = self._standard_service_opt()
+        return default_acc, current_acc, svc_opt, backup_dir
 
     def restore_config(self, backup_dir: Path):
         logger.info(f'Restore VPN configuration [{backup_dir}] to [{self.opts.vpn_dir}]...')
@@ -408,15 +409,19 @@ class VPNClientExecutor(VpnCmdExecutor):
         r = TextHelper.grep(output, r'VPN Client>.+((?:\n.+)+)')
         return ''.join(r).replace('The command completed successfully.', '').strip()
 
-    def _dump_cache_service(self, _unix_service_opts: UnixServiceOpts):
-        JsonHelper.dump(self.opts.service_cache_file, _unix_service_opts)
+    def _dump_cache_service(self, svc_opts: UnixServiceOpts):
+        JsonHelper.dump(self.opts.service_cache_file, svc_opts)
 
-    def _read_service_cache(self) -> UnixServiceOpts:
+    def _standard_service_opt(self, svc_opts: UnixServiceOpts = None) -> UnixServiceOpts:
+        if svc_opts:
+            return UnixServiceOpts(svc_opts.service_dir or self.device.unix_service.standard_service_dir,
+                                   svc_opts.service_name)
         try:
             data = JsonHelper.read(self.opts.service_cache_file)
-            return UnixServiceOpts(data.get('service_dir'), data.get('service_name'))
+            return UnixServiceOpts(data.get('service_dir') or self.device.unix_service.standard_service_dir,
+                                   data.get('service_name'))
         except FileNotFoundError:
-            return UnixServiceOpts(None, ClientOpts.vpn_service_name())
+            return UnixServiceOpts(self.device.unix_service.standard_service_dir, ClientOpts.vpn_service_name())
 
 
 vpn_client_opts = vpn_dir_opts_factory(app_dir=ClientOpts.VPN_HOME, opt_func=ClientOpts)
@@ -449,8 +454,8 @@ def __download(downloader_opts: DownloaderOpt):
               help="If force is enabled, VPN service will be removed then reinstall without backup")
 @verbose_opts
 @permission
-def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, auto_startup: bool, auto_dnsmasq: bool,
-              dnsmasq: bool, force: bool):
+def __install(vpn_opts: ClientOpts, svc_opts: UnixServiceOpts, auto_startup: bool, auto_dnsmasq: bool, dnsmasq: bool,
+              force: bool):
     if not dnsmasq:
         logger.error('Only support dnsmasq as DNS resolver in first version')
         sys.exit(ErrorCode.NOT_YET_SUPPORTED)
@@ -465,8 +470,8 @@ def __install(vpn_opts: ClientOpts, unix_service: UnixServiceOpts, auto_startup:
     device = executor.device
     if dnsmasq and not device.dns_resolver.is_dnsmasq_available():
         executor.device.install_dnsmasq(auto_dnsmasq)
-    logger.info(f'Installing VPN client into [{vpn_opts.vpn_dir}] and register service[{unix_service.service_name}]...')
-    executor.install(unix_service, auto_startup)
+    logger.info(f'Installing VPN client into [{vpn_opts.vpn_dir}] and register service[{svc_opts.service_name}]...')
+    executor.install(svc_opts, auto_startup)
     logger.done()
 
 
@@ -506,12 +511,12 @@ def __upgrade(vpn_opts: ClientOpts):
 
     executor = VPNClientExecutor(vpn_opts).require_install().probe()
     is_running = executor.is_running(silent=True)
-    default_acc, current_acc, unix_service, backup_dir = executor.backup_config()
+    default_acc, current_acc, svc_opts, backup_dir = executor.backup_config()
     if is_running:
         executor.disconnect_vpn(force=True)
-    executor.uninstall(keep_vpn=False, keep_dnsmasq=True, unix_service=unix_service)
+    executor.uninstall(keep_vpn=False, keep_dnsmasq=True, service_opts=svc_opts)
     logger.info(f'Re-install VPN client into [{vpn_opts.vpn_dir}]...')
-    executor.install(unix_service=unix_service, auto_startup=False)
+    executor.install(service_opts=svc_opts, auto_startup=False)
     executor.restore_config(backup_dir)
     _reconnect_vpn(executor, default_acc, current_acc)
     logger.done()
