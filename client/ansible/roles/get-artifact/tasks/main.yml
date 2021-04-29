@@ -1,3 +1,2 @@
 ---
-- name: Download artifact to local
-  include_tasks: 02_check_vpnc_service.yml
+#- name: Download artifact to local

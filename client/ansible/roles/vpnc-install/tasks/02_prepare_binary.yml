@@ -1,16 +1,16 @@
 ---
-- name: Prepare VPN binary
+- name: Transfer VPNC CLI binary by arch
   copy:
     src: "qweio-vpnc-{{ arch_mapping[ansible_architecture] }}"
-    dest: "{{ app_dir }}/{{ vpn_corp }}-vpnc"
+    dest: "{{ arg_app_dir }}/{{ vpnc_cli }}"
     owner: root
     group: root
     mode: u=rwx,g=rx,o=rx
 
-- name: Create symlink
+- name: Create executable symlink for VPNC CLI
   file:
-    src: "{{ app_dir }}/{{ vpn_corp }}-vpnc"
-    dest: "{{ bin_dir }}/{{ vpn_corp }}-vpnc"
+    src: "{{ arg_app_dir }}/{{ vpnc_cli }}"
+    dest: "{{ unix_bin_dir }}/{{ vpnc_cli }}"
     owner: root
     group: root
     state: link

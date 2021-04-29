@@ -7,3 +7,8 @@
     - vars/global_vars.yml
 
   tasks:
+    - import_tasks: tasks/min_facts.yml
+
+    - name: Uninstall VPNC
+      import_role:
+        name: vpnc-undeploy

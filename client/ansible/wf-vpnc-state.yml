@@ -7,5 +7,7 @@
     - vars/global_vars.yml
 
   tasks:
+    - import_tasks: tasks/min_facts.yml
+
     - import_role:
         name: vpnc-state

@@ -1,3 +1,17 @@
 ---
+- name: Transfer VPNC CLI binary by arch
+  copy:
+    src: "qweio-vpnc-{{ arch_mapping[ansible_architecture] }}"
+    dest: "{{ arg_app_dir }}/{{ vpnc_cli }}"
+    owner: root
+    group: root
+    mode: u=rwx,g=rx,o=rx
+
 - name: Upgrade VPNC version
-  include_tasks: 02_check_vpnc_service.yml
+  command: "{{ vpnc_cli }} upgrade"
+  register: vpnc_upgrade
+
+- name: Debug VPNC upgrade output
+  when: debug is defined
+  ansible.builtin.debug:
+    msg: "{{ vpnc_upgrade }}"

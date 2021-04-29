@@ -1,6 +1,6 @@
 - name: Check whether VPNC CLI is installed in system path
   when: ansible_facts['os_family'] != 'Windows'
-  command: "which {{ vpn_corp }}-vpnc"
+  command: "which {{ vpnc_cli }}"
   register: is_exec
   ignore_errors: yes
 
@@ -11,7 +11,7 @@
 
 - name: Check VPNC CLI version
   when: is_exec.rc == 0
-  command: "{{ vpn_corp }}-vpnc version --json"
+  command: "{{ vpnc_cli }} version --json"
   register: is_ver
   ignore_errors: yes
 

@@ -1,6 +1,3 @@
-- name: Populate service facts
-  ansible.builtin.service_facts:
-
 - name: Install dnsmasq on Debian family
   apt:
     name: dnsmasq

@@ -1,8 +1,4 @@
 ---
-- name: Populate remote machine
-  ansible.builtin.setup:
-    gather_subset: 'min'
-
 - name: Init VPNC state output
   ansible.builtin.set_fact:
     vpnc_state: { 'is_exec': False, 'is_broken': False, 'error': None, 'version': None, 'status': None, 'status_rc': 0 }

@@ -7,6 +7,8 @@
     - vars/global_vars.yml
 
   tasks:
+    - import_tasks: tasks/min_facts.yml
+
     - name: Prepare artifact
       import_role:
         name: get-artifact
@@ -19,9 +21,17 @@
       import_role:
         name: vpnc-state
 
-    - name: Setup VPNC
+    - name: Install VPNC
+      when: not vpnc_state.is_exec or vpnc_state.is_broken
       import_role:
         name: vpnc-install
+      vars:
+        arg_vpn_install_force: True
+
+    - name: Upgrade VPNC
+      when: vpnc_state.is_exec and not vpnc_state.is_broken
+      import_role:
+        name: vpnc-upgrade
 
     - name: Check VPNC state
       import_role:

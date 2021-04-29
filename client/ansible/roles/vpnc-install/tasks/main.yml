@@ -1,16 +1,11 @@
 ---
-
 - name: Ensure dnsmasq install
   include_tasks: 01_ensure_dnsmasq.yml
 
 - name: Prepare VPN binary
   include_tasks: 02_prepare_binary.yml
 
-- name: Setup VPN service
-  include_tasks: 03_install_vpnc.yml
+- name: Install VPN client
+  command: "{{ vpnc_cli }} install --dnsmasq -dd {{ arg_vpn_dir }} -ds {{ unix_service_dir }} {{ '-f' if arg_vpn_install_force else '' }}"
+  register: vpnc_install
 
-- name: Add VPN account
-  include_tasks: 04_add_vpn_account.yml
-
-- name: Verify VPN status
-  include_tasks: 05_verify_vpn_status.yml
