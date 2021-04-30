@@ -7,8 +7,19 @@
     - vars/global_vars.yml
 
   tasks:
-    - import_tasks: tasks/min_facts.yml
+    - name: Populate remote machine
+      include_tasks: tasks/min_facts.yml
 
-    - name: Add new account
-      import_role:
+    - name: Check VPNC state
+      include_role:
+        name: vpnc-state
+
+    - name: Install VPNC if not yet installed
+      when: not vpnc_state.is_exec or vpnc_state.is_broken
+      assert:
+        that: not vpnc_state.is_exec or vpnc_state.is_broken
+        fail_msg: "VPNC is not yet installed on {{ inventory_hostname }}"
+
+    - name: Add VPN account
+      include_role:
         name: vpnc-extend

@@ -1,13 +1,22 @@
-- name: Transfer VPNC CLI binary by arch
-  copy:
-    src: "{{vpnc_artifact}}-{{ arch_mapping[ansible_architecture] }}"
+- name: Lookup VPNC CLI binary by arch
+  ansible.builtin.set_fact:
+    vpnc_artifact_arch: "{{ arch_mapping.get(ansible_architecture, None) }}"
+
+- name: Validate VPNC CLI binary
+  when: not vpnc_artifact_arch
+  ansible.builtin.fail:
+    msg: "Unsupported architecture [{{ansible_architecture}}]"
+
+- name: Transfer VPNC CLI binary
+  ansible.builtin.copy:
+    src: "{{vpnc_artifact}}-{{ vpnc_artifact_arch }}"
     dest: "{{ arg_app_dir }}/{{ vpnc_cli }}"
     owner: root
     group: root
     mode: u=rwx,g=rx,o=rx
 
 - name: Create executable symlink for VPNC CLI
-  file:
+  ansible.builtin.file:
     src: "{{ arg_app_dir }}/{{ vpnc_cli }}"
     dest: "{{ unix_bin_dir }}/{{ vpnc_cli }}"
     owner: root

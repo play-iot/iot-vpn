@@ -7,7 +7,8 @@
     - vars/global_vars.yml
 
   tasks:
-    - import_tasks: tasks/min_facts.yml
+    - name: Populate remote machine
+      include_tasks: tasks/min_facts.yml
 
-    - import_role:
+    - include_role:
         name: vpnc-state

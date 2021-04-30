@@ -7,13 +7,17 @@
     - vars/global_vars.yml
 
   tasks:
-    - import_tasks: tasks/min_facts.yml
+    - name: Populate remote machine
+      include_tasks: tasks/min_facts.yml
 
     - name: Verify VPNC state
-      import_role:
+      include_role:
         name: vpnc-state
 
+    - name: Stop uninstallation because VPNC is not yet installed
+      when: not vpnc_state.is_exec or vpnc_state.is_broken
+      meta: end_host
+
     - name: Uninstall VPNC
-      when: vpnc_state.is_exec and not vpnc_state.is_broken
-      import_role:
+      include_role:
         name: vpnc-undeploy
