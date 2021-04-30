@@ -7,6 +7,12 @@
     - vars/global_vars.yml
 
   tasks:
+    - name: Prepare credentials
+      include_role:
+        name: prepare-credential
+      vars:
+        arg_key_cert: "{{ inventory_hostname }}"
+
     - name: Populate remote machine
       include_tasks: tasks/min_facts.yml
 
@@ -14,12 +20,17 @@
       include_role:
         name: vpnc-state
 
-    - name: Install VPNC if not yet installed
-      when: not vpnc_state.is_exec or vpnc_state.is_broken
-      assert:
-        that: not vpnc_state.is_exec or vpnc_state.is_broken
-        fail_msg: "VPNC is not yet installed on {{ inventory_hostname }}"
+    - name: Guard VPNC must be installed
+      ansible.builtin.assert:
+        that: vpnc_state.is_exec and not vpnc_state.is_broken
+        msg: "VPNC is not yet installed on {{ inventory_hostname }}"
 
     - name: Add VPN account
       include_role:
         name: vpnc-extend
+      vars:
+        arg_vpn_conn: "{{ prepare_credential }}"
+
+    - name: Verify VPNC state
+      include_role:
+        name: vpnc-state

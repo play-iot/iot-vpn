@@ -1,0 +1,14 @@
+- name: Setup new VPNC with new account
+  hosts: all
+  become: yes
+  become_method: sudo
+  gather_facts: no
+  vars_files:
+    - vars/global_vars.yml
+
+  tasks:
+    - name: Rollout VPNC
+      include_tasks: wf-vpnc-rollout.yml
+
+    - name: Add new VPN account
+      include_tasks: wf-vpnc-extend.yml

@@ -1,6 +1,0 @@
----
-- include: 01_add_arg_vpn_account_cert.yml
-  when: vpn_cert is defined
-
-- include: 01_add_arg_vpn_account_password.yml
-  when: vpn_password is defined

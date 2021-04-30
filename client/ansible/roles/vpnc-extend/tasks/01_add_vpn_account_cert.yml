@@ -17,8 +17,7 @@
 
 - name: Configure VPN client with client certificate authentication
   command: |
-    "{{ vpnc_cli }} add -sh {{ arg_vpn_server }} -sp {{ arg_vpn_port }} -su {{ arg_vpn_hub }} -ca {{ arg_vpn_account }} -ct cert \
-        -cu {{ vpn_user }} -cpk {{ arg_app_dir }}/{{ vpn_prv_key }} -cck {{ arg_app_dir }}/{{ vpn_cert }} -v"
+    "{{ vpnc_cli }} add -sh {{ arg_vpn_conn.vpn_server }} -sp {{ arg_vpn_conn.vpn_port }}
+        -su {{ arg_vpn_conn.vpn_hub }} -ca {{ arg_vpn_conn.vpn_account }} -ct cert
+        -cu {{ arg_vpn_conn.vpn_user }} -cpk {{ arg_app_dir }}/{{ vpn_prv_key }} -cck {{ arg_app_dir }}/{{ vpn_cert }} -v"
   register: vpn_configure
-  ignore_errors: True
-  when: vpn_install.rc == 0

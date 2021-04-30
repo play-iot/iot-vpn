@@ -1,0 +1,18 @@
+# TODO: Add downloader
+#- name: Download credentials
+
+- name: Load credentials
+  delegate_to: 127.0.0.1
+  include_vars:
+    file: files/credentials.json
+    name: vpn_credentials
+
+- name: Lookup credential by host
+  delegate_to: 127.0.0.1
+  set_fact:
+    prepare_credential: "{{ vpn_credentials | json_query(arg_key_cert) }}"
+
+- when: debug is defined
+  delegate_to: 127.0.0.1
+  ansible.builtin.debug:
+    msg: "{{ prepare_credential }}"

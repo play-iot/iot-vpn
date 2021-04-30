@@ -1,3 +1,6 @@
+# TODO: Add downloader
+#- name: Download artifact
+
 - name: Lookup VPNC CLI binary by arch
   ansible.builtin.set_fact:
     vpnc_artifact_arch: "{{ arch_mapping.get(ansible_architecture, None) }}"

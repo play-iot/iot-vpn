@@ -12,11 +12,7 @@
 
     - name: Prepare artifact
       include_role:
-        name: get-artifact
-
-    - name: Prepare credentials
-      include_role:
-        name: get-credential
+        name: prepare-artifact
 
     - name: Check VPNC state
       include_role:
