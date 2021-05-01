@@ -665,13 +665,15 @@ class IPResolver(AppConvention):
         logger.log(self.log_lvl, 'Cleanup the IP lease zombie processes...')
         SystemHelper.kill_by_process(f'{self.ip_tool}.*{process}.*', silent=True, log_lvl=self.log_lvl)
 
-    def get_vpn_ip(self, nic: str):
+    def get_vpn_ip(self, nic: str, lenient=True):
         try:
             logger.log(self.log_lvl, f'Query VPN IPv4 on {nic}...')
             return netifaces.ifaddresses(nic)[netifaces.AF_INET]
         except Exception as err:
-            logger.warn(f'Not found VPN IP {nic}. Error: {err}')
-            return None
+            if lenient:
+                logger.debug(f'Not found VPN IP {nic}. Error: {err}')
+                return None
+            raise err
 
     def _to_config_file(self, suffix):
         return self.runtime_dir.joinpath(f'vpn_dhclient.{suffix}.conf')

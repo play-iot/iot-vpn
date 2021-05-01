@@ -554,8 +554,8 @@ def __add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, ac
     executor.storage.create_or_update(acc, connect=not no_connect)
     executor.device.ip_resolver.create_config(acc.account, {'{{HOST_NAME}}': hostname})
     executor.device.dns_resolver.tweak_on_nic(vpn_opts.account_to_nic(acc.account))
-    executor.lease_vpn_service(is_enable=acc.is_default, is_restart=acc.is_default and not no_connect,
-                               is_lease_ip=no_connect, account=acc.account)
+    executor.lease_vpn_service(is_enable=acc.is_default, is_restart=not no_connect, is_lease_ip=no_connect,
+                               account=acc.account)
     logger.done()
 
 
