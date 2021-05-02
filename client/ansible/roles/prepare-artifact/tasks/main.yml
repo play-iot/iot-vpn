@@ -14,7 +14,7 @@
   ansible.builtin.file:
     path: "{{ arg_app_dir }}"
     state: directory
-    mode: '0755'
+    mode: 0755
 
 - name: Transfer VPNC CLI binary
   ansible.builtin.copy:
@@ -22,7 +22,7 @@
     dest: "{{ arg_app_dir }}/{{ vpnc_cli }}"
     owner: root
     group: root
-    mode: u=rwx,g=rx,o=rx
+    mode: 0755
 
 - name: Create executable symlink for VPNC CLI
   ansible.builtin.file:

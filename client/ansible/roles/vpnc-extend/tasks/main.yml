@@ -6,6 +6,7 @@
   when: arg_vpn_conn.vpn_auth_type == "password"
   include: 01_add_vpn_account_password.yml
 
-- when: debug is defined
+- name: Debug VPNC configuration
+  when: debug is defined
   ansible.builtin.debug:
     msg: "{{ vpn_configure }}"
