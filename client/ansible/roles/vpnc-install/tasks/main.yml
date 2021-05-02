@@ -1,11 +1,6 @@
-- name: Prepare VPN binary
-  include_role:
-    name: prepare-artifact
-
 - name: Ensure dnsmasq install
   include_tasks: 01_ensure_dnsmasq.yml
 
 - name: Install VPN client
   command: "{{ vpnc_cli }} install --dnsmasq -dd {{ arg_vpn_dir }} -ds {{ unix_service_dir }} {{ '-f' if arg_vpn_install_force else '' }}"
   register: vpnc_install
-

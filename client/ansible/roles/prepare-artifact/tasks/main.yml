@@ -10,6 +10,12 @@
   ansible.builtin.fail:
     msg: "Unsupported architecture [{{ansible_architecture}}]"
 
+- name: Create application directory if it does not exist
+  ansible.builtin.file:
+    path: "{{ arg_app_dir }}"
+    state: directory
+    mode: '0755'
+
 - name: Transfer VPNC CLI binary
   ansible.builtin.copy:
     src: "{{vpnc_artifact}}-{{ vpnc_artifact_arch }}"

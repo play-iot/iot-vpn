@@ -9,10 +9,11 @@
 
 - name: Lookup credential by host
   delegate_to: 127.0.0.1
-  set_fact:
+  ansible.builtin.set_fact:
     prepare_credential: "{{ vpn_credentials | json_query(arg_key_cert) }}"
 
-- when: debug is defined
+- name: Debug credential
+  when: debug is defined
   delegate_to: 127.0.0.1
   ansible.builtin.debug:
     msg: "{{ prepare_credential }}"

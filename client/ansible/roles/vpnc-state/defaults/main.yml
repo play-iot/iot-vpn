@@ -1,2 +1,3 @@
 arg_vpn_test_domains:
   - google.com
+arg_show_output: False

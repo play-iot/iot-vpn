@@ -18,8 +18,13 @@
       include_role:
         name: vpnc-state
 
+    - name: Evaluate Rollout Precondition
+      ansible.builtin.set_fact:
+        precondition_is_installed: "{{ not vpnc_state.is_exec or vpnc_state.is_broken or not (vpnc_state.status.app_state | default(False)) }}"
+        precondition_is_upgraded: "{{ vpnc_state.status.app_state | default(False) }}"
+
     - name: Install VPNC if not yet installed
-      when: not vpnc_state.is_exec or vpnc_state.is_broken
+      when: precondition_is_installed
       include_role:
         name: vpnc-install
       vars:
@@ -27,10 +32,15 @@
 
       #TODO: Need check semver
     - name: Upgrade VPNC if already installed
-      when: vpnc_state.is_exec and not vpnc_state.is_broken
+      when: precondition_is_upgraded
       include_role:
         name: vpnc-upgrade
 
     - name: Verify VPNC state
+      when: precondition_is_installed or precondition_is_upgraded
       include_role:
         name: vpnc-state
+      vars:
+        arg_show_output: True
+        arg_assert_install: True
+        arg_assert_work: {{ precondition_is_upgraded }}

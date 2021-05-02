@@ -1,2 +1,3 @@
-arg_vpn_uninstall_force: False
+arg_vpn_uninstall_force: True
 arg_vpn_keep_dnsmasq: True
+arg_vpn_remove_cli: True

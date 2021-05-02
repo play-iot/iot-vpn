@@ -9,7 +9,19 @@
 - name: Check VPNC service status
   include_tasks: 02_check_vpnc_service.yml
 
-- name: Debug VPNC state output
-  when: debug is defined
+- name: Print VPNC state
+  when: debug is defined or arg_show_output
   ansible.builtin.debug:
     msg: "{{ vpnc_state }}"
+
+- name: Assert VPNC is installed
+  when: arg_assert_install is defined or (arg_assert_work | default(False))
+  ansible.builtin.assert:
+    that: vpnc_state.is_exec and not vpnc_state.is_broken
+    msg: "VPNC is not yet installed on {{ inventory_hostname }}[{{ ansible_host }}]"
+
+- name: Assert VPNC is in good condition
+  when: arg_assert_work | default(False)
+  ansible.builtin.assert:
+    that: vpnc_state.status_rc == 0
+    msg: "VPNC is not working normally on {{ inventory_hostname }}[{{ ansible_host }}]"

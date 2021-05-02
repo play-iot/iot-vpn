@@ -1,7 +1,3 @@
-- name: Prepare VPN binary
-  include_role:
-    name: prepare-artifact
-
 - name: Upgrade VPNC version
   command: "{{ vpnc_cli }} upgrade"
   register: vpnc_upgrade

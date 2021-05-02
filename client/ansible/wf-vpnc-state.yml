@@ -10,5 +10,8 @@
     - name: Populate remote machine
       include_tasks: tasks/min_facts.yml
 
-    - include_role:
+    - name: Verify VPNC state
+      include_role:
         name: vpnc-state
+      vars:
+        arg_show_output: True
