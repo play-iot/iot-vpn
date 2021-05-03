@@ -1,13 +1,11 @@
-# DRAFT Deploy VPN client
-
-The inventory and variables for every hosts follows standard as sample file in this repository.
+# Deploy VPN client
 
 ## Usage
 
-This playbook uses enclosed `vpnc-install` role which has `clean_up` variable. This variable is used in case there's existing messy installation of VPN client on target host. Set it to `true` to perform the cleanup before installing.
-
-*default value is false*
-
+```bash
+ansible-inventory --graph
 ```
-ansible-playbook main.yml
+
+```bash
+ansible-playbook wf-vpnc-rollout.yml -e 'debug=1' -e '{"args_vpn_state_test_domains": ["google.com"]}'
 ```

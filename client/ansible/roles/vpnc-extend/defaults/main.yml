@@ -1,4 +1,4 @@
-arg_vpn_conn:
+runtime_vpn_conn:
   vpn_server:
   vpn_port:
   vpn_hub:

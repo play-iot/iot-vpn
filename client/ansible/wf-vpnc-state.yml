@@ -11,4 +11,4 @@
       include_role:
         name: vpnc-state
       vars:
-        arg_show_output: True
+        args_vpn_state_show: True

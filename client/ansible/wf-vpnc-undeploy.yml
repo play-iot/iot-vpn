@@ -12,7 +12,7 @@
         name: vpnc-state
 
     - name: Stop uninstallation because VPNC is not yet installed
-      when: not vpnc_state.is_exec or vpnc_state.is_broken
+      when: not resp_vpnc_state.is_exec or resp_vpnc_state.is_broken
       meta: end_host
 
     - name: Uninstall VPNC

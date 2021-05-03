@@ -5,15 +5,15 @@
   delegate_to: 127.0.0.1
   include_vars:
     file: files/credentials.json
-    name: vpn_credentials
+    name: runtime_vpn_credentials
 
 - name: Lookup credential by host
   delegate_to: 127.0.0.1
   ansible.builtin.set_fact:
-    prepare_credential: "{{ vpn_credentials | json_query(arg_key_cert) }}"
+    resp_prepare_credential: "{{ runtime_vpn_credentials | json_query(runtime_cert_lookup_key) }}"
 
 - name: Debug credential
   when: debug is defined
   delegate_to: 127.0.0.1
   ansible.builtin.debug:
-    msg: "{{ prepare_credential }}"
+    msg: "{{ resp_prepare_credential }}"

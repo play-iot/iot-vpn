@@ -5,31 +5,31 @@
 
   tasks:
     - name: Populate remote machine
-      when: arg_skip_populate is not defined or not arg_skip_populate
+      when: args_skip_populate is not defined or not args_skip_populate
       include_tasks: tasks/min_facts.yml
 
-    - name: Prepare credentials
+    - name: Prepare credential
       include_role:
         name: prepare-credential
       vars:
-        arg_key_cert: "{{ inventory_hostname }}"
+        runtime_cert_lookup_key: "{{ inventory_hostname }}"
 
     - name: Check VPNC state
-      when: arg_skip_populate is not defined or not arg_skip_populate
+      when: args_skip_populate is not defined or not args_skip_populate
       include_role:
         name: vpnc-state
       vars:
-        arg_assert_install: True
+        args_vpn_state_assert_install: True
 
     - name: Add VPN account
       include_role:
         name: vpnc-extend
       vars:
-        arg_vpn_conn: "{{ prepare_credential }}"
+        runtime_vpn_conn: "{{ resp_prepare_credential }}"
 
     - name: Verify VPNC state
       include_role:
         name: vpnc-state
       vars:
-        arg_show_output: True
-        arg_assert_work: True
+        args_vpn_state_show: True
+        args_vpn_state_assert_work: True

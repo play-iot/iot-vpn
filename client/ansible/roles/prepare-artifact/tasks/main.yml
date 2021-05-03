@@ -4,33 +4,34 @@
 - name: Lookup VPNC CLI binary by arch
   delegate_to: 127.0.0.1
   ansible.builtin.set_fact:
-    vpnc_artifact_arch: "{{ arch_mapping.get(ansible_architecture, None) }}"
+    runtime_vpnc_artifact_arch: "{{ global_arch_mapping.get(ansible_architecture, '') }}"
 
 - name: Validate VPNC CLI binary
   delegate_to: 127.0.0.1
   ansible.builtin.assert:
-    that: not vpnc_artifact_arch
-    msg: "Unsupported architecture [{{ansible_architecture}}]"
+    that: runtime_vpnc_artifact_arch != ""
+    fail_msg: "Unsupported architecture [{{ ansible_architecture }}]"
+    success_msg: "VPNC CLI binary [{{ vpnc_artifact }}-{{ runtime_vpnc_artifact_arch }}]"
 
 - name: Setup VPNC CLI on target machine
   block:
   - name: Create application directory if it does not exist
     ansible.builtin.file:
-      path: "{{ arg_app_dir }}"
+      path: "{{ args_app_dir }}"
       state: directory
       mode: 0755
 
   - name: Transfer VPNC CLI binary
     ansible.builtin.copy:
-      src: "{{vpnc_artifact}}-{{ vpnc_artifact_arch }}"
-      dest: "{{ arg_app_dir }}/{{ vpnc_cli }}"
+      src: "{{ vpnc_artifact }}-{{ runtime_vpnc_artifact_arch }}"
+      dest: "{{ args_app_dir }}/{{ vpnc_cli }}"
       owner: root
       group: root
       mode: 0755
 
   - name: Create executable symlink for VPNC CLI
     ansible.builtin.file:
-      src: "{{ arg_app_dir }}/{{ vpnc_cli }}"
+      src: "{{ args_app_dir }}/{{ vpnc_cli }}"
       dest: "{{ unix_bin_dir }}/{{ vpnc_cli }}"
       owner: root
       group: root

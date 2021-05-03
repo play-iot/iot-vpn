@@ -4,4 +4,4 @@
 - name: Add new VPNC account
   import_playbook: wf-vpnc-extend.yml
   vars:
-    arg_skip_populate: True
+    args_skip_populate: True
