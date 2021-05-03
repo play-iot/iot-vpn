@@ -1,0 +1,31 @@
+---
+- name: Transfer VPN user certificate key
+  copy:
+    content: "{{ runtime_vpn_conn.vpn_cert_key }}"
+    dest: "{{ args_app_dir }}/vpn_key.cert"
+    owner: root
+    group: root
+    mode: 0440
+
+- name: Transfer VPN user private key
+  copy:
+    content: "{{ runtime_vpn_conn.vpn_private_key }}"
+    dest: "{{ args_app_dir }}/vpn_key.prv"
+    owner: root
+    group: root
+    mode: 0440
+
+- name: Configure VPN client with client certificate authentication
+  command: |
+    {{ vpnc_cli }} add -sh {{ runtime_vpn_conn.vpn_server }} -sp {{ runtime_vpn_conn.vpn_port }}
+    -su {{ runtime_vpn_conn.vpn_hub }} -ca {{ runtime_vpn_conn.vpn_account }} -ct cert -cd
+    -cu {{ runtime_vpn_conn.vpn_user }} -cpk {{ args_app_dir }}/vpn_key.prv -cck {{ args_app_dir }}/vpn_key.cert -v
+  register: resp_vpnc_configure
+
+- name: Cleanup VPN user key
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ args_app_dir }}/vpn_key.cert"
+    - "{{ args_app_dir }}/vpn_key.prv"

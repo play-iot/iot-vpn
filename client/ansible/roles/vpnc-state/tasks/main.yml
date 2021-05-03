@@ -1,0 +1,31 @@
+---
+- name: Init VPNC state output
+  ansible.builtin.set_fact:
+    resp_vpnc_state: { 'is_exec': False, 'is_broken': False, 'error': None, 'version': None, 'status': None, 'status_rc': 0 }
+
+- name: Check VPNC state
+  block:
+  - name: Check VPNC CLI install
+    include_tasks: 01_check_vpnc_cli.yml
+
+  - name: Check VPNC service status
+    include_tasks: 02_check_vpnc_service.yml
+
+  - name: Print VPNC state
+    when: debug is defined or args_vpn_state_show
+    ansible.builtin.debug:
+      msg: "{{ resp_vpnc_state }}"
+
+  - name: Assert VPNC is installed
+    when: args_vpn_state_assert_install is defined or (args_vpn_state_assert_work | default(False))
+    ansible.builtin.assert:
+      that: resp_vpnc_state.is_exec and not resp_vpnc_state.is_broken
+      msg: "VPNC is not yet installed on {{ inventory_hostname }}[{{ ansible_host }}]"
+
+  - name: Assert VPNC is in good condition
+    when: args_vpn_state_assert_work | default(False)
+    ansible.builtin.assert:
+      that: resp_vpnc_state.status_rc == 0
+      msg: "VPNC is not working normally on {{ inventory_hostname }}[{{ ansible_host }}]"
+  become: yes
+  become_method: sudo

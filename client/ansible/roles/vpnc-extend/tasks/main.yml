@@ -1,0 +1,16 @@
+- name: Setup VPNC account
+  block:
+  - name: Add VPN account by cert
+    when: runtime_vpn_conn.vpn_auth_type == "cert"
+    include: 01_add_vpn_account_cert.yml
+
+  - name: Add VPN account by password
+    when: runtime_vpn_conn.vpn_auth_type == "password"
+    include: 01_add_vpn_account_password.yml
+
+  - name: Debug VPNC configuration
+    when: debug is defined
+    ansible.builtin.debug:
+      msg: "{{ resp_vpnc_configure }}"
+  become: yes
+  become_method: sudo

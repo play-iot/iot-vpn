@@ -1,0 +1,14 @@
+go/**/bin
+python/src/debug
+
+k8s/**/svc.json
+k8s/**/*.env
+!k8s/**/.env
+
+ansible/out/**
+!ansible/out/.gitkeep
+ansible/inventory/**
+!ansible/inventory/hosts.vagrant.yml
+# TODO temp
+ansible/**/files/**
+!ansible/**/files/.gitkeep

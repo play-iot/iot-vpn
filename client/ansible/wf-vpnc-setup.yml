@@ -1,0 +1,7 @@
+- name: Rollout new VPNC service
+  import_playbook: wf-vpnc-rollout.yml
+
+- name: Add new VPNC account
+  import_playbook: wf-vpnc-extend.yml
+  vars:
+    args_skip_populate: True

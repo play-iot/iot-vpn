@@ -1,0 +1,14 @@
+- name: Get VPNC state
+  hosts: all
+  vars_files:
+    - vars/global_vars.yml
+
+  tasks:
+    - name: Populate remote machine
+      include_tasks: tasks/min_facts.yml
+
+    - name: Verify VPNC state
+      include_role:
+        name: vpnc-state
+      vars:
+        args_vpn_state_show: True

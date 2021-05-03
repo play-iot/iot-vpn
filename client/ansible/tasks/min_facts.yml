@@ -1,0 +1,3 @@
+- name: Populate remote machine
+  ansible.builtin.setup:
+    gather_subset: 'min'

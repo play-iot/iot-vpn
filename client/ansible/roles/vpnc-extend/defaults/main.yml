@@ -1,0 +1,10 @@
+runtime_vpn_conn:
+  vpn_server:
+  vpn_port:
+  vpn_hub:
+  vpn_account:
+  vpn_auth_type:
+  vpn_user:
+  vpn_password:
+  vpn_cert_key:
+  vpn_private_key:

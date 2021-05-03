@@ -1,0 +1,12 @@
+- name: Upgrade VPNC service
+  block:
+  - name: Upgrade VPNC
+    command: "{{ vpnc_cli }} upgrade"
+    register: vpnc_upgrade
+
+  - name: Debug VPNC upgrade output
+    when: debug is defined
+    ansible.builtin.debug:
+      msg: "{{ vpnc_upgrade }}"
+  become: yes
+  become_method: sudo

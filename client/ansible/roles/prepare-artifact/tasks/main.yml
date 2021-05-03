@@ -1,0 +1,41 @@
+# TODO: Add downloader
+#- name: Download artifact
+
+- name: Lookup VPNC CLI binary by arch
+  delegate_to: 127.0.0.1
+  ansible.builtin.set_fact:
+    runtime_vpnc_artifact_arch: "{{ global_arch_mapping.get(ansible_architecture, '') }}"
+
+- name: Validate VPNC CLI binary
+  delegate_to: 127.0.0.1
+  ansible.builtin.assert:
+    that: runtime_vpnc_artifact_arch != ""
+    fail_msg: "Unsupported architecture [{{ ansible_architecture }}]"
+    success_msg: "VPNC CLI binary [{{ vpnc_artifact }}-{{ runtime_vpnc_artifact_arch }}]"
+
+- name: Setup VPNC CLI on target machine
+  block:
+  - name: Create application directory if it does not exist
+    ansible.builtin.file:
+      path: "{{ args_app_dir }}"
+      state: directory
+      mode: 0755
+
+  - name: Transfer VPNC CLI binary
+    ansible.builtin.copy:
+      src: "{{ vpnc_artifact }}-{{ runtime_vpnc_artifact_arch }}"
+      dest: "{{ args_app_dir }}/{{ vpnc_cli }}"
+      owner: root
+      group: root
+      mode: 0755
+
+  - name: Create executable symlink for VPNC CLI
+    ansible.builtin.file:
+      src: "{{ args_app_dir }}/{{ vpnc_cli }}"
+      dest: "{{ unix_bin_dir }}/{{ vpnc_cli }}"
+      owner: root
+      group: root
+      state: link
+      force: true
+  become: yes
+  become_method: sudo

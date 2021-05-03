@@ -1,0 +1,17 @@
+- name: Check VPNC service status
+  when: not ansible_check_mode and runtime_is_exec.rc == 0 and runtime_is_ver.rc == 0
+  command: "{{ vpnc_cli }} status {{ args_vpn_state_test_domains | map('regex_replace', '^(.*)$', '--domain \\1') | join(' ') }} --json"
+  register: runtime_is_status
+  ignore_errors: yes
+
+- name: Evaluate VPNC service status
+  when: not ansible_check_mode and runtime_is_exec.rc == 0 and runtime_is_ver.rc == 0
+  ansible.builtin.set_fact:
+    resp_vpnc_state: |
+      {{ resp_vpnc_state |
+        combine({
+          'status_rc': runtime_is_status.rc,
+          'status': (runtime_is_status.stdout | from_json) if runtime_is_status.stdout else None,
+          'error': None if runtime_is_status.rc == 90 else runtime_is_status.stderr if (runtime_is_status.stderr | default('')) else (runtime_is_status.msg | default(''))
+        })
+      }}

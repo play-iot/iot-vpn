@@ -1,0 +1,20 @@
+- name: Uninstall VPNC
+  hosts: all
+  vars_files:
+    - vars/global_vars.yml
+
+  tasks:
+    - name: Populate remote machine
+      include_tasks: tasks/min_facts.yml
+
+    - name: Verify VPNC state
+      include_role:
+        name: vpnc-state
+
+    - name: Stop uninstallation because VPNC is not yet installed
+      when: not resp_vpnc_state.is_exec or resp_vpnc_state.is_broken
+      meta: end_host
+
+    - name: Uninstall VPNC
+      include_role:
+        name: vpnc-undeploy

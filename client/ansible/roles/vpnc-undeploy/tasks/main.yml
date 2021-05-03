@@ -1,0 +1,27 @@
+---
+- name: Undeploy VPNC
+  block:
+  - name: Uninstall VPNC service
+    command: |
+      {{ vpnc_cli }} uninstall {{ '-f' if args_vpn_undeploy_force else '' }}
+      {{ '--keep-dnsmasq' if args_vpn_undeploy_keep_dnsmasq else '--no-keep-dnsmasq' }}
+    register: resp_vpnc_undeploy
+
+  - name: Debug VPNC uninstall output
+    when: debug is defined
+    ansible.builtin.debug:
+      msg: "{{ resp_vpnc_undeploy }}"
+
+  - name: Check whether VPNC CLI is installed in system path
+    when: ansible_facts['os_family'] != 'Windows'
+    command: "which {{ vpnc_cli }}"
+    register: runtime_is_exec
+    ignore_errors: yes
+
+  - name: Remove VPNC CLI
+    when: not args_vpn_undeploy_keep_vpnc_cli and runtime_is_exec.rc == 0
+    ansible.builtin.file:
+      path: "{{ runtime_is_exec.stdout }}"
+      state: absent
+  become: yes
+  become_method: sudo

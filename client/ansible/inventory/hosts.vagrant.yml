@@ -1,0 +1,42 @@
+# For local test with vagrant
+all:
+  children:
+    vagrant:
+      hosts:
+        centos6:
+          ansible_host: 192.168.88.10
+        centos7:
+          ansible_host: 192.168.88.11
+        centos8:
+          ansible_host: 192.168.88.12
+        debian9:
+          ansible_host: 192.168.88.20
+        debian10:
+          ansible_host: 192.168.88.21
+        fedora32:
+          ansible_host: 192.168.88.30
+        ubuntu18:
+          ansible_host: 192.168.88.40
+        ubuntu20:
+          ansible_host: 192.168.88.41
+      vars:
+        ansible_user: vagrant
+        ansible_password: vagrant
+    apt:
+      hosts:
+        debian9:
+        debian10:
+        ubuntu18:
+        ubuntu20:
+    yum:
+      hosts:
+        centos6:
+        centos7:
+        centos8:
+        fedora32:
+    routine:
+      hosts:
+        ubuntu18:
+        debian9:
+        centos7:
+        fedora32:
