@@ -43,4 +43,4 @@
       vars:
         arg_show_output: True
         arg_assert_install: True
-        arg_assert_work: {{ precondition_is_upgraded }}
+        arg_assert_work: "{{ precondition_is_upgraded }}"

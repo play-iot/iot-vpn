@@ -27,5 +27,5 @@
     path: "{{ item }}"
     state: absent
   with_items:
-    - {{ arg_app_dir }}/vpn_key.cert
-    - {{ arg_app_dir }}/vpn_key.prv
+    - "{{ arg_app_dir }}/vpn_key.cert"
+    - "{{ arg_app_dir }}/vpn_key.prv"
