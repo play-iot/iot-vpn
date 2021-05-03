@@ -5,7 +5,7 @@
     dest: "{{ arg_app_dir }}/vpn_key.cert"
     owner: root
     group: root
-    mode: 0400
+    mode: 0440
 
 - name: Transfer VPN user private key
   copy:
@@ -13,7 +13,7 @@
     dest: "{{ arg_app_dir }}/vpn_key.prv"
     owner: root
     group: root
-    mode: 0400
+    mode: 0440
 
 - name: Configure VPN client with client certificate authentication
   command: |

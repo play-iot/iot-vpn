@@ -1,6 +1,10 @@
-- name: Ensure dnsmasq install
-  include_tasks: 01_ensure_dnsmasq.yml
+- name: Setup VPNC service
+  block:
+  - name: Ensure dnsmasq install
+    include_tasks: 01_ensure_dnsmasq.yml
 
-- name: Install VPN client
-  command: "{{ vpnc_cli }} install --dnsmasq -dd {{ arg_vpn_dir }} -ds {{ unix_service_dir }} {{ '-f' if arg_vpn_install_force else '' }}"
-  register: vpnc_install
+  - name: Install VPNC service
+    command: "{{ vpnc_cli }} install --dnsmasq -dd {{ arg_vpn_dir }} -ds {{ unix_service_dir }} {{ '-f' if arg_vpn_install_force else '' }}"
+    register: vpnc_install
+  become: yes
+  become_method: sudo
