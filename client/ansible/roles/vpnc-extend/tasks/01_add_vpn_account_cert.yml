@@ -17,9 +17,9 @@
 
 - name: Configure VPN client with client certificate authentication
   command: |
-    "{{ vpnc_cli }} add -sh {{ arg_vpn_conn.vpn_server }} -sp {{ arg_vpn_conn.vpn_port }}
-        -su {{ arg_vpn_conn.vpn_hub }} -ca {{ arg_vpn_conn.vpn_account }} -ct cert -cd
-        -cu {{ arg_vpn_conn.vpn_user }} -cpk {{ arg_app_dir }}/vpn_key.prv -cck {{ arg_app_dir }}/vpn_key.cert -v"
+    {{ vpnc_cli }} add -sh {{ arg_vpn_conn.vpn_server }} -sp {{ arg_vpn_conn.vpn_port }}
+    -su {{ arg_vpn_conn.vpn_hub }} -ca {{ arg_vpn_conn.vpn_account }} -ct cert -cd
+    -cu {{ arg_vpn_conn.vpn_user }} -cpk {{ arg_app_dir }}/vpn_key.prv -cck {{ arg_app_dir }}/vpn_key.cert -v
   register: vpn_configure
 
 - name: Cleanup VPN user key

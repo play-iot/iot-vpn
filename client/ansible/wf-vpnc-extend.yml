@@ -8,6 +8,7 @@
 
   tasks:
     - name: Populate remote machine
+      when: arg_skip_populate is not defined or not arg_skip_populate
       include_tasks: tasks/min_facts.yml
 
     - name: Prepare credentials
@@ -17,6 +18,7 @@
         arg_key_cert: "{{ inventory_hostname }}"
 
     - name: Check VPNC state
+      when: arg_skip_populate is not defined or not arg_skip_populate
       include_role:
         name: vpnc-state
       vars:
