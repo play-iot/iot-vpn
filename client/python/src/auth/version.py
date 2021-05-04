@@ -1,0 +1,2 @@
+APP_VERSION = '0.0.1'
+HASH_VERSION = 'dev'

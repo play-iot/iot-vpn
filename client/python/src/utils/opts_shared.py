@@ -42,7 +42,10 @@ class OutputOpts(object):
             os.makedirs(self.dir)
 
     def to_file(self, ext: str = ""):
-        return os.path.join(self.dir, self.file + "." + ext)
+        return self.file + "." + ext
+
+    def to_fqn_file(self, ext: str = ""):
+        return os.path.join(self.dir, self.to_file(ext))
 
     def make_file(self, another: str):
         return os.path.join(self.dir, another)

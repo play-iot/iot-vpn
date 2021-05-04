@@ -99,10 +99,11 @@ class FileHelper:
         [Path(f).mkdir(parents=True, exist_ok=True, mode=mode) for f in folders]
 
     @staticmethod
-    def touch(path: Union[str, Path], mode=0o0644):
+    def touch(path: Union[str, Path], mode=0o0644) -> Path:
         p = Path(path)
         with open(str(p.absolute()), 'w') as _:
             os.chmod(p, mode)
+        return p
 
     @staticmethod
     def write_file(path: Union[str, Path], content: str, mode=0o0664, append=False, log_lvl=logger.DEBUG):

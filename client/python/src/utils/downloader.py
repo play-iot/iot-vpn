@@ -103,9 +103,9 @@ def downloader_opt_factory(output_dir: str):
         @click.option("-p", "--platform", type=click.Choice(Versions.PLATFORMS.keys()), help="Build Platform Arch")
         @click.option("-a", "--arch", type=click.Choice(Versions.ARCHES), default="linux-x64",
                       help="Device Platform Arch")
-        @click.option("-cv", "--vpn-version", type=str, default=Versions.VPN_VERSION, help="VPN Client version")
+        @click.option("-cv", "--vpn-version", type=str, default=Versions.VPN_VERSION, help="VPN core version")
         @click.option("-gv", "--ghrd-version", type=str, default=Versions.GHRD_VERSION, help="GHRD version")
-        @click.option("-o", "--output", type=str, default=output_dir, help="Output for VPN client artifact")
+        @click.option("-o", "--output", type=str, default=output_dir, help="Output for VPN core artifact")
         @click.option("--no-zip", default=False, is_flag=True, help="No zip")
         @click.option("--keep-tmp", default=False, is_flag=True, help="Keep temp compile folder")
         @verbose_opts
