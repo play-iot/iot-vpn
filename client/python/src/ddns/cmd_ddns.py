@@ -99,7 +99,7 @@ class DDNSOpts(VpnDirectory):
 vpn_ddns_opts = vpn_dir_opts_factory(app_dir='/app/vpnbridge', opt_func=DDNSOpts)
 
 
-class VPNHubExecutor(VpnCmdExecutor):
+class VPNDDNSExecutor(VpnCmdExecutor):
 
     def __init__(self, vpn_opts: DDNSOpts, server_opts: ServerOpts, hub_pwd):
         super().__init__(vpn_opts)
@@ -207,7 +207,7 @@ def sync(cloud_type: CloudType, cloud_project: str, cloud_svc: str, dns_zone: st
         dns_provider = GCloudDNSProvider(cloud_project, cloud_svc, zone_name=dns_zone)
     else:
         raise NotImplementedError(f'Not yet supported cloud {cloud_type}')
-    sessions = VPNHubExecutor(vpn_opts, server_opts, hub_password).list_user_sessions()
+    sessions = VPNDDNSExecutor(vpn_opts, server_opts, hub_password).list_user_sessions()
     dns_provider.sync_ip([DNSEntry(s, ttl=dns_ttl) for s in sessions], dns_zone,
                          DNSEntry.device_dns(server_opts.hub, dns_name), f'{server_opts.hub.upper()} devices zone')
 
@@ -228,7 +228,7 @@ def __about(vpn_opts: DDNSOpts, show_license: bool):
 @verbose_opts
 def __query(server_opts: ServerOpts, hub_password: str, vpn_opts: DDNSOpts):
     about.show(vpn_opts, APP_VERSION, HASH_VERSION, True)
-    sessions = VPNHubExecutor(vpn_opts, server_opts, hub_password).list_user_sessions()
+    sessions = VPNDDNSExecutor(vpn_opts, server_opts, hub_password).list_user_sessions()
     print(JsonHelper.to_json([DNSEntry(s, vpn_hub=server_opts.hub) for s in sessions]))
 
 
@@ -240,7 +240,7 @@ def __query(server_opts: ServerOpts, hub_password: str, vpn_opts: DDNSOpts):
 @dev_mode_opts(VpnDirectory.OPT_NAME)
 @verbose_opts
 def __execute(server_opts: ServerOpts, hub_password: str, vpn_opts: DDNSOpts, command):
-    VPNHubExecutor(vpn_opts, server_opts, hub_password).exec_command(command, log_lvl=logger.INFO)
+    VPNDDNSExecutor(vpn_opts, server_opts, hub_password).exec_command(command, log_lvl=logger.INFO)
 
 
 if __name__ == '__main__':

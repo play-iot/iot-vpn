@@ -430,7 +430,7 @@ vpn_client_opts = vpn_dir_opts_factory(app_dir=ClientOpts.VPN_HOME, opt_func=Cli
 @click.group(name="vpnclient", context_settings=CLI_CTX_SETTINGS)
 def cli():
     """
-    CLI tool to install VPN Client and setup VPN connection
+    VPN client CLI that helps to install VPN Client service and setup VPN connection
     """
     pass
 
