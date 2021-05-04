@@ -25,10 +25,6 @@
 
 More detail in `README` in each sub folders.
 
-## VPN Server overview
-
-**More details** in [Server](./src/server/README.md)
-
 ### External connection
 
 Note
