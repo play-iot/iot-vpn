@@ -10,7 +10,7 @@ from src.utils.opts_shared import CLI_CTX_SETTINGS
 
 SOURCE = 'src'
 SOURCE_FOLDER = os.path.join(os.path.dirname(__file__), SOURCE)
-CMD_FOLDERS = {os.path.abspath(os.path.join(SOURCE_FOLDER, k)): k for k in ['client', 'command', 'ddns']}
+CMD_FOLDERS = {os.path.abspath(os.path.join(SOURCE_FOLDER, k)): k for k in ['client', 'command', 'ddns', 'auth']}
 
 
 def to_module(args: list):

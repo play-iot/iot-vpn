@@ -55,8 +55,13 @@ class ServerOpts(object):
             raise click.BadParameter("Missing VPN Host")
         if not hub:
             raise click.BadParameter("Missing VPN Hub")
-        self.server = host + ":" + str(port)
+        self.host = host
         self.hub = hub
+        self.port = port
+
+    @property
+    def server(self):
+        return self.host + ":" + str(self.port)
 
 
 def vpn_server_opts(func):

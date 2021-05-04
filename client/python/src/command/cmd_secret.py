@@ -96,7 +96,7 @@ def gen_ssh(users, output_opts: OutputOpts):
         FileHelper.write_file(output_opts.make_file(user + "_ssh"), private_ssh_key)
         FileHelper.write_file(output_opts.make_file(user + "_ssh.pub"), public_ssh_key)
 
-    JsonHelper.dump(output_opts.to_file(".json"), output)
+    JsonHelper.dump(output_opts.to_fqn_file(".json"), output)
 
 
 @cli.command(name="encrypt")
@@ -131,9 +131,9 @@ def gen_root_cert(output_opts: OutputOpts, cert_attributes: CertAttributes):
     root_private_key = __serialize_private_key(private_key)
     root_cert_key = crt.public_bytes(encoding=crypto_serialization.Encoding.PEM).decode(DEFAULT_ENCODING)
     output = {'private_key': root_private_key, 'cert_key': root_cert_key, 'serial_number': '%x' % crt.serial_number}
-    FileHelper.write_file(output_opts.to_file("key"), root_private_key)
-    FileHelper.write_file(output_opts.to_file("crt"), root_cert_key)
-    JsonHelper.dump(output_opts.to_file("json"), output)
+    FileHelper.write_file(output_opts.to_fqn_file("key"), root_private_key)
+    FileHelper.write_file(output_opts.to_fqn_file("crt"), root_cert_key)
+    JsonHelper.dump(output_opts.to_fqn_file("json"), output)
 
 
 @cli.command(name="gen-intermediate-cert")
@@ -154,7 +154,7 @@ def gen_intermediate_cert(cert_key, private_key, prefix, items, output_opts: Out
     outputs = {}
     ca_crt, ca_pkey = __load_key(cert_key, private_key)
     for item in items:
-        outputs[item] = __gen_cert(item, f'{prefix}.{item}', cert_attributes, ca_crt, ca_pkey)
+        outputs[item] = __gen_cert(f'{prefix}.{item}', cert_attributes, ca_crt, ca_pkey)
         FileHelper.write_file(output_opts.make_file(f"{item}.key"), outputs[item]['private_key'])
         FileHelper.write_file(output_opts.make_file(f"{item}.crt"), outputs[item]['cert_key'])
     JsonHelper.dump(output_opts.make_file(f"signed-intermediate-{output_opts.file}.json"), outputs)
@@ -194,7 +194,7 @@ def gen_signed_cert(cert_key, private_key, intermediate_code: str, fn: str, item
     outputs = {}
     ca_crt, ca_pkey = __load_key(cert_key, private_key)
     for item in items:
-        outputs[item] = __gen_cert(item, f'{item}.{fn}.{intermediate_code}', cert_attributes, ca_crt, ca_pkey)
+        outputs[item] = __gen_cert(f'{item}.{fn}.{intermediate_code}', cert_attributes, ca_crt, ca_pkey)
         if dump_to_file:
             FileHelper.write_file(output_opts.make_file(f"{item}.key"), outputs[item]['private_key'])
             FileHelper.write_file(output_opts.make_file(f"{item}.crt"), outputs[item]['cert_key'])
@@ -209,7 +209,7 @@ def __load_key(cert_key, private_key):
     return ca_crt, ca_pkey
 
 
-def __gen_cert(item: str, subject_name: str, cert_attributes: CertAttributes, ca_crt: Certificate, ca_pkey):
+def __gen_cert(subject_name: str, cert_attributes: CertAttributes, ca_crt: Certificate, ca_pkey):
     now = datetime.datetime.utcnow()
     crypto_backend = crypto_default_backend()
     algorithm = hashes.SHA256()
@@ -230,10 +230,10 @@ def __gen_cert(item: str, subject_name: str, cert_attributes: CertAttributes, ca
                        critical=False) \
         .sign(private_key=ca_pkey, algorithm=hashes.SHA256(), backend=crypto_backend)
     return {
-        'item': item,
+        'fqdn': subject_name,
         'private_key': __serialize_private_key(user_key),
         'cert_key': crt.public_bytes(encoding=crypto_serialization.Encoding.PEM).decode(DEFAULT_ENCODING),
-        'serial_number_hex': '%x' % crt.serial_number
+        'serial_number': '%x' % crt.serial_number
     }
 
 
