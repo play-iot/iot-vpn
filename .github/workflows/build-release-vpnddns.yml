@@ -6,11 +6,11 @@ on:
     branches: [ main, master ]
     paths:
       - '.github/workflows/build-release-vpnddns.yml'
-      - 'client/python/index.py'
-      - 'client/python/src/ddns/**'
-      - 'client/python/src/executor/**'
-      - 'client/python/src/utils/**'
-      - '!client/python/*.md'
+      - 'cli/python/index.py'
+      - 'cli/python/src/ddns/**'
+      - 'cli/python/src/executor/**'
+      - 'cli/python/src/utils/**'
+      - '!cli/python/*.md'
       - 'docker/dockerfile/vpnddns.Dockerfile'
       - 'CHANGELOG-VPNDDNS.md'
   push:
@@ -19,21 +19,21 @@ on:
       - 'vpnddns/v*'
     paths:
       - '.github/workflows/build-release-vpnddns.yml'
-      - 'client/python/index.py'
-      - 'client/python/src/ddns/**'
-      - 'client/python/src/executor/**'
-      - 'client/python/src/utils/**'
-      - '!client/python/*.md'
+      - 'cli/python/index.py'
+      - 'cli/python/src/ddns/**'
+      - 'cli/python/src/executor/**'
+      - 'cli/python/src/utils/**'
+      - '!cli/python/*.md'
       - 'docker/dockerfile/vpnddns.Dockerfile'
 
 env:
   APP_CODE: vpnddns
   APP_IMAGE: qweio-vpnddns
-  APP_FOLDER: client/python/src/ddns
+  APP_FOLDER: cli/python/src/ddns
   PYTHON_VERSION: 3.8.8-slim-buster
   PLATFORMS: linux/amd64
-  DOCKER_FILE: client/python/docker/vpnddns.Dockerfile
-  DOCKER_FOLDER: ./client/python
+  DOCKER_WORKDIR: cli/python
+  DOCKER_FILE: cli/python/docker/vpnddns.Dockerfile
   DOCKER_USERNAME: zero88
   DOCKER_IMAGE: zero88/qweio-vpnddns
   GHCR_IMAGE: ghcr.io/qweio/vpnddns
@@ -152,7 +152,7 @@ jobs:
       - name: Docker build
         uses: docker/build-push-action@v2
         with:
-          context: ${{ env.DOCKER_FOLDER }}
+          context: ${{ env.DOCKER_WORKDIR }}
           file: ${{ env.DOCKER_FILE }}
           platforms: ${{ env.PLATFORMS }}
           build-args: |

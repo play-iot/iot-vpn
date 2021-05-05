@@ -6,12 +6,12 @@ on:
     branches: [ main, master ]
     paths:
       - '.github/workflows/build-release-vpnc.yml'
-      - 'client/python/docker/vpnc.Dockerfile'
-      - 'client/python/index.py'
-      - 'client/python/src/client/**'
-      - 'client/python/src/executor/**'
-      - 'client/python/src/utils/**'
-      - '!client/python/*.md'
+      - 'cli/python/docker/vpnc.Dockerfile'
+      - 'cli/python/index.py'
+      - 'cli/python/src/client/**'
+      - 'cli/python/src/executor/**'
+      - 'cli/python/src/utils/**'
+      - '!cli/python/*.md'
       - 'CHANGELOG-VPNC.md'
   push:
     branches: [ main, master ]
@@ -19,21 +19,21 @@ on:
       - 'vpnc/v*'
     paths:
       - '.github/workflows/build-release-vpnc.yml'
-      - 'client/python/docker/vpnc.Dockerfile'
-      - 'client/python/index.py'
-      - 'client/python/src/client/**'
-      - 'client/python/src/executor/**'
-      - 'client/python/src/utils/**'
-      - '!client/python/*.md'
+      - 'cli/python/docker/vpnc.Dockerfile'
+      - 'cli/python/index.py'
+      - 'cli/python/src/client/**'
+      - 'cli/python/src/executor/**'
+      - 'cli/python/src/utils/**'
+      - '!cli/python/*.md'
 
 env:
   APP_CODE: vpnc
   APP_IMAGE: qweio-vpnc
-  APP_FOLDER: client/python/src/client
+  APP_FOLDER: cli/python/src/client
   PYTHON_VERSION: 3.7.10-slim-stretch
   PLATFORMS: linux/amd64,linux/arm/v7
-  DOCKER_FILE: client/python/docker/vpnc.Dockerfile
-  DOCKER_FOLDER: ./client/python
+  DOCKER_WORKDIR: cli/python
+  DOCKER_FILE: cli/python/docker/vpnc.Dockerfile
   TAG_PREFIX: vpnc/v
   BRAND_VERION: v1
   BRAND_REPO: qweio/brand
@@ -139,7 +139,7 @@ jobs:
       - name: Build artifact by docker
         uses: docker/build-push-action@v2
         with:
-          context: ${{ env.DOCKER_FOLDER }}
+          context: ${{ env.DOCKER_WORKDIR }}
           file: ${{ env.DOCKER_FILE }}
           platforms: ${{ env.PLATFORMS }}
           build-args: |

@@ -8,7 +8,7 @@ sha=$(git rev-parse --short HEAD)
 tag="dev"
 name="vpn$mode"
 image="$BRAND-$name"
-docker_workdir="$(pwd)/client/python"
+docker_workdir="$(pwd)/cli/python"
 dockerfile="$docker_workdir/docker/$name.Dockerfile"
 platform="linux/arm/v7,linux/amd64"
 

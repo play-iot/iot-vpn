@@ -4,7 +4,7 @@ DOWNLOAD=${1:-false}
 cur="$PWD"
 
 pipenv install
-cd client/python
+cd cli/python
 if [[ "$DOWNLOAD" == "true" ]]; then
     V=$(python -c "from src.utils.constants import Versions; print (Versions.VPN_VERSION)") \
         && pipenv run python -m src.client.cmd_client download -cv "$V"
