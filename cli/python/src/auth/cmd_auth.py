@@ -104,7 +104,7 @@ def __import(server_opts: ServerOpts, hub_password: str, vpn_opts: ToolOpts, gro
             'vpn_cert_key': v['cert_key'],
             'vpn_private_key': v['private_key'],
         }
-        FileHelper.write_file(command_file, '\n'.join(commands), append=True)
+        FileHelper.write_file(command_file, '\n'.join(commands) + '\n', append=True)
     executor.exec_command(f'/IN:{command_file}', log_lvl=logger.INFO)
     logger.sep(logger.INFO)
     out = output_opts.make_file(f'{server_opts.hub}-{output_opts.to_file("json")}')
