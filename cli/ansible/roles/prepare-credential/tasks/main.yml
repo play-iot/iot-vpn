@@ -4,7 +4,7 @@
 - name: Load credentials
   delegate_to: 127.0.0.1
   include_vars:
-    file: files/credentials.json
+    file: "files/{{ args_prepare_credential_certs_file }}"
     name: runtime_vpn_credentials
 
 - name: Lookup credential by host

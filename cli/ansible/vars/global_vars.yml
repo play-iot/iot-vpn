@@ -7,5 +7,5 @@ vpnc_cli: "{{ vpn_corp }}-vpnc"
 vpnc_artifact: qweio-vpnc
 args_app_dir: /app
 args_vpnc_dir: "{{ args_app_dir }}/vpnclient"
-unix_bin_dir: /usr/local/bin
-unix_service_dir: /etc/systemd/system
+args_unix_bin_dir: /usr/local/bin
+args_unix_service_dir: /etc/systemd/system
