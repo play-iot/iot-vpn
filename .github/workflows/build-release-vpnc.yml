@@ -6,12 +6,12 @@ on:
     branches: [ main, master ]
     paths:
       - '.github/workflows/build-release-vpnc.yml'
+      - 'client/python/docker/vpnc.Dockerfile'
       - 'client/python/index.py'
       - 'client/python/src/client/**'
       - 'client/python/src/executor/**'
       - 'client/python/src/utils/**'
       - '!client/python/*.md'
-      - 'docker/dockerfile/vpnc.Dockerfile'
       - 'CHANGELOG-VPNC.md'
   push:
     branches: [ main, master ]
@@ -19,12 +19,12 @@ on:
       - 'vpnc/v*'
     paths:
       - '.github/workflows/build-release-vpnc.yml'
+      - 'client/python/docker/vpnc.Dockerfile'
       - 'client/python/index.py'
       - 'client/python/src/client/**'
       - 'client/python/src/executor/**'
       - 'client/python/src/utils/**'
       - '!client/python/*.md'
-      - 'docker/dockerfile/vpnc.Dockerfile'
 
 env:
   APP_CODE: vpnc
@@ -32,7 +32,7 @@ env:
   APP_FOLDER: client/python/src/client
   PYTHON_VERSION: 3.7.10-slim-stretch
   PLATFORMS: linux/amd64,linux/arm/v7
-  DOCKER_FILE: docker/dockerfile/vpnc.Dockerfile
+  DOCKER_FILE: client/python/docker/vpnc.Dockerfile
   DOCKER_FOLDER: ./client/python
   TAG_PREFIX: vpnc/v
   BRAND_VERION: v1

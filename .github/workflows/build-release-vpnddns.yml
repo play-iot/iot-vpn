@@ -32,7 +32,7 @@ env:
   APP_FOLDER: client/python/src/ddns
   PYTHON_VERSION: 3.8.8-slim-buster
   PLATFORMS: linux/amd64
-  DOCKER_FILE: docker/dockerfile/vpnddns.Dockerfile
+  DOCKER_FILE: client/python/docker/vpnddns.Dockerfile
   DOCKER_FOLDER: ./client/python
   DOCKER_USERNAME: zero88
   DOCKER_IMAGE: zero88/qweio-vpnddns
