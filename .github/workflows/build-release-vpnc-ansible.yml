@@ -12,7 +12,7 @@ on:
       - 'cli/ansible/src/executor/**'
       - 'cli/ansible/src/utils/**'
       - '!cli/ansible/*.md'
-      - 'CHANGELOG-VPNC.md'
+      - 'CHANGELOG-VPNC-DEPLOYER.md'
   push:
     branches: [ main, master ]
     tags:
