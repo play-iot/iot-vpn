@@ -10,6 +10,7 @@ docker_workdir="$(pwd)/cli/ansible"
 dockerfile="$docker_workdir/docker/$name.Dockerfile"
 
 DOCKER_BUILDKIT=1 docker build \
+    --build-arg "BASE_IMAGE_VERSION=$ANSIBLE_2_9" \
     --build-arg "MAINTAINER=$APP_MAINTAINER" \
     --build-arg "APP_VERSION=$APP_VERSION" \
     --build-arg "COMMIT_SHA=$sha" \

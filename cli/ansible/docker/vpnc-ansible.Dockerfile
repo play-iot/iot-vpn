@@ -1,4 +1,5 @@
-FROM cytopia/ansible:2.9
+ARG BASE_IMAGE_VERSION=2.9
+FROM cytopia/ansible:$BASE_IMAGE_VERSION
 
 ARG BRAND=""
 ARG MAINTAINER="zero88 <sontt246@gmail.com>"

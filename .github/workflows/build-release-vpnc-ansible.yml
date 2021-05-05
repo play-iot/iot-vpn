@@ -30,9 +30,13 @@ env:
   APP_CODE: vpnc-deployer
   APP_IMAGE: qweio-vpnc-deployer
   APP_FOLDER: cli/ansible
-  PLATFORMS: linux/amd64,linux/arm/v7
+  PLATFORMS: linux/amd64
+  ANSIBLE_VERSION: 2.9
   DOCKER_WORKDIR: cli/ansible
   DOCKER_FILE: cli/ansible/docker/vpnc-ansible.Dockerfile
+  DOCKER_USERNAME: zero88
+  DOCKER_IMAGE: zero88/qweio-vpnc-deployer
+  GHCR_IMAGE: ghcr.io/qweio/vpnc-deployer
   TAG_PREFIX: vpnc-deployer/v
   BRAND_VERION: v1
   BRAND_REPO: qweio/brand
@@ -146,7 +150,7 @@ jobs:
           file: ${{ env.DOCKER_FILE }}
           platforms: ${{ env.PLATFORMS }}
           build-args: |
-            BASE_IMAGE_VERSION=${{ env.PYTHON_VERSION }}
+            BASE_IMAGE_VERSION=${{ env.ANSIBLE_VERSION }}
             APP_VERSION=${{ needs.context.outputs.version }}
             COMMIT_SHA=${{ needs.context.outputs.sha }}
           cache-from: type=registry,ref=localhost:5000/${{ env.APP_IMAGE }}:buildcache
