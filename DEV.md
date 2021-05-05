@@ -87,7 +87,7 @@ docker run -v docker-registry-data:/var/lib/registry -p 5000:5000 --privileged -
 
 #### Build
 
-[vpnclient.Dockerfile](./docker/dockerfile/vpnclient.Dockerfile)
+[vpnclient.Dockerfile](docker/dockerfile/vpnc.Dockerfile)
 
 ```bash
 # build amd64 arch
