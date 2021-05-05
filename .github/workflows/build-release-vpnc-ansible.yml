@@ -6,11 +6,7 @@ on:
     branches: [ main, master ]
     paths:
       - '.github/workflows/build-release-vpnc-ansible.yml'
-      - 'cli/ansible/docker/vpnc-ansible.Dockerfile'
-      - 'cli/ansible/index.py'
-      - 'cli/ansible/src/client/**'
-      - 'cli/ansible/src/executor/**'
-      - 'cli/ansible/src/utils/**'
+      - 'cli/ansible/**'
       - '!cli/ansible/*.md'
       - 'CHANGELOG-VPNC-DEPLOYER.md'
   push:
@@ -19,12 +15,9 @@ on:
       - 'vpnc-deployer/v*'
     paths:
       - '.github/workflows/build-release-vpnc-ansible.yml'
-      - 'cli/ansible/docker/vpnc-ansible.Dockerfile'
-      - 'cli/ansible/index.py'
-      - 'cli/ansible/src/client/**'
-      - 'cli/ansible/src/executor/**'
-      - 'cli/ansible/src/utils/**'
+      - 'cli/ansible/**'
       - '!cli/ansible/*.md'
+      - 'CHANGELOG-VPNC-DEPLOYER.md'
 
 env:
   APP_CODE: vpnc-deployer
