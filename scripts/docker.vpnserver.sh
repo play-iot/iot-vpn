@@ -27,11 +27,11 @@ tag="softethervpn:$IMAGE-$EDITION-$VERSION"
 if [[ $COMMAND == "build" ]]; then
     docker build -f "$dockerfile" --build-arg VPN_VERSION="$VERSION" -t "$tag" ./docker
 elif [[ $COMMAND == "up" ]]; then
-    cat <<EOT >docker/dev.env
+    cat <<EOT >docker/dev-vpnserver.env
 IMAGE=$IMAGE
 EDITION=$EDITION
 VERSION=$VERSION
 EOT
 
-    docker-compose -f docker/vpn-dkc.yml --env-file dev.env up
+    docker-compose -f docker/vpnserver-dkc.yml --env-file docker/dev-vpnserver.env up
 fi

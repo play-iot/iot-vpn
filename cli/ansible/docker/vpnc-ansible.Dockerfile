@@ -1,6 +1,8 @@
 ARG BASE_IMAGE_VERSION=2.9
 FROM cytopia/ansible:$BASE_IMAGE_VERSION
 
+RUN pip3 install --no-cache-dir jmespath
+
 ARG BRAND=""
 ARG MAINTAINER="zero88 <sontt246@gmail.com>"
 ARG APP_VERSION="1.0.0"

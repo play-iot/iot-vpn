@@ -33,7 +33,8 @@ hs_err_pid*
 
 .idea
 
-docker/dev.env
+docker/*.env
+!docker/.env
 
 vagrant/**/.vagrant
 vagrant/shared/**

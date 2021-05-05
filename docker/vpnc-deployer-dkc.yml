@@ -1,0 +1,16 @@
+version: "2.4"
+
+services:
+  vpnc-deployer:
+    image: qweio-vpnc-ansible:dev
+    volumes:
+      - ../cli/ansible/files:/app/files
+      - ../cli/ansible/inventory:/app/inventory
+      - /tmp:/app/out
+    environment:
+      - ANSIBLE_STRATEGY_PLUGINS=/usr/lib/python3.8/site-packages/ansible_mitogen/plugins/strategy
+      - ANSIBLE_STRATEGY=mitogen_linear
+    command: >
+      ansible-playbook "wf-vpnc-$WORKFLOW.yml" -l vagrant
+          -e args_prepare_credential_certs_file=credentials.json
+          -e '{"args_vpn_state_test_domains": ["google.com"]}'

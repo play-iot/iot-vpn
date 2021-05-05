@@ -1,3 +1,3 @@
 - name: Ansible for bulk deploy VPNC
-  version: 0.1.1
+  version: 0.1.2
   hash_ver: dev

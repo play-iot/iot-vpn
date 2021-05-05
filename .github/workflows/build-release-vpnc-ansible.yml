@@ -24,7 +24,7 @@ env:
   APP_IMAGE: qweio-vpnc-deployer
   APP_FOLDER: cli/ansible
   PLATFORMS: linux/amd64
-  ANSIBLE_VERSION: 2.9
+  ANSIBLE_VERSION: 2.9-tools
   DOCKER_WORKDIR: cli/ansible
   DOCKER_FILE: cli/ansible/docker/vpnc-ansible.Dockerfile
   DOCKER_USERNAME: zero88
