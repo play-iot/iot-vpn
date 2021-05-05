@@ -1,0 +1,5 @@
+docker/**
+files/**
+!files/.gitkeep
+inventory/**
+!inventory/.gitkeep

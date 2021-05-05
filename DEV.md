@@ -87,19 +87,19 @@ docker run -v docker-registry-data:/var/lib/registry -p 5000:5000 --privileged -
 
 #### Build
 
-[vpnclient.Dockerfile](./docker/dockerfile/vpnclient.Dockerfile)
+[vpnclient.Dockerfile](cli/python/docker/vpnc.Dockerfile)
 
 ```bash
 # build amd64 arch
-./scripts/docker.vpntool.sh client
+./scripts/docker.vpntool.sh c
 
 # build multiple arch (amd64/armv7)
-./scripts/docker.vpntool.sh client true
+./scripts/docker.vpntool.sh c true
 ```
 
 ## VPN DDNS
 
-[vpnddns.Dockerfile](./docker/dockerfile/vpnddns.Dockerfile)
+[vpnddns.Dockerfile](cli/python/docker/vpnddns.Dockerfile)
 
 ```bash
 ./scripts/docker.vpntool.sh ddns
