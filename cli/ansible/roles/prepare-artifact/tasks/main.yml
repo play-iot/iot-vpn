@@ -32,7 +32,7 @@
   - name: Create executable symlink for VPNC CLI
     ansible.builtin.file:
       src: "{{ args_app_dir }}/{{ vpnc_cli }}"
-      dest: "{{ args_args_unix_bin_dir }}/{{ vpnc_cli }}"
+      dest: "{{ args_unix_bin_dir }}/{{ vpnc_cli }}"
       owner: root
       group: root
       state: link
