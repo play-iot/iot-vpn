@@ -130,7 +130,7 @@ def gen_root_cert(output_opts: OutputOpts, cert_attributes: CertAttributes):
         .sign(private_key, algorithm, crypto_backend)
     root_private_key = __serialize_private_key(private_key)
     root_cert_key = crt.public_bytes(encoding=crypto_serialization.Encoding.PEM).decode(DEFAULT_ENCODING)
-    output = {'private_key': root_private_key, 'cert_key': root_cert_key, 'serial_number': '%x' % crt.serial_number}
+    output = {'private_key': root_private_key, 'cert_key': root_cert_key, 'serial_number': f'{crt.serial_number:0>40X}'}
     FileHelper.write_file(output_opts.to_fqn_file("key"), root_private_key)
     FileHelper.write_file(output_opts.to_fqn_file("crt"), root_cert_key)
     JsonHelper.dump(output_opts.to_fqn_file("json"), output)
@@ -233,7 +233,7 @@ def __gen_cert(subject_name: str, cert_attributes: CertAttributes, ca_crt: Certi
         'fqdn': subject_name,
         'private_key': __serialize_private_key(user_key),
         'cert_key': crt.public_bytes(encoding=crypto_serialization.Encoding.PEM).decode(DEFAULT_ENCODING),
-        'serial_number': '%x' % crt.serial_number
+        'serial_number': f'{crt.serial_number:0>40X}'
     }
 
 
