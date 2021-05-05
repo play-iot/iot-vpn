@@ -79,7 +79,7 @@ jobs:
           releaseBranchPrefix: release/${{ env.APP_CODE }}/
           mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/${{ env.APP_CODE }}/.+$"
           patterns: |
-            ${{ env.APP_FOLDER }}/version.yml::(version\s:\s)([^']+)::2
+            ${{ env.APP_FOLDER }}/version.yml::(version:\s)(.+)::1
 
   build:
     runs-on: ubuntu-latest
