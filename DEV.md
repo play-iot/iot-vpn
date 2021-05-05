@@ -91,10 +91,10 @@ docker run -v docker-registry-data:/var/lib/registry -p 5000:5000 --privileged -
 
 ```bash
 # build amd64 arch
-./scripts/docker.vpntool.sh client
+./scripts/docker.vpntool.sh c
 
 # build multiple arch (amd64/armv7)
-./scripts/docker.vpntool.sh client true
+./scripts/docker.vpntool.sh c true
 ```
 
 ## VPN DDNS

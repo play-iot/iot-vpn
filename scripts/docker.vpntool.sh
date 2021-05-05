@@ -2,7 +2,7 @@
 
 source ./docker/.env
 
-mode="${1:-client}"
+mode="${1:-c}"
 arch="${2:-false}"
 sha=$(git rev-parse --short HEAD)
 tag="dev"
@@ -41,7 +41,7 @@ function normal() {
     "$docker_workdir" || { echo "Build $tag failure"; exit 2; }
 }
 
-PYTHON_VERSION=$([[ "$mode" == "client" ]] && echo "$PYTHON_3_7" || echo "$PYTHON_3_8")
+PYTHON_VERSION=$([[ "$mode" == "c" ]] && echo "$PYTHON_3_7" || echo "$PYTHON_3_8")
 
 if [[ "$arch" == "true" ]]; then
     multiarch "$PYTHON_VERSION"

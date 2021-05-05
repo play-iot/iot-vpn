@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source ./docker/.env
+
 COMMAND="${1:-build}"
 IMAGE="${2:-slim}"
 EDITION="${3:-rtm}"

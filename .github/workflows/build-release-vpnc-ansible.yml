@@ -1,43 +1,39 @@
-name: build-vpnddns
+name: build-vpnclient-ansible
 
 on:
   pull_request:
     types: [ opened, synchronize, reopened, closed ]
     branches: [ main, master ]
     paths:
-      - '.github/workflows/build-release-vpnddns.yml'
-      - 'cli/python/index.py'
-      - 'cli/python/src/ddns/**'
-      - 'cli/python/src/executor/**'
-      - 'cli/python/src/utils/**'
-      - '!cli/python/*.md'
-      - 'docker/dockerfile/vpnddns.Dockerfile'
-      - 'CHANGELOG-VPNDDNS.md'
+      - '.github/workflows/build-release-vpnc-ansible.yml'
+      - 'cli/ansible/docker/vpnc-ansible.Dockerfile'
+      - 'cli/ansible/index.py'
+      - 'cli/ansible/src/client/**'
+      - 'cli/ansible/src/executor/**'
+      - 'cli/ansible/src/utils/**'
+      - '!cli/ansible/*.md'
+      - 'CHANGELOG-VPNC.md'
   push:
     branches: [ main, master ]
     tags:
-      - 'vpnddns/v*'
+      - 'vpnc-deployer/v*'
     paths:
-      - '.github/workflows/build-release-vpnddns.yml'
-      - 'cli/python/index.py'
-      - 'cli/python/src/ddns/**'
-      - 'cli/python/src/executor/**'
-      - 'cli/python/src/utils/**'
-      - '!cli/python/*.md'
-      - 'docker/dockerfile/vpnddns.Dockerfile'
+      - '.github/workflows/build-release-vpnc-ansible.yml'
+      - 'cli/ansible/docker/vpnc-ansible.Dockerfile'
+      - 'cli/ansible/index.py'
+      - 'cli/ansible/src/client/**'
+      - 'cli/ansible/src/executor/**'
+      - 'cli/ansible/src/utils/**'
+      - '!cli/ansible/*.md'
 
 env:
-  APP_CODE: vpnddns
-  APP_IMAGE: qweio-vpnddns
-  APP_FOLDER: cli/python/src/ddns
-  PYTHON_VERSION: 3.8.8-slim-buster
-  PLATFORMS: linux/amd64
-  DOCKER_WORKDIR: cli/python
-  DOCKER_FILE: cli/python/docker/vpnddns.Dockerfile
-  DOCKER_USERNAME: zero88
-  DOCKER_IMAGE: zero88/qweio-vpnddns
-  GHCR_IMAGE: ghcr.io/qweio/vpnddns
-  TAG_PREFIX: vpnddns/v
+  APP_CODE: vpnc-deployer
+  APP_IMAGE: qweio-vpnc-deployer
+  APP_FOLDER: cli/ansible
+  PLATFORMS: linux/amd64,linux/arm/v7
+  DOCKER_WORKDIR: cli/ansible
+  DOCKER_FILE: cli/ansible/docker/vpnc-ansible.Dockerfile
+  TAG_PREFIX: vpnc-deployer/v
   BRAND_VERION: v1
   BRAND_REPO: qweio/brand
 
@@ -79,7 +75,7 @@ jobs:
           releaseBranchPrefix: release/${{ env.APP_CODE }}/
           mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/${{ env.APP_CODE }}/.+$"
           patterns: |
-            ${{ env.APP_FOLDER }}/version.py::(APP_VERSION\s?=\s?)(')([^']+)(')::2
+            ${{ env.APP_FOLDER }}/version.yml::(version\s:\s)([^']+)::2
 
   build:
     runs-on: ubuntu-latest
@@ -100,13 +96,7 @@ jobs:
         run: |
           hash_ver="${{ needs.context.outputs.sha }}"
           [[ ${{ needs.context.outputs.isRelease }} == 'true' ]] || hash_ver="$hash_ver-${{ needs.context.outputs.branch }}"
-          sed -i "s/dev/${hash_ver//\//-}/" ${{ env.APP_FOLDER }}/version.py
-
-      - name: Inject brand and license
-        run: |
-          docker run --rm -v /tmp:/tmp zero88/ghrd:latest -a "banner.txt" -r ${{ env.BRAND_VERION }} -o /tmp ${{ env.BRAND_REPO }}
-          mv /tmp/banner.txt ${{ env.APP_FOLDER }}/resources
-          cp LICENSE_BUNDLE.md ${{ env.APP_FOLDER }}/resources
+          sed -i "s/dev/${hash_ver//\//-}/" ${{ env.APP_FOLDER }}/version.yml
 
       - name: Cache Docker layers
         uses: actions/cache@v2
@@ -179,6 +169,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.TAG_PREFIX }}${{ needs.context.outputs.version }}
-          name: Release VPN DDNS v${{ needs.context.outputs.version }}
+          name: Release VPNC deployer v${{ needs.context.outputs.version }}
           draft: false
           prerelease: false
