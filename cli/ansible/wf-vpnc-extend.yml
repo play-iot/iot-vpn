@@ -27,7 +27,7 @@
       vars:
         runtime_vpn_conn: "{{ resp_prepare_credential }}"
 
-    - name: Verify VPNC state
+    - name: Validate VPNC state
       include_role:
         name: vpnc-state
       vars:
