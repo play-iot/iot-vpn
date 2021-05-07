@@ -62,7 +62,7 @@ Commands:
 # Download and compile VPN client binary. Default is `linux-x64`
 python -m src.client.cmd_client download
 # Build to CLI binary
-pyinstaller src/client/cmd_client.py -n qweio-vpnc --clean --onefile --add-data src/client/resources/*:resources/
+pyinstaller src/client/cmd_client.py -n playio-vpnc --clean --onefile --add-data src/client/resources/*:resources/
 ```
 
 ## Develop VPN tool
@@ -93,7 +93,7 @@ Commands:
 
 ```bash
 # After pipenv shell
-pyinstaller src/client/cmd_client.py -n qweio-vpnc --clean --onefile \
+pyinstaller src/client/cmd_client.py -n playio-vpnc --clean --onefile \
     --add-data src/client/resources/*:resources/
 ```
 
@@ -119,14 +119,14 @@ Commands:
 
 ```bash
 # After pipenv shell
-pyinstaller src/command/cmd_mac.py -n qweio-mac --clean --onefile
+pyinstaller src/command/cmd_mac.py -n playio-mac --clean --onefile
 ```
 
 ### MAC Usage
 
 ```bash
-qweio-mac generate -h
-Usage: qweio-mac generate [OPTIONS] [OUTPUT]
+playio-mac generate -h
+Usage: playio-mac generate [OPTIONS] [OUTPUT]
 
   Generate MAC
 
@@ -151,19 +151,19 @@ Options:
 
 ```bash
 # Print to console
-> qweio-mac generate --rand -n 10
+> playio-mac generate --rand -n 10
 
 # Write to file
-> qweio-mac generate --rand -n 10 qweio.mac
+> playio-mac generate --rand -n 10 playio.mac
 
 # Overwrite file
-> qweio-mac generate --rand -n 5 -o qweio.mac
+> playio-mac generate --rand -n 5 -o playio.mac
 
 # Generate random MAC with organization unique identifier
-> qweio-mac generate --rand -n 10000 --oui 00:0E:C6 qweio.mac
+> playio-mac generate --rand -n 10000 --oui 00:0E:C6 playio.mac
 
 # Validate MAC collision
-> qweio-mac validate qweio.mac 
+> playio-mac validate playio.mac 
 Duplicated key: 02:0e:c6:91:14:42 in lines [1229, 2793]
 Duplicated key: 02:0e:c6:82:19:5c in lines [2073, 5991]
 Duplicated key: 02:0e:c6:d2:fa:20 in lines [3285, 4060]
@@ -175,7 +175,7 @@ Duplicated 4 keys
 
 ```bash
 # Write based on ASIX
-> qweio-mac generate --asix1 -n 5
+> playio-mac generate --asix1 -n 5
 f8:e4:3b:00:00:00
 f8:e4:3b:00:00:01
 f8:e4:3b:00:00:02
@@ -183,13 +183,13 @@ f8:e4:3b:00:00:03
 f8:e4:3b:00:00:04
 
 # Write to file then keep it for generate MAC sequently
-> qweio-mac generate --asix1 -n 5 qweio.mac
+> playio-mac generate --asix1 -n 5 playio.mac
 ## Check last MAC
-> qweio-mac last qweio.mac
+> playio-mac last playio.mac
 f8:e4:3b:00:00:04
 ## Generate next 5 from last sequence
-> qweio-mac generate --asix1 -n 5 --seq $(qweio-mac last qweio.mac) qweio.mac
-> cat qweio.mac
+> playio-mac generate --asix1 -n 5 --seq $(playio-mac last playio.mac) playio.mac
+> cat playio.mac
 f8:e4:3b:00:00:00
 f8:e4:3b:00:00:01
 f8:e4:3b:00:00:02
@@ -205,8 +205,8 @@ f8:e4:3b:00:00:09
 - Copy `MAC` from current NIC with override option from `OUI` 
 
 ```bash
-> qweio-mac copy -h
-Usage: qweio-mac mac copy [OPTIONS] [NIC]
+> playio-mac copy -h
+Usage: playio-mac mac copy [OPTIONS] [NIC]
   Copy MAC with override OUI
 
 Options:
@@ -218,10 +218,10 @@ Options:
   -h, --help       Show this message and exit.
 
 ## Default NIC is `eth0`
-> qweio-mac copy --asix1
+> playio-mac copy --asix1
 f8:e4:3b:86:71:1c
 
-> qweio-mac copy --asix2 wlp4s0
+> playio-mac copy --asix2 wlp4s0
 00:0e:c6:86:71:1c
 ```
 
@@ -231,4 +231,4 @@ f8:e4:3b:86:71:1c
 
 - Have 2 `asix` so we have 2 options `--asix1` and `--asix2`
 - Because generate with `organization unique identifier` and `random` mode still having collision so should
-  use `MAC sequence` and keep `qweio.mac` in repository to reference later
+  use `MAC sequence` and keep `playio.mac` in repository to reference later

@@ -51,7 +51,7 @@ docker run -dit \
 -e VPN_SYNC_HUB_PASSWORD=<hub-admin-password> \
 -e CUSTOMER_ZONE=<cloud-dns-zone-name> \
 --name vpn \
-qweio-vpndns:dev
+playio-vpndns:dev
 ```
 
 ### Amazon Router 53

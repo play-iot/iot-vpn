@@ -1,4 +1,4 @@
-# QWEiO VPN overview
+# PlayiO VPN overview
 
 ## Index script
 
@@ -102,9 +102,9 @@ An automated setup and configuration for `IoT` devices using client scripts.
 Standard configuration:
 
 - Installation path: `/app/vpnclient`
-- Virtual network interface: `vpn_qweio`
-- SoftEther VPN client account name: `qweio`
-- Linux services auto start on system boot up: `qweiovpn`
+- Virtual network interface: `vpn_playio`
+- SoftEther VPN client account name: `playio`
+- Linux services auto start on system boot up: `playio-vpn`
 - VPN username: (follow naming convention)
 - Authentication: `client certificate` (signed certificate and corresponding private key)
 - Server certificate verification(`WIP`)

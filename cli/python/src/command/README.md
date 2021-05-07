@@ -26,7 +26,7 @@ Commands:
 
 ## **gen-ssh** command
 
-This command generates ssh key pairs which is then imported to `qweio` device in order to perform passwordless ssh login inside VPN network.
+This command generates ssh key pairs which is then imported to `playio` device in order to perform passwordless ssh login inside VPN network.
 ```
 $ python index.py secret gen-ssh -h
 Usage: index.py secret gen-ssh [OPTIONS]
@@ -104,7 +104,7 @@ To generate and sign new Intermediate CA from existing root CA:
 ```
 python index.py secret gen-signed-cert --intermediate -ii <customer01-code> -ii <customer02-code> -cck output/root-certs.crt -cpk output/root-certs.key
 ```
-To generate and sign new Certificate for `qweio` device:
+To generate and sign new Certificate for `playio` device:
 ```
 python index.py secret gen-signed-cert -ic <customer01> -cck output/<customer01-intermediate-cert>.crt -cpk output/<customer01-intermediate-privatep-key>.key -ii <device-name>
 ```

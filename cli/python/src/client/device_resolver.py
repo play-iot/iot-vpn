@@ -700,7 +700,7 @@ class Systemd(UnixService):
     Systemd service
     """
 
-    SERVICE_FILE_TMPL = 'qweio-vpn.service.tmpl'
+    SERVICE_FILE_TMPL = 'playio-vpn.service.tmpl'
 
     @staticmethod
     def factory(resource_dir: Union[str, Path], runtime_dir: Union[str, Path]) -> 'UnixService':

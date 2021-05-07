@@ -16,11 +16,11 @@ from src.utils.opts_shared import CLI_CTX_SETTINGS, OutputOpts, out_dir_opts_fac
 
 # FIXME: Need to study algorithm and cryptography type
 
-ORGANIZATION = "QWEiO"
+ORGANIZATION = "PlayiO"
 COUNTRY = "VN"
 STATE = ""
 CITY = "Hanoi"
-COMMON_NAME = "qweio.app"
+COMMON_NAME = "playio.cloud"
 
 
 class CertAttributes(object):

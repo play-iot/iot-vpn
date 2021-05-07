@@ -4,12 +4,12 @@ This is collection of script to set up softether-vpn client.
 
 It supports multiple VPN accounts backed by different `unix` services.
 
-After run this script, it is able to manage by `unix` services. For example, `VPN account` is `qweiovpn`
+After run this script, it is able to manage by `unix` services. For example, `VPN account` is `playiovpn`
 
 ```bash
-systemctl start qweiovpn
-systemctl status qweiovpn
-systemctl stop qweiovpn
+systemctl start playio-vpn
+systemctl status playio-vpn
+systemctl stop playio-vpn
 ```
 
 ## CLI
@@ -19,30 +19,30 @@ A Linux command line interface, is run on vary linux OS and architecture, that s
 - Installation [SoftetherVPN](https://www.softether.org/)
 - Setup VPN account
 - Tweak network configuration includes VPN IP resolver and VPN DNS resolver
-- `qweio-vpnc.armv7.zip` for IoT device: RaspberryPi, BeagleBone, etc...
-- `qweio-vpnc.amd64.zip` for user computer.
+- `playio-vpnc.armv7.zip` for IoT device: RaspberryPi, BeagleBone, etc...
+- `playio-vpnc.amd64.zip` for user computer.
 
 Unzip a release artifact to `/app`
 
 ```bash
 $ sudo mkdir -p /app
-$ sudo unzip /tmp/qweio-vpnc*.zip -d /app
-$ sudo chmod +x /app/qweio-vpnc
+$ sudo unzip /tmp/playio-vpnc*.zip -d /app
+$ sudo chmod +x /app/playio-vpnc
 # Make Linux symlink for invoke command directly (it is optional and can skip if done it before
-$ sudo ln -s /app/qweio-vpnc /usr/local/bin/qweio-vpnc
+$ sudo ln -s /app/playio-vpnc /usr/local/bin/playio-vpnc
 # Verify
-$ sudo qweio-vpnc version
+$ sudo playio-vpnc version
 INFO : VPN version: 4.29 Build 9680   (English)
 INFO : CLI version: 1.0.2
 ```
 
 ### Usage
 
-- `qweio-vpnc -h` for more information
+- `playio-vpnc -h` for more information
 
   ```bash
-  $ qweio-vpnc -h
-  Usage: qweio-vpnc [OPTIONS] COMMAND [ARGS]...
+  $ playio-vpnc -h
+  Usage: playio-vpnc [OPTIONS] COMMAND [ARGS]...
 
   VPN Client tool to install Softether VPN Client and setup VPN connection
 
@@ -75,24 +75,24 @@ INFO : CLI version: 1.0.2
 - Must use `Client Certificate Authentication`
 - Need `VPN device user`, `VPN device certificated` file, `VPN device private key` file
 - 2 steps for quick install and setup:
-  - Install VPN client and setup Linux service (For detail explanation, please read `qweio-vpnc install -h`)
+  - Install VPN client and setup Linux service (For detail explanation, please read `playio-vpnc install -h`)
 
     ```bash
-    $ sudo qweio-vpnc install
+    $ sudo playio-vpnc install
     ```
 
-  - Add new VPN account: (For detail explanation, please read `qweio-vpnc add -h`)
+  - Add new VPN account: (For detail explanation, please read `playio-vpnc add -h`)
 
     ```bash
-    $ sudo qweio-vpnc add -sh <vpn_server> -su <hub_name> -cd -ct cert -cu <vpn_device_user> -cck <vpn_device_certificated> -cpk <vpn_device_private_key> --hostname
+    $ sudo playio-vpnc add -sh <vpn_server> -su <hub_name> -cd -ct cert -cu <vpn_device_user> -cck <vpn_device_certificated> -cpk <vpn_device_private_key> --hostname
     ```
 
 - After that, please verify by commands:
 
 ```bash
-$ sudo qweio-vpnc status
+$ sudo playio-vpnc status
 
-INFO : VPN Service        : qweiovpn.service - inactive(dead)
+INFO : VPN Service        : playio-vpn.service - inactive(dead)
 INFO : Current VPN IP     : [{'addr': '10.0.0.2', 'netmask': '255.0.0.0', 'broadcast': '10.255.255.255'}]
 INFO : Current VPN Account: devops - Connection Completed (Session Established)
 ```
@@ -104,19 +104,19 @@ INFO : Current VPN Account: devops - Connection Completed (Session Established)
 - If you manage cross VPN customer, then it's ideally to provide `VPN account` (VPN connection name) that equals to `VPN customer code`
 
 ```bash
-$ sudo qweio-vpnc install -da linux-x64
+$ sudo playio-vpnc install -da linux-x64
 # You can check log
-$ sudo qweio-vpnc log -f
+$ sudo playio-vpnc log -f
 # Put your password in `single quotes` 'your-password'
-$ sudo qweio-vpnc add -sh <vpn_server> -su <customer_code_1> -ca <customer_code_1> -ct password -cu <vpn_user> -cp <vpn_password>
+$ sudo playio-vpnc add -sh <vpn_server> -su <customer_code_1> -ca <customer_code_1> -ct password -cu <vpn_user> -cp <vpn_password>
 # You can add other VPN accounts, 
 # with '-cd' option is make VPN client account is default for startup system/computer
-$ sudo qweio-vpnc add -sh <vpn_server> -su <customer_code_n> -ca <customer_code_n> -ct password -cu <vpn_user> -cp <vpn_password> -cd
+$ sudo playio-vpnc add -sh <vpn_server> -su <customer_code_n> -ca <customer_code_n> -ct password -cu <vpn_user> -cp <vpn_password> -cd
 # Then you can switch among account by: disconnect acc1 then connect acc2
-$ sudo qweio-vpnc disconnect customer_code_1
-$ sudo qweio-vpnc connect customer_code_n
+$ sudo playio-vpnc disconnect customer_code_1
+$ sudo playio-vpnc connect customer_code_n
 # To uninstall vpn service
-$ sudo qweio-vpnc uninstall
+$ sudo playio-vpnc uninstall
 ```
 
 ## Passwordless
@@ -126,15 +126,15 @@ It is optional but good to have if you want to connect IoT device via SSH withou
 **Prerequisite:**
 
 1. Public and private ssh key pairs are generated and available on your deployment computer.
-2. Both deployment computer and `qweio` device are joined VPN.
+2. Both deployment computer and `playio` device are joined VPN.
 
-Use `ssh-copy-id` command to securely import ssh public key into targeted `qweio` device.
+Use `ssh-copy-id` command to securely import ssh public key into targeted `playio` device.
 
 ```
 ssh-copy-id -i <path-to-private-ssh-key> <user>@<hostname>.<hub_name>.device
 ```
 
-Afterward, the `qweio` device can be accessed via password-less ssh
+Afterward, the `playio` device can be accessed via password-less ssh
 
 ```
 ssh -i <path-to-private-ssh-key> <user>@<hostname>.<hub_name>.device

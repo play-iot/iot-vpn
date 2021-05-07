@@ -28,15 +28,15 @@ on:
 
 env:
   APP_CODE: vpnc
-  APP_IMAGE: qweio-vpnc
+  APP_IMAGE: playio-vpnc
   APP_FOLDER: cli/python/src/client
   PYTHON_VERSION: 3.7.10-slim-stretch
   PLATFORMS: linux/amd64,linux/arm/v7
   DOCKER_WORKDIR: cli/python
   DOCKER_FILE: cli/python/docker/vpnc.Dockerfile
   TAG_PREFIX: vpnc/v
-  BRAND_VERION: v1
-  BRAND_REPO: qweio/brand
+  BRAND_VERION: v2
+  BRAND_REPO: play-iot/brand
 
 jobs:
 
@@ -208,6 +208,6 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: Bearer $secret" \
             -d "$data" -w "%{http_code}\n" -o out.json \
-            https://api.github.com/repos/qweio/distribution/actions/workflows/$workflow/dispatches)
+            https://api.github.com/repos/play-iot/distribution/actions/workflows/$workflow/dispatches)
           cat out.json
           [[ "$status" =~ ^2[[:digit:]][[:digit:]] ]] || exit 1

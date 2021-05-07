@@ -2,7 +2,7 @@ version: "2.4"
 
 services:
   vpnc-deployer:
-    image: qweio-vpnc-ansible:dev
+    image: playio-vpnc-ansible:dev
     volumes:
       - ../cli/ansible/files:/app/files
       - ../cli/ansible/inventory:/app/inventory

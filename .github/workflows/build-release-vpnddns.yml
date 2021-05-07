@@ -28,18 +28,18 @@ on:
 
 env:
   APP_CODE: vpnddns
-  APP_IMAGE: qweio-vpnddns
+  APP_IMAGE: playio-vpnddns
   APP_FOLDER: cli/python/src/ddns
   PYTHON_VERSION: 3.8.8-slim-buster
   PLATFORMS: linux/amd64
   DOCKER_WORKDIR: cli/python
   DOCKER_FILE: cli/python/docker/vpnddns.Dockerfile
   DOCKER_USERNAME: zero88
-  DOCKER_IMAGE: zero88/qweio-vpnddns
-  GHCR_IMAGE: ghcr.io/qweio/vpnddns
+  DOCKER_IMAGE: zero88/playio-vpnddns
+  GHCR_IMAGE: ghcr.io/play-iot/vpnddns
   TAG_PREFIX: vpnddns/v
-  BRAND_VERION: v1
-  BRAND_REPO: qweio/brand
+  BRAND_VERION: v2
+  BRAND_REPO: play-iot/brand
 
 jobs:
 

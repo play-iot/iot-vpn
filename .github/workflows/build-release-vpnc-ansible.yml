@@ -21,18 +21,18 @@ on:
 
 env:
   APP_CODE: vpnc-deployer
-  APP_IMAGE: qweio-vpnc-deployer
+  APP_IMAGE: playio-vpnc-deployer
   APP_FOLDER: cli/ansible
   PLATFORMS: linux/amd64
   ANSIBLE_VERSION: 2.9-tools
   DOCKER_WORKDIR: cli/ansible
   DOCKER_FILE: cli/ansible/docker/vpnc-ansible.Dockerfile
   DOCKER_USERNAME: zero88
-  DOCKER_IMAGE: zero88/qweio-vpnc-deployer
-  GHCR_IMAGE: ghcr.io/qweio/vpnc-deployer
+  DOCKER_IMAGE: zero88/playio-vpnc-deployer
+  GHCR_IMAGE: ghcr.io/play-iot/vpnc-deployer
   TAG_PREFIX: vpnc-deployer/v
-  BRAND_VERION: v1
-  BRAND_REPO: qweio/brand
+  BRAND_VERION: v2
+  BRAND_REPO: play-iot/brand
 
 jobs:
 

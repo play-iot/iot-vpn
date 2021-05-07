@@ -1,4 +1,4 @@
-### QWEiO License
+### PlayiO License
 
 Copyright [2021] [zero88 <sontt246@gmail.com>]
 

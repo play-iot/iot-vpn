@@ -11,9 +11,9 @@ Query VPN client session based on `hostname`, `vpn ip address` then creating DNS
 ## Deployment steps
 
 - Prepare `google-service-account.json` with right permission to update Cloud DNS records.
-- Copy and fill information based on a customer code. For example: `qweio` is customer code
-  - [customer.env.tmpl](customer.env.tmpl) = qweio.env
-  - [customer.secret.env.tml](customer.secret.env.tmpl) = qweio.secret.env
+- Copy and fill information based on a customer code. For example: `playio` is customer code
+  - [customer.env.tmpl](customer.env.tmpl) = playio.env
+  - [customer.secret.env.tml](customer.secret.env.tmpl) = playio.secret.env
   - [.runner.env.tmpl](.runner.env.tmpl) = .prod.env
 - Checkout [utility](https://github.com/zero-88/devops-utils/tree/master/k8s)
 

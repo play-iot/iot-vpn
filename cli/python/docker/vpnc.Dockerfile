@@ -19,7 +19,7 @@ SHELL ["/bin/bash", "-c"]
 RUN P=$([[ "$TARGETPLATFORM" =~ linux/arm/v(6|7) && "$EABI" == "true" ]] && echo "linux/arm/32-eabi" || echo "$TARGETPLATFORM") \
     && V=$(python -c "from src.utils.constants import Versions; print (Versions.VPN_VERSION)") \
     && pipenv run python -m src.client.cmd_client download -p $P -cv $V \
-    && pipenv run pyinstaller src/client/cmd_client.py -n qweio-vpnc --clean --onefile \
+    && pipenv run pyinstaller src/client/cmd_client.py -n playio-vpnc --clean --onefile \
         --add-data src/client/resources/*:resources/
 
 FROM python:$BASE_IMAGE_VERSION
@@ -31,6 +31,6 @@ ARG COMMIT_SHA=$COMMIT_SHA
 LABEL maintainer=$MAINTAINER version=$APP_VERSION commit=$COMMIT_SHA
 
 WORKDIR /usr/src/app/
-COPY --from=build /usr/src/app/dist/qweio-vpnc ./
+COPY --from=build /usr/src/app/dist/playio-vpnc ./
 
-ENTRYPOINT [ "./qweio-vpnc" ]
+ENTRYPOINT [ "./playio-vpnc" ]

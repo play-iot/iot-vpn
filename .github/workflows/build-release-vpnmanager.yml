@@ -20,13 +20,13 @@ on:
 
 env:
   APP_CODE: vpnmanager
-  APP_IMAGE: qweio-vpnmanager
+  APP_IMAGE: playio-vpnmanager
   DOCKER_USERNAME: zero88
-  DOCKER_IMAGE: zero88/qweio-vpnmanager
-  GHCR_IMAGE: ghcr.io/qweio/vpnmanager
+  DOCKER_IMAGE: zero88/playio-vpnmanager
+  GHCR_IMAGE: ghcr.io/play-iot/vpnmanager
   TAG_PREFIX: vpnmanager/v
-  BRAND_VERION: v1
-  BRAND_REPO: qweio/brand
+  BRAND_VERION: v2
+  BRAND_REPO: play-iot/brand
   ENABLE_TEST: true
   ENABLE_GH_MAVEN: false
 

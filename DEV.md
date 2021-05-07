@@ -62,11 +62,11 @@ curl -k -X POST -H 'Content-Type: application/json' \
 ```bash
 # Build VPN Client CLI then copy to vagrant/shared
 ./scripts/build.vpnc_2_vagrant.sh
-# go to any box in vagrant folder then up. Binary file will be synced to /vagrant/qweio-vpnc
+# go to any box in vagrant folder then up. Binary file will be synced to /vagrant/playio-vpnc
 # with ubuntu20
 cd vagrant/ubuntu20 && vagrant up && vagrant ssh
-# now, it is inside vagrant guest machine, and binary already symlink to /usr/local/bin/qweio-vpnc  
-qweio-vpnc version
+# now, it is inside vagrant guest machine, and binary already symlink to /usr/local/bin/playio-vpnc  
+playio-vpnc version
 ```
 
 ### Docker

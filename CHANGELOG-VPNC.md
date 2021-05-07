@@ -1,32 +1,32 @@
 # Changelog
 
-## [v0.9.2](https://github.com/qweio/iot-vpn/tree/vpnc/v0.9.2) (2021-05-05)
+## [v0.9.2](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.9.2) (2021-05-05)
 
 ### Improvement
 
-- Resolved [#53](https://github.com/qweio/iot-vpn/issues/53)
-- Resolved [#54](https://github.com/qweio/iot-vpn/issues/54)
-- Fixed [#56](https://github.com/qweio/iot-vpn/issues/56)
+- Resolved [#53](https://github.com/play-iot/iot-vpn/issues/53)
+- Resolved [#54](https://github.com/play-iot/iot-vpn/issues/54)
+- Fixed [#56](https://github.com/play-iot/iot-vpn/issues/56)
 
-## [v0.9.1](https://github.com/qweio/iot-vpn/tree/vpnc/v0.9.1) (2021-04-25)
-
-### Improvement
-
-- Resolved [#50](https://github.com/qweio/iot-vpn/issues/50)
-
-## [v0.9.0](https://github.com/qweio/iot-vpn/tree/vpnc/v0.9.0) (2021-04-24)
+## [v0.9.1](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.9.1) (2021-04-25)
 
 ### Improvement
 
-- Resolved [#46](https://github.com/qweio/iot-vpn/issues/46)
+- Resolved [#50](https://github.com/play-iot/iot-vpn/issues/50)
 
-## [v0.8.1](https://github.com/qweio/iot-vpn/tree/vpnc/v0.8.1) (2021-04-20)
+## [v0.9.0](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.9.0) (2021-04-24)
+
+### Improvement
+
+- Resolved [#46](https://github.com/play-iot/iot-vpn/issues/46)
+
+## [v0.8.1](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.8.1) (2021-04-20)
 
 ### Bugfix
 
-- Regression fix [#38](https://github.com/qweio/iot-vpn/issues/38): Connman on BeagleBone
+- Regression fix [#38](https://github.com/play-iot/iot-vpn/issues/38): Connman on BeagleBone
 
-## [v0.8.0](https://github.com/qweio/iot-vpn/tree/vpnc/v0.8.0) (2021-04-20)
+## [v0.8.0](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.8.0) (2021-04-20)
 
 ### Added
 - Install and manage VPN client in *Unix service

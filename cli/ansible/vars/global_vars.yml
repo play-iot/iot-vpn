@@ -2,9 +2,9 @@ global_arch_mapping:
   armv7l: armv7
   x86_64: amd64
 
-vpn_corp: qweio
+vpn_corp: playio
 vpnc_cli: "{{ vpn_corp }}-vpnc"
-vpnc_artifact: qweio-vpnc
+vpnc_artifact: playio-vpnc
 args_app_dir: /app
 args_vpnc_dir: "{{ args_app_dir }}/vpnclient"
 args_unix_bin_dir: /usr/local/bin
