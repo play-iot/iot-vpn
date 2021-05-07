@@ -28,6 +28,5 @@ class Versions:
 
 class AppEnv:
     BRAND = 'playio'
-    SLOGAN = 'Make in PlayiO, Vietnam'
     VPN_CORP_ENV = 'VPN_CORP'
     VPN_HOME_ENV = 'VPN_HOME'

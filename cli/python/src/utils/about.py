@@ -20,6 +20,6 @@ def show(vpn_opts: VpnOpts, version: str, sha: str, show_brand=False, show_licen
         logger.info(f'VPN version : {ver.get("vpn_version")}')
         logger.info(f'CLI version : {ver.get("cli_version")}')
         logger.info(f'Hash version: {ver.get("hash_version")}')
-        logger.sep(logger.INFO, 55)
+        logger.sep(logger.INFO, 58)
         if show_license:
             print(FileHelper.read_file_by_line(vpn_opts.get_resource('LICENSE_BUNDLE.md'), fallback_if_not_exists=''))
