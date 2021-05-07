@@ -27,8 +27,8 @@ env:
   ANSIBLE_VERSION: 2.9-tools
   DOCKER_WORKDIR: cli/ansible
   DOCKER_FILE: cli/ansible/docker/vpnc-ansible.Dockerfile
-  DOCKER_USERNAME: zero88
-  DOCKER_IMAGE: zero88/playio-vpnc-deployer
+  DOCKER_USERNAME: beeio
+  DOCKER_IMAGE: playio/vpnc-deployer
   GHCR_IMAGE: ghcr.io/play-iot/vpnc-deployer
   TAG_PREFIX: vpnc-deployer/v
   BRAND_VERION: v2
@@ -134,7 +134,7 @@ jobs:
         uses: docker/login-action@v1
         with:
           username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ secrets.OSS_DOCKER_HUB }}
+          password: ${{ secrets.BEEIO_CI_DOCKERHUB }}
 
       - name: Docker build
         uses: docker/build-push-action@v2

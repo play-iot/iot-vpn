@@ -19,5 +19,5 @@ Query VPN client session based on `hostname`, `vpn ip address` then creating DNS
 
 ```bash
 PROJECT_DIR=<your-path>
-python deploy.py -e prod -m gcp -d $PROJECT_DIR/client/python/k8s/dns
+python deploy.py -e prod -m gcp -d $PROJECT_DIR/cli/k8s/ddns
 ```

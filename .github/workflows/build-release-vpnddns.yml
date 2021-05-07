@@ -34,8 +34,8 @@ env:
   PLATFORMS: linux/amd64
   DOCKER_WORKDIR: cli/python
   DOCKER_FILE: cli/python/docker/vpnddns.Dockerfile
-  DOCKER_USERNAME: zero88
-  DOCKER_IMAGE: zero88/playio-vpnddns
+  DOCKER_USERNAME: beeio
+  DOCKER_IMAGE: playio/vpnddns
   GHCR_IMAGE: ghcr.io/play-iot/vpnddns
   TAG_PREFIX: vpnddns/v
   BRAND_VERION: v2
@@ -147,7 +147,7 @@ jobs:
         uses: docker/login-action@v1
         with:
           username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ secrets.OSS_DOCKER_HUB }}
+          password: ${{ secrets.BEEIO_CI_DOCKERHUB }}
 
       - name: Docker build
         uses: docker/build-push-action@v2

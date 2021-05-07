@@ -21,8 +21,8 @@ on:
 env:
   APP_CODE: vpnmanager
   APP_IMAGE: playio-vpnmanager
-  DOCKER_USERNAME: zero88
-  DOCKER_IMAGE: zero88/playio-vpnmanager
+  DOCKER_USERNAME: beeio
+  DOCKER_IMAGE: playio/vpnmanager
   GHCR_IMAGE: ghcr.io/play-iot/vpnmanager
   TAG_PREFIX: vpnmanager/v
   BRAND_VERION: v2
