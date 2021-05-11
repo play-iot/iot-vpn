@@ -109,7 +109,7 @@ jobs:
 
       - name: Docker meta
         id: docker_meta
-        uses: crazy-max/ghaction-docker-meta@v2
+        uses: crazy-max/ghaction-docker-meta@v3
         with:
           images: ${{ env.GHCR_IMAGE }},${{ env.DOCKER_IMAGE }}
           tags: |
