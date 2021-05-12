@@ -96,7 +96,7 @@ jobs:
           sed -i "s/dev/${hash_ver//\//-}/" ${{ env.APP_FOLDER }}/version.yml
 
       - name: Cache Docker layers
-        uses: actions/cache@v2
+        uses: actions/cache@v2.1.5
         with:
           path: /home/runner/docker
           key: ${{ runner.os }}-${{ env.APP_IMAGE }}-${{ github.sha }}
