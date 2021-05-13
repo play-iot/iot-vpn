@@ -1,4 +1,6 @@
 docker/**
+!docker/entrypoint.sh
+!docker/banner.txt
 files/**
 !files/.gitkeep
 inventory/**

@@ -7,8 +7,10 @@ k8s/**/*.env
 
 ansible/out/**
 !ansible/out/.gitkeep
+
 ansible/inventory/**
 !ansible/inventory/hosts.vagrant.yml
-# TODO temp
+
 ansible/**/files/**
+!ansible/**/files/credentials.json.tmpl
 !ansible/**/files/.gitkeep
