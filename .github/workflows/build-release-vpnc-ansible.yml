@@ -76,7 +76,7 @@ jobs:
           releaseBranchPrefix: release/${{ env.APP_CODE }}/
           mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/${{ env.APP_CODE }}/.+$"
           patterns: |
-            ${{ env.APP_FOLDER }}/version.py::(version\s?=\s?)(')([^']+)(')::2
+            ${{ env.APP_FOLDER }}/version.py::(APP_VERSION\s?=\s?)(')([^']+)(')::2
 
   build:
     runs-on: ubuntu-latest
@@ -167,7 +167,7 @@ jobs:
             BASE_IMAGE_VERSION=${{ env.CLI_ARGBASH_VERSION }}
           cache-from: type=registry,ref=localhost:5000/${{ env.CLI_APP_IMAGE }}:buildcache
           cache-to: type=registry,ref=localhost:5000/${{ env.CLI_APP_IMAGE }}:buildcache,mode=max
-          tags: build
+          tags: ${{ env.CLI_APP_IMAGE }}:build
           pull: true
 
       - name: Copy CLI tool
