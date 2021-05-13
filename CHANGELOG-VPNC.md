@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.9.3](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.9.3) (2021-05-13)
+
+### Changes
+
+- Update `Brand` from `qweio` -> `playio`
+
 ## [v0.9.2](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.9.2) (2021-05-05)
 
 ### Improvement
