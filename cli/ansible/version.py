@@ -1,4 +1,4 @@
-version = '0.1.2'
-hash_ver = 'dev'
+APP_VERSION = '0.1.2'
+HASH_VERSION = 'dev'
 
-print(f'vpnc-deployer {version}-{hash_ver}')
+print(f'vpnc-deployer {APP_VERSION}-{HASH_VERSION}')
