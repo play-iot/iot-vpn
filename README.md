@@ -30,7 +30,12 @@
 - [x] `openresolv`
 - [x] `connman`
 
-## VPN DDNS 
+## VPNC Deployer
+
+![Docker Image Version (latest semver)](https://img.shields.io/docker/v/playio/vpnc-deployer?sort=semver)
+![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/playio/vpnc-deployer?sort=semver)
+
+## VPN DDNS
 
 ![Docker Image Version (latest semver)](https://img.shields.io/docker/v/playio/vpnddns?sort=semver)
 ![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/playio/vpnddns?sort=semver)
