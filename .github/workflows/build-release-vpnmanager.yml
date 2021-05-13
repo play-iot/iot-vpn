@@ -31,7 +31,7 @@ env:
   DOCKER_IMAGE: playio/vpnmanager
   GHCR_IMAGE: ghcr.io/play-iot/vpnmanager
   TAG_PREFIX: vpnmanager/v
-  BRAND_VERION: v2
+  BRAND_VERSION: v2
   BRAND_REPO: play-iot/brand
   ENABLE_TEST: true
   ENABLE_GH_MAVEN: false
@@ -95,7 +95,7 @@ jobs:
           passphrase: ${{ secrets.OSS_GPG_PASSPHARSE }}
 
       - name: Set up JDK 1.8
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
           java-version: 1.8
 
@@ -146,7 +146,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up JDK 11
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
           java-version: 11
 
