@@ -21,3 +21,8 @@ LABEL "org.opencontainers.image.description"="Ansible for VPNC"
 
 WORKDIR /app
 ADD . ./
+
+ENV SHOW_ABOUT=1
+ENV SHOW_VERSION=1
+
+ENTRYPOINT [ "/app/docker/entrypoint.sh" ]
