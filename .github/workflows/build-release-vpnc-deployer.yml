@@ -5,7 +5,7 @@ on:
     types: [ opened, synchronize, reopened, closed ]
     branches: [ main, master ]
     paths:
-      - '.github/workflows/build-release-vpnc-ansible.yml'
+      - '.github/workflows/build-release-vpnc-deployer.yml'
       - 'cli/CHANGELOG-VPNC-DEPLOYER.md'
       - 'cli/ansible/**'
       - '!cli/ansible/*.md'
@@ -14,7 +14,7 @@ on:
     tags:
       - 'vpnc-deployer/v*'
     paths:
-      - '.github/workflows/build-release-vpnc-ansible.yml'
+      - '.github/workflows/build-release-vpnc-deployer.yml'
       - 'cli/CHANGELOG-VPNC-DEPLOYER.md'
       - 'cli/ansible/**'
       - '!cli/ansible/*.md'
