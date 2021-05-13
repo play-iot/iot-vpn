@@ -1,4 +1,4 @@
-module github.com/zero88/qwe-vpnc
+module github.com/play-iot/iot-vpn
 
 go 1.16
 

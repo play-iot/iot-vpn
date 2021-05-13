@@ -53,15 +53,15 @@ subprojects {
         zero88.set(true)
         publishingInfo {
             enabled.set(true)
-            homepage.set("https://github.com/zero88/qwe-vpn")
+            homepage.set("https://github.com/play-iot/iot-vpn")
             license {
                 name.set("The Apache License, Version 2.0")
-                url.set("https://github.com/zero88/qwe-vpn/blob/master/LICENSE")
+                url.set("https://github.com/play-iot/iot-vpn/blob/master/LICENSE")
             }
             scm {
-                connection.set("scm:git:git://git@github.com:zero88/qwe-vpn.git")
-                developerConnection.set("scm:git:ssh://git@github.com:zero88/qwe-vpn.git")
-                url.set("https://github.com/zero88/qwe-vpn")
+                connection.set("scm:git:git://git@github.com:play-iot/iot-vpn.git")
+                developerConnection.set("scm:git:ssh://git@github.com:play-iot/iot-vpn.git")
+                url.set("https://github.com/play-iot/iot-vpn")
             }
         }
     }
