@@ -41,7 +41,7 @@ env:
   DOCKER_IMAGE: playio/vpnddns
   GHCR_IMAGE: ghcr.io/play-iot/vpnddns
   TAG_PREFIX: vpnddns/v
-  BRAND_VERION: v2
+  BRAND_VERSION: v2
   BRAND_REPO: play-iot/brand
 
 jobs:
@@ -107,7 +107,7 @@ jobs:
 
       - name: Inject brand and license
         run: |
-          docker run --rm -v /tmp:/tmp zero88/ghrd:latest -a "banner.txt" -r ${{ env.BRAND_VERION }} -o /tmp ${{ env.BRAND_REPO }}
+          docker run --rm -v /tmp:/tmp zero88/ghrd:latest -a "banner.txt" -r ${{ env.BRAND_VERSION }} -o /tmp ${{ env.BRAND_REPO }}
           mv /tmp/banner.txt ${{ env.APP_FOLDER }}/resources
           cp cli/LICENSE_BUNDLE.md ${{ env.APP_FOLDER }}/resources
 

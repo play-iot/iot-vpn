@@ -31,7 +31,7 @@ env:
   DOCKER_IMAGE: playio/vpnc-deployer
   GHCR_IMAGE: ghcr.io/play-iot/vpnc-deployer
   TAG_PREFIX: vpnc-deployer/v
-  BRAND_VERION: v2
+  BRAND_VERSION: v2
   BRAND_REPO: play-iot/brand
   CLI_APP_CODE: vpnc-deployer-cli
   CLI_APP_IMAGE: playio-vpnc-deployer-cli
@@ -92,6 +92,11 @@ jobs:
           --name registry
     steps:
       - uses: actions/checkout@v2
+
+      - name: Inject brand
+        run: |
+          docker run --rm -v /tmp:/tmp zero88/ghrd:latest -a "banner.txt" -r ${{ env.BRAND_VERSION }} -o /tmp ${{ env.BRAND_REPO }}
+          mv /tmp/banner.txt ${{ env.APP_FOLDER }}/docker
 
       - name: Inject Hash version
         run: |
