@@ -26,13 +26,17 @@ env:
   PLATFORMS: linux/amd64
   ANSIBLE_VERSION: 2.9-tools
   DOCKER_WORKDIR: cli/ansible
-  DOCKER_FILE: cli/ansible/docker/vpnc-ansible.Dockerfile
+  DOCKER_FILE: cli/ansible/docker/vpnc-deployer.Dockerfile
   DOCKER_USERNAME: beeio
   DOCKER_IMAGE: playio/vpnc-deployer
   GHCR_IMAGE: ghcr.io/play-iot/vpnc-deployer
   TAG_PREFIX: vpnc-deployer/v
   BRAND_VERION: v2
   BRAND_REPO: play-iot/brand
+  CLI_APP_CODE: vpnc-deployer-cli
+  CLI_APP_IMAGE: playio-vpnc-deployer-cli
+  CLI_ARGBASH_VERSION: 2.10.0
+  CLI_DOCKER_FILE: cli/ansible/docker/vpnc-deployer-cli.Dockerfile
 
 jobs:
 
@@ -93,7 +97,7 @@ jobs:
         run: |
           hash_ver="${{ needs.context.outputs.sha }}"
           [[ ${{ needs.context.outputs.isRelease }} == 'true' ]] || hash_ver="$hash_ver-${{ needs.context.outputs.branch }}"
-          sed -i "s/dev/${hash_ver//\//-}/" ${{ env.APP_FOLDER }}/version.yml
+          sed -i "s/dev/${hash_ver//\//-}/" ${{ env.APP_FOLDER }}/version.py
 
       - name: Cache Docker layers
         uses: actions/cache@v2
@@ -153,6 +157,32 @@ jobs:
           pull: true
           push: true
 
+      - name: Build CLI tool
+        uses: docker/build-push-action@v2
+        with:
+          context: ${{ env.DOCKER_WORKDIR }}
+          file: ${{ env.CLI_DOCKER_FILE }}
+          platforms: ${{ env.PLATFORMS }}
+          build-args: |
+            BASE_IMAGE_VERSION=${{ env.CLI_ARGBASH_VERSION }}
+          cache-from: type=registry,ref=localhost:5000/${{ env.CLI_APP_IMAGE }}:buildcache
+          cache-to: type=registry,ref=localhost:5000/${{ env.CLI_APP_IMAGE }}:buildcache,mode=max
+          tags: build
+          pull: true
+
+      - name: Copy CLI tool
+        run: |
+          docker create --name ${{ env.CLI_APP_IMAGE }} localhost:5000/${{ env.CLI_APP_IMAGE }}:build
+          docker cp ${{ env.CLI_APP_IMAGE }}:/app/${{ env.CLI_APP_CODE }} /tmp/${{ env.CLI_APP_CODE }}
+          docker rm -f ${{ env.CLI_APP_CODE }}
+
+      - name: Upload CLI tool
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.CLI_APP_CODE }}
+          path: /tmp/${{ env.CLI_APP_CODE }}
+          retention-days: 2
+
       - name: Cleanup Docker build cache if any
         run: |
           docker buildx imagetools inspect localhost:5000/${{ env.APP_IMAGE }}:buildcache || echo "Not Found"
@@ -160,7 +190,7 @@ jobs:
           docker buildx prune --filter until=72h --keep-storage 3GB -f
 
       - name: Create Release
-        if: ${{ needs.context.outputs.isRelease == 'true' }}
+        if: needs.context.outputs.isRelease == 'true'
         uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -169,3 +199,4 @@ jobs:
           name: Release VPNC deployer v${{ needs.context.outputs.version }}
           draft: false
           prerelease: false
+          files: /tmp/${{ env.CLI_APP_CODE }}
