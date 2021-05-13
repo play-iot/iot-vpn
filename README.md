@@ -1,6 +1,6 @@
-# QWE VPN
+# PlayiO VPN
 
-QWE IIoT VPN solution
+**Play-iO** IIoT VPN solution
 
 ![softether](./.github/vpnserver.png)
 
@@ -29,3 +29,8 @@ QWE IIoT VPN solution
 - [x] `resolvconf`
 - [x] `openresolv`
 - [x] `connman`
+
+## VPN DDNS 
+
+![Docker Image Version (latest semver)](https://img.shields.io/docker/v/playio/vpnddns?sort=semver)
+![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/playio/vpnddns?sort=semver)
