@@ -6,19 +6,22 @@ on:
     branches: [ main, master ]
     paths:
       - '.github/workflows/build-release-vpnc.yml'
+      - 'cli/CHANGELOG-VPNC.md'
+      - 'cli/LICENSE_BUNDLE.md'
       - 'cli/python/docker/vpnc.Dockerfile'
       - 'cli/python/index.py'
       - 'cli/python/src/client/**'
       - 'cli/python/src/executor/**'
       - 'cli/python/src/utils/**'
       - '!cli/python/*.md'
-      - 'CHANGELOG-VPNC.md'
   push:
     branches: [ main, master ]
     tags:
       - 'vpnc/v*'
     paths:
       - '.github/workflows/build-release-vpnc.yml'
+      - 'cli/CHANGELOG-VPNC.md'
+      - 'cli/LICENSE_BUNDLE.md'
       - 'cli/python/docker/vpnc.Dockerfile'
       - 'cli/python/index.py'
       - 'cli/python/src/client/**'
@@ -103,7 +106,7 @@ jobs:
         run: |
           docker run --rm -v /tmp:/tmp zero88/ghrd:latest -a "banner.txt" -r ${{ env.BRAND_VERION }} -o /tmp ${{ env.BRAND_REPO }}
           mv /tmp/banner.txt ${{ env.APP_FOLDER }}/resources
-          cp LICENSE_BUNDLE.md ${{ env.APP_FOLDER }}/resources
+          cp cli/LICENSE_BUNDLE.md ${{ env.APP_FOLDER }}/resources
 
       - name: Cache Docker layers
         uses: actions/cache@v2

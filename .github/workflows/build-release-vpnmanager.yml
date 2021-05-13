@@ -7,16 +7,22 @@ on:
     paths-ignore:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/*.yml'
-      - 'client/**'
+      - '.github/workflows/build-release-vpnc.yml'
+      - '.github/workflows/build-release-vpnc-ansible.yml'
+      - '.github/workflows/build-release-vpnddns.yml'
       - '*.md'
+      - 'cli/**'
   pull_request:
     types: [ opened, synchronize, reopened, closed ]
     branches: [ main ]
     paths-ignore:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/*.yml'
-      - 'client/**'
+      - '.github/workflows/build-release-vpnc.yml'
+      - '.github/workflows/build-release-vpnc-ansible.yml'
+      - '.github/workflows/build-release-vpnddns.yml'
       - '*.md'
+      - 'cli/**'
 
 env:
   APP_CODE: vpnmanager
