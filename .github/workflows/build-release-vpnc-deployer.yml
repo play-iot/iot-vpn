@@ -1,4 +1,4 @@
-name: build-vpnclient-ansible
+name: build-vpnclient-deployer
 
 on:
   pull_request:
