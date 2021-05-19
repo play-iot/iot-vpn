@@ -68,10 +68,10 @@ jobs:
 
       - name: Project context
         id: context
-        uses: zero88/gh-project-context@v1
+        uses: zero88/gh-project-context@v1.1
         with:
-          dry: false
           mustSign: true
+          nextVerMode: PATCH
           tagPrefix: ${{ env.TAG_PREFIX }}
           releaseBranchPrefix: release/${{ env.APP_CODE }}/
           mergedReleaseMsgRegex: "^Merge pull request #[0-9]+ from .+/release/${{ env.APP_CODE }}/.+$"
