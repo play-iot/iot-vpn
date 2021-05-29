@@ -1,0 +1,11 @@
+- name: Ensure /usr/bin/python path exists
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: symlink /usr/bin/python3 -> /usr/bin/python
+      ansible.builtin.raw: |
+        if [ -f /usr/bin/python3 ] && [ ! -f /usr/bin/python ]; then
+          ln --symbolic /usr/bin/python3 /usr/bin/python;
+        fi
+      become: true
