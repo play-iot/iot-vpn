@@ -1,5 +1,3 @@
-- import_playbook: wf-ensure-python.yml
-
 - name: Rollout new VPNC service
   import_playbook: wf-vpnc-rollout.yml
 
