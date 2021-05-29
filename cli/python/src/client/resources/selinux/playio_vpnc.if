@@ -1,0 +1,40 @@
+
+## <summary>policy for playio_vpnc</summary>
+
+########################################
+## <summary>
+##	Execute playio_vpnc_exec_t in the playio_vpnc domain.
+## </summary>
+## <param name="domain">
+## <summary>
+##	Domain allowed to transition.
+## </summary>
+## </param>
+#
+interface(`playio_vpnc_domtrans',`
+	gen_require(`
+		type playio_vpnc_t, playio_vpnc_exec_t;
+	')
+
+	corecmd_search_bin($1)
+	domtrans_pattern($1, playio_vpnc_exec_t, playio_vpnc_t)
+')
+
+######################################
+## <summary>
+##	Execute playio_vpnc in the caller domain.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`playio_vpnc_exec',`
+	gen_require(`
+		type playio_vpnc_exec_t;
+	')
+
+	corecmd_search_bin($1)
+	can_exec($1, playio_vpnc_exec_t)
+')

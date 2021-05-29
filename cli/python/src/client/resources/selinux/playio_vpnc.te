@@ -1,0 +1,50 @@
+policy_module(playio_vpnc, 1.0.0)
+
+########################################
+#
+# Declarations
+#
+
+type playio_vpnc_t;
+files_type(playio_vpnc_t)
+
+type playio_vpnc_exec_t;
+init_daemon_domain(playio_vpnc_t, playio_vpnc_exec_t)
+
+permissive playio_vpnc_t;
+
+########################################
+#
+# playio_vpnc local policy
+#
+allow playio_vpnc_t self:process { fork signal_perms };
+allow playio_vpnc_t self:fifo_file rw_fifo_file_perms;
+allow playio_vpnc_t self:unix_stream_socket create_stream_socket_perms;
+allow playio_vpnc_t self:dir { add_name remove_name write search};
+allow playio_vpnc_t self:file { unlink create open rename write read };
+
+domain_use_interactive_fds(playio_vpnc_t)
+
+files_read_etc_files(playio_vpnc_t)
+
+miscfiles_read_localization(playio_vpnc_t)
+
+##########################################
+#
+# dnsmasq local policy for playio_vpnc
+#
+require {
+    type dnsmasq_t;
+    type dnsmasq_etc_t;
+    type playio_vpnc_t;
+    type NetworkManager_etc_t;
+    class lnk_file read;
+    class dir search;
+    class file { open read getattr };
+}
+
+#============= dnsmasq_t ==============
+allow dnsmasq_t dnsmasq_etc_t:lnk_file read;
+allow dnsmasq_t NetworkManager_etc_t:lnk_file read;
+allow dnsmasq_t playio_vpnc_t:dir search;
+allow dnsmasq_t playio_vpnc_t:file { open read getattr };

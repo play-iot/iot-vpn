@@ -1,0 +1,2 @@
+/app/playio-vpnc		--	gen_context(system_u:object_r:playio_vpnc_exec_t,s0)
+/app(/.*)?      gen_context(system_u:object_r:playio_vpnc_t,s0)
