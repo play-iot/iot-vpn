@@ -8,14 +8,19 @@
     - policycoreutils-devel
 
 2. Other prerequisites:
--   The `playio-vpnc` executatble folder path is existed, it's defaulted to `/app`
+    - The `playio-vpnc` executatble folder path is existed, it's defaulted to `/app`
+    - Enable SELinux boolean:
+    ```bash
+    setsebool -P domain_can_mmap_files 1
+    setsebool -P daemons_enable_cluster_mode 1
+    ```
 
-3. Build and install the policy
+3. Build and install the policy:
 
-Change to this folder `selinux` and run below command:
+    Change to this folder `selinux` and run below command:
 
-```bash
-make -f /usr/share/selinux/devel/Makefile playio_vpnc.pp
-semodule -i playio_vpnc.pp
-restorecon -FRv /app
-```
+    ```bash
+    make -f /usr/share/selinux/devel/Makefile playio_vpnc.pp
+    semodule -i playio_vpnc.pp
+    restorecon -FRv /app
+    ```

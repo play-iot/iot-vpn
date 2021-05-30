@@ -17,11 +17,79 @@ permissive playio_vpnc_t;
 #
 # playio_vpnc local policy
 #
-allow playio_vpnc_t self:process { fork signal_perms };
-allow playio_vpnc_t self:fifo_file rw_fifo_file_perms;
-allow playio_vpnc_t self:unix_stream_socket create_stream_socket_perms;
+require {
+    type bin_t;
+    type dhcpc_exec_t;
+    type dnsmasq_exec_t;
+    type fs_t;
+    type init_t;
+    type net_conf_t;
+    type NetworkManager_t;
+    type node_t;
+    type proc_t;
+    type random_device_t;
+    type shell_exec_t;
+    type syslogd_var_run_t;
+    type systemd_systemctl_exec_t;
+    type tmp_t;
+    type tmpfs_t;
+    type unreserved_port_t;
+    type var_log_t;
+
+    class chr_file { open read };
+    class dir { add_name create getattr open read remove_name rmdir search write };
+    class file { create execute execute_no_trans getattr ioctl map open read setattr unlink write };
+    class filesystem getattr;
+    class netlink_route_socket { bind create getattr nlmsg_read };
+    class process { execmem setrlimit };
+    class tcp_socket { bind connect create getattr getopt name_connect node_bind setopt shutdown };
+    class udp_socket { bind create getattr getopt node_bind setopt };
+    class unix_stream_socket connectto;
+}
+
 allow playio_vpnc_t self:dir { add_name remove_name write search};
-allow playio_vpnc_t self:file { unlink create open rename write read };
+allow playio_vpnc_t self:fifo_file rw_fifo_file_perms;
+allow playio_vpnc_t self:file { create execute execute_no_trans map open rename unlink setattr write read };
+allow playio_vpnc_t self:netlink_route_socket { bind create getattr nlmsg_read };
+allow playio_vpnc_t self:process { execmem fork setrlimit signal_perms };
+allow playio_vpnc_t self:tcp_socket { bind connect create getattr getopt setopt shutdown };
+allow playio_vpnc_t self:udp_socket { bind create getattr getopt setopt };
+allow playio_vpnc_t self:unix_stream_socket create_stream_socket_perms;
+
+allow playio_vpnc_t bin_t:file { execute execute_no_trans };
+
+allow playio_vpnc_t dhcpc_exec_t:file { execute execute_no_trans getattr open read };
+allow playio_vpnc_t dnsmasq_exec_t:file { execute getattr };
+
+allow playio_vpnc_t fs_t:filesystem getattr;
+
+allow playio_vpnc_t init_t:file { getattr ioctl open read };
+allow playio_vpnc_t init_t:lnk_file read;
+allow playio_vpnc_t init_t:unix_stream_socket connectto;
+
+allow playio_vpnc_t net_conf_t:dir search;
+allow playio_vpnc_t NetworkManager_t:dir search;
+allow playio_vpnc_t NetworkManager_t:file { getattr ioctl open read };
+allow playio_vpnc_t node_t:tcp_socket node_bind;
+allow playio_vpnc_t node_t:udp_socket node_bind;
+
+allow playio_vpnc_t playio_vpnc_exec_t:file execute_no_trans;
+allow playio_vpnc_t proc_t:file { getattr ioctl open read };
+
+allow playio_vpnc_t random_device_t:chr_file { open read };
+
+allow playio_vpnc_t shell_exec_t:file { execute execute_no_trans };
+allow playio_vpnc_t syslogd_var_run_t:dir { getattr open read search };
+allow playio_vpnc_t systemd_systemctl_exec_t:file map;
+
+allow playio_vpnc_t tmp_t:dir { add_name create read remove_name rmdir write };
+allow playio_vpnc_t tmp_t:file { create execute map setattr unlink write };
+allow playio_vpnc_t tmpfs_t:filesystem getattr;
+
+allow playio_vpnc_t unreserved_port_t:tcp_socket name_connect;
+
+allow playio_vpnc_t var_log_t:dir read;
+allow playio_vpnc_t var_log_t:file { map open read };
 
 domain_use_interactive_fds(playio_vpnc_t)
 
@@ -36,11 +104,8 @@ miscfiles_read_localization(playio_vpnc_t)
 require {
     type dnsmasq_t;
     type dnsmasq_etc_t;
-    type playio_vpnc_t;
     type NetworkManager_etc_t;
     class lnk_file read;
-    class dir search;
-    class file { open read getattr };
 }
 
 #============= dnsmasq_t ==============
