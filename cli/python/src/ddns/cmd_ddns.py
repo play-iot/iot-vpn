@@ -126,7 +126,7 @@ class VPNDDNSExecutor(VpnCmdExecutor):
     def list_user_sessions(self) -> Iterator[UserSession]:
         sessions = self.query_sessions()
         mac_ip_table = self.query_mac_ip_table()
-        return [s.load_ip(mac_ip_table.get(k)) for k, s in sessions.items() if s is not None]
+        return [s.load_ip(mac_ip_table.get(k)) for k, s in sessions.items() if s is not None and mac_ip_table.get(k)]
 
     def query_sessions(self) -> dict:
         sessions = self.exec_command('SessionList')
