@@ -12,6 +12,7 @@
     - Enable SELinux boolean:
     ```bash
     setsebool -P domain_can_mmap_files 1
+    setsebool -P domain_kernel_load_modules 1
     setsebool -P daemons_enable_cluster_mode 1
     ```
 
