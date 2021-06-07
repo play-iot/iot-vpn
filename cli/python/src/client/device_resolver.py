@@ -541,10 +541,15 @@ class DNSResolver(AppConvention):
         logger.debug(f'Current DNS resolver [{self.kind.name}], is dnsmasq available [{self._is_dnsmasq}]')
         return self
 
+    def is_connman(self) -> bool:
+        return self.kind is DNSResolverType.CONNMAN
+
     def is_dnsmasq_available(self):
         return self.kind.is_dnsmasq() or self._is_dnsmasq
 
     def create_config(self, vpn_service: str):
+        if self.is_connman():
+            return
         if not FileHelper.is_readable(self.origin_resolv_cfg):
             logger.info(f'Backup System DNS config file to [{self.origin_resolv_cfg}]...')
             FileHelper.backup(DNSResolver.DNS_SYSTEM_FILE, self.origin_resolv_cfg, remove=False)
@@ -556,6 +561,8 @@ class DNSResolver(AppConvention):
         self._resolver().setup(vpn_service, self.origin_resolv_cfg, self.vpn_resolv_cfg, self.vpn_hook_cfg)
 
     def cleanup_config(self, vpn_service: str, keep_dnsmasq=True):
+        if self.is_connman():
+            return
         resolver = self._resolver()
         if keep_dnsmasq:
             resolver.reset_hook(self.vpn_hook_cfg)
@@ -582,7 +589,8 @@ class DNSResolver(AppConvention):
         resolver.update_hook(reason, priv_root_dns, nss, self.vpn_hook_cfg)
 
     def restart(self, keep_dnsmasq=True):
-        self._resolver().restart(_all=not keep_dnsmasq, keep_dnsmasq=keep_dnsmasq)
+        if not self.is_connman():
+            self._resolver().restart(_all=not keep_dnsmasq, keep_dnsmasq=keep_dnsmasq)
 
     def _resolver(self) -> DNSFlavour:
         if self.kind.is_dnsmasq():
@@ -615,14 +623,6 @@ class IPResolver(AppConvention):
     def ip_tool(self) -> str:
         pass
 
-    @property
-    def pid_file(self):
-        return self.runtime_dir.joinpath('vpn_dhclient.pid')
-
-    @property
-    def lease_file(self):
-        return self.runtime_dir.joinpath('vpn_dhclient.lease')
-
     @abstractmethod
     def add_hook(self, service_name: str, replacements: dict):
         pass
@@ -638,12 +638,12 @@ class IPResolver(AppConvention):
     def lease_ip(self, vpn_acc: str, vpn_nic: str, daemon=False):
         logger.log(self.log_lvl, 'Lease a new VPN IP...')
         SystemHelper.exec_command(f'{self.ip_tool} {self._lease_ip_opt(vpn_acc, vpn_nic, daemon)}',
-                                  silent=self.silent, log_lvl=self.log_lvl)
+                                  silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
 
     def release_ip(self, vpn_acc: str, vpn_nic: str):
         logger.log(self.log_lvl, 'Release the current VPN IP...')
         SystemHelper.exec_command(f'{self.ip_tool} {self._release_ip_opt(vpn_acc, vpn_nic)}',
-                                  silent=self.silent, log_lvl=self.log_lvl)
+                                  silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
 
     def renew_all_ip(self, delay=1):
         logger.log(self.log_lvl, 'Refresh all IPs...')
@@ -681,7 +681,7 @@ class IPResolver(AppConvention):
         pass
 
     @abstractmethod
-    def _to_hook_file(self, service_name: str) -> str:
+    def _to_hook_file(self, service_name: str, is_enter_hook=False) -> str:
         pass
 
 
@@ -764,7 +764,9 @@ class Procd(UnixService, ABC):
 
 
 class DHCPResolver(IPResolver):
-    DHCLIENT_HOOK_TMPL = 'dhclient-vpn.hook.tmpl'
+    ENTER_HOOKS_DIR = '/etc/dhcp/dhclient-enter-hooks.d'
+    EXIT_HOOKS_DIR = '/etc/dhcp/dhclient-exit-hooks.d'
+    DHCLIENT_EXIT_HOOK_TMPL = 'dhclient-vpn.exit.hook.tmpl'
     DHCLIENT_CONFIG_TMPL = 'dhclient-vpn.conf.tmpl'
 
     @staticmethod
@@ -786,30 +788,27 @@ class DHCPResolver(IPResolver):
         FileHelper.chmod(config_file, mode=0o0644)
 
     def add_hook(self, service_name: str, replacements: dict):
-        hook_file = self._to_hook_file(service_name)
-        logger.log(self.log_lvl, f'Create DHCP client VPN hook[{hook_file}]...')
-        FileHelper.copy(self.resource_dir.joinpath(self.DHCLIENT_HOOK_TMPL), hook_file, force=True)
-        FileHelper.replace_in_file(hook_file, replacements, backup='')
-        FileHelper.chmod(hook_file, mode=0o0744)
+        exit_hook_file = self._to_hook_file(service_name)
+        logger.log(self.log_lvl, f'Create DHCP client VPN hook[{exit_hook_file}]...')
+        FileHelper.copy(self.resource_dir.joinpath(self.DHCLIENT_EXIT_HOOK_TMPL), exit_hook_file, force=True)
+        FileHelper.replace_in_file(exit_hook_file, replacements, backup='')
+        FileHelper.chmod(exit_hook_file, mode=0o0744)
 
     def remove_hook(self, service_name: str):
-        hook_file = self._to_hook_file(service_name)
-        logger.log(self.log_lvl, f'Remove DHCP client VPN hook[{hook_file}]...')
-        FileHelper.rm(hook_file, force=True)
+        exit_hook_file = self._to_hook_file(service_name)
+        logger.log(self.log_lvl, f'Remove DHCP client VPN hook[{exit_hook_file}]...')
+        FileHelper.rm(exit_hook_file, force=True)
 
-    def _to_hook_file(self, service_name: str) -> str:
-        return os.path.join('/etc/dhcp/dhclient-exit-hooks.d', service_name)
+    def _to_hook_file(self, service_name: str, is_enter_hook=False) -> str:
+        return os.path.join(DHCPResolver.ENTER_HOOKS_DIR if is_enter_hook else DHCPResolver.EXIT_HOOKS_DIR,
+                            service_name)
 
     def _lease_ip_opt(self, vpn_acc: str, vpn_nic: str, daemon=False) -> str:
-        opts = f'-lf {self.lease_file} -pf {self.pid_file} -v'
-        opts += f' -nw' if daemon else f' -1'
-        # opts += f' -cf {self._to_config_file(vpn_acc)}'
-        return f'{opts} {vpn_nic}'
+        opts = f' -nw' if daemon else f' -1'
+        return f'--no-pid -v {opts} {vpn_nic}'
 
     def _release_ip_opt(self, vpn_acc: str, vpn_nic: str) -> str:
-        opts = f'-r -lf {self.lease_file} -pf {self.pid_file} -v'
-        # opts += f' -cf {self._to_config_file(vpn_acc)}'
-        return f'{opts} {vpn_nic}'
+        return f'-r -v {vpn_nic}'
 
     def _refresh_all_ip_opt(self):
         return f'{self.ip_tool} -1 -v'
