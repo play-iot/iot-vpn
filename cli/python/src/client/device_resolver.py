@@ -635,7 +635,7 @@ class IPResolver(AppConvention):
     def create_config(self, vpn_acc: str, replacements: dict):
         pass
 
-    def lease_ip(self, vpn_acc: str, vpn_nic: str, daemon=True):
+    def lease_ip(self, vpn_acc: str, vpn_nic: str, daemon=False):
         logger.log(self.log_lvl, 'Lease a new VPN IP...')
         SystemHelper.exec_command(f'{self.ip_tool} {self._lease_ip_opt(vpn_acc, vpn_nic, daemon)}',
                                   silent=self.silent, log_lvl=self.log_lvl)
@@ -669,7 +669,7 @@ class IPResolver(AppConvention):
         return self.runtime_dir.joinpath(f'vpn_dhclient.{suffix}.conf')
 
     @abstractmethod
-    def _lease_ip_opt(self, vpn_acc: str, vpn_nic: str, daemon=True) -> str:
+    def _lease_ip_opt(self, vpn_acc: str, vpn_nic: str, daemon=False) -> str:
         pass
 
     @abstractmethod
@@ -800,8 +800,9 @@ class DHCPResolver(IPResolver):
     def _to_hook_file(self, service_name: str) -> str:
         return os.path.join('/etc/dhcp/dhclient-exit-hooks.d', service_name)
 
-    def _lease_ip_opt(self, vpn_acc: str, vpn_nic: str, daemon=True) -> str:
-        opts = f'-nw -lf {self.lease_file} -pf {self.pid_file} -v' if daemon else '-1 -v'
+    def _lease_ip_opt(self, vpn_acc: str, vpn_nic: str, daemon=False) -> str:
+        opts = f'-lf {self.lease_file} -pf {self.pid_file} -v'
+        opts += f' -nw' if daemon else f' -1'
         # opts += f' -cf {self._to_config_file(vpn_acc)}'
         return f'{opts} {vpn_nic}'
 

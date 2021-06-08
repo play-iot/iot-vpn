@@ -375,10 +375,13 @@ class VPNClientExecutor(VpnCmdExecutor):
             self.lease_vpn_ip(account, log_lvl=logger.INFO)
 
     def lease_vpn_ip(self, account: str, log_lvl=logger.DEBUG):
-        logger.log(log_lvl, 'Waiting VPN session is established then lease new VPN IP...')
+        logger.log(log_lvl, 'Waiting VPN session is established...')
         loop_interval(lambda: self.vpn_status(account) == 'Connection Completed (Session Established)',
                       'Unable connect VPN. Please check log for more detail', max_retries=10, interval=2)
-        self.device.ip_resolver.lease_ip(account, self.opts.account_to_nic(account))
+        logger.log(log_lvl, 'Waiting lease new VPN IP...')
+        nic = self.opts.account_to_nic(account)
+        loop_interval(lambda: self.device.ip_resolver.get_vpn_ip(nic) is not None, 'Unable lease VPN IP',
+                      lambda: self.device.ip_resolver.lease_ip(account, nic, daemon=False), max_retries=3, interval=1)
 
     def shutdown_vpn_service(self, is_stop=True, is_disable=False, keep_dnsmasq=True, vpn_service: str = None):
         vpn_service = vpn_service or self.vpn_service
