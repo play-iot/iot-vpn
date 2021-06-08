@@ -124,8 +124,6 @@ class DHCPReason(Enum):
     RELEASE = 10
     NBI = 11
     TIMEOUT = 12
-    # MANUAL
-    SCAN = 21
 
     def is_release(self):
         return self in [DHCPReason.RELEASE, DHCPReason.STOP, DHCPReason.FAIL, DHCPReason.EXPIRE]
@@ -218,15 +216,6 @@ class DNSFlavour(ABC):
         :param reason: DHCP reason
         :param priv_root_dns: Private root DNS
         :param nameservers: Private nameservers
-        :param vpn_nameserver_hook_conf: VPN nameserver hook config file path
-        :return:
-        """
-        pass
-
-    def query_hook(self, priv_root_dns: str, vpn_nameserver_hook_conf: Path) -> list:
-        """
-        Query current private DNS server
-        :param priv_root_dns: Private root DNS
         :param vpn_nameserver_hook_conf: VPN nameserver hook config file path
         :return:
         """
@@ -412,13 +401,6 @@ class DNSMasqFlavour(DNSFlavour):
         else:
             FileHelper.rm(self._dnsmasq_vpn_hook_cfg)
 
-    def query_hook(self, priv_root_dns: str, vpn_nameserver_hook_conf: Path) -> list:
-        if not FileHelper.is_readable(vpn_nameserver_hook_conf):
-            return []
-        nss = TextHelper.grep(FileHelper.read_file_by_line(vpn_nameserver_hook_conf, fallback_if_not_exists=''),
-                              fr'server=/{priv_root_dns}/.+', flags=re.VERBOSE)
-        return [ns[len(f'server='):].strip() for ns in nss]
-
     def restore_config(self, vpn_service: str, keep_dnsmasq=True):
         if not keep_dnsmasq:
             logger.debug(f'Remove dnsmasq vpn hook config [{self._dnsmasq_vpn_hook_cfg}]')
@@ -598,9 +580,6 @@ class DNSResolver(AppConvention):
             logger.info(f'Skip generating DNS entry in [{reason.name}][{new_nameservers}][{old_nameservers}]')
             return
         resolver.update_hook(reason, priv_root_dns, nss, self.vpn_hook_cfg)
-
-    def query_vpn_nameservers(self, priv_root_dns: str) -> list:
-        return self._resolver().query_hook(priv_root_dns, self.vpn_hook_cfg)
 
     def restart(self, keep_dnsmasq=True):
         self._resolver().restart(_all=True, keep_dnsmasq=keep_dnsmasq)

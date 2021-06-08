@@ -774,7 +774,7 @@ def __stop_service(vpn_opts: ClientOpts):
     executor.device.dns_resolver.restart()
 
 
-@cli.command(name="dns", help="Update VPN DNS server", hidden=True)
+@cli.command(name="dns", help="Discover VPN DNS server", hidden=True)
 @click.argument('reason', type=click.Choice([r.name for r in DHCPReason]), required=True)
 @click.option('-n', '--nic', type=str, default='', help='VPN network interface card')
 @click.option('-nns', '--new-nameservers', type=str, default='', help='New domain name servers')
@@ -785,18 +785,9 @@ def __stop_service(vpn_opts: ClientOpts):
 @verbose_opts
 @permission
 def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old_nameservers: str, debug: bool):
-    def _manual_discover(_executor: VPNClientExecutor, _cur_acc: AccountInfo):
-        dns_resolver = _executor.device.dns_resolver
-        loop_interval(lambda: len(dns_resolver.query_vpn_nameservers(_cur_acc.hub)) > 0,
-                      'Unable read DHCP status', exit_if_error=True, max_retries=10)
-        _nic = executor.opts.account_to_nic(current.account)
-        _new_nameservers = ','.join(dns_resolver.query_vpn_nameservers(_cur_acc.hub))
-        return _nic, _new_nameservers, DHCPReason.BOUND
-
-    logger.info(f'Update DNS with {reason}::{nic}...')
+    logger.info(f'Discover DNS with {reason}::{nic}...')
     _reason = DHCPReason[reason]
-    is_manual_discover = _reason is DHCPReason.SCAN
-    if not vpn_opts.is_vpn_nic(nic) and not is_manual_discover:
+    if not vpn_opts.is_vpn_nic(nic):
         logger.warn(f'NIC[{nic}] does not belong to VPN service')
         sys.exit(0)
     executor = VPNClientExecutor(vpn_opts).require_install().probe(silent=True, log_lvl=logger.INFO)
@@ -806,8 +797,6 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
         if not current:
             logger.warn(f'Not found any VPN account')
             sys.exit(ErrorCode.VPN_ACCOUNT_NOT_FOUND)
-    if is_manual_discover:
-        nic, new_nameservers, _reason = _manual_discover(executor, current)
     if executor.opts.nic_to_account(nic) != current.account:
         logger.warn(f'NIC[{nic}] does not meet current VPN account')
         sys.exit(ErrorCode.VPN_ACCOUNT_NOT_MATCH)
@@ -816,8 +805,6 @@ def __dns(vpn_opts: ClientOpts, nic: str, reason: str, new_nameservers: str, old
         FileHelper.write_file(FileHelper.tmp_dir().joinpath('vpn_dns'), append=True,
                               content=f"{now}::{reason}::{nic}::{new_nameservers}::{old_nameservers}\n")
     executor.device.dns_resolver.resolve(executor.vpn_service, _reason, current.hub, new_nameservers, old_nameservers)
-    if is_manual_discover:
-        executor.device.ip_resolver.renew_all_ip()
 
 
 @cli.command(name="tree", help="Tree inside binary", hidden=True)
