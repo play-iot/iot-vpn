@@ -30,12 +30,27 @@
 - [x] `openresolv`
 - [x] `connman`
 
+### How to use
+
+Please read [VPNC README](./cli/python/src/client/README.md)
+
 ## VPNC Deployer
 
 ![Docker Image Version (latest semver)](https://img.shields.io/docker/v/playio/vpnc-deployer?sort=semver)
 ![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/playio/vpnc-deployer?sort=semver)
 
+The `CLI` tool based on `ansible` and `docker` to mass deploy VPN client on one or many devices/computers.
+
 ## VPN DDNS
 
 ![Docker Image Version (latest semver)](https://img.shields.io/docker/v/playio/vpnddns?sort=semver)
 ![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/playio/vpnddns?sort=semver)
+
+The `CLI` application syncs every 2 minutes VPN client IP addresses to private Google Cloud DNS:
+
+- DNS zone name for each customer: `device.<customer-code>`
+- Device DNS name: `<device-hostname>.device.<customer-code>`
+
+## How to contribute
+
+Please read [SETUP.md](SETUP.md) to setup your environment.

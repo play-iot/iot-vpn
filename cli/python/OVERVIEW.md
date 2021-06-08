@@ -1,31 +1,6 @@
 # PlayiO VPN overview
 
-## Index script
-
-- Install `pipenv`
-
-  ```sh
-  pip install pipenv
-  ```
-
-- Invoke `index.py` will show available commands
-
-  ```sh
-  python index.py --help
-  Usage: index.py [OPTIONS] COMMAND [ARGS]...
-
-  Options:
-    --help  Show this message and exit.
-
-  Commands:
-    hub     HUB tool to add/modify SoftEther VPN users and groups.
-    secret  Secret utils
-    server  Server tool
-  ```
-
-More detail in `README` in each sub folders.
-
-### External connection
+## External connection
 
 Note
 
@@ -42,15 +17,15 @@ This is collection of script to bootstrap, manage, setup softether-vpn server.
   - Use `TLS 1.2`
   - [Cipher suite](https://en.wikipedia.org/wiki/Cipher_suite): `ECDHE-RSA-AES256-GCM-SHA384`
 
-### Internal communication
+## Internal communication
 
 - VPN connection type: [Remote Access VPN](https://www.softether.org/4-docs/1-manual/1._SoftEther_VPN_Overview/1.4_VPN_Processing_Principle_and_Communication_Method#1.4.7_Remote_Access_VPN)
 - Separate customers to `Virtual Hubs`.
 - `Virtual Hubs` are isolated to each other.
 
-### Virtual Hub setup
+## Virtual Hub setup
 
-#### IP network
+### IP network
 
 Enable `secureNAT`
 
@@ -68,7 +43,7 @@ Enable `secureNAT`
 
     \*And all necessary routes to `internal resource subnets` defined for each customer.
 
-#### User authentication
+### User authentication
 
 - Define groups and users for each customer
 - Authentication method
@@ -78,33 +53,10 @@ Enable `secureNAT`
     - Each device has each `ssh` public/private key
   - (Optional) Interactive user: `basic password`
 
-#### Virtual hub security policy
+### Virtual Hub security policy
 
 Status: `WIP`
 
 - [ ] Define hub admin security policy
 - [ ] Define security policy and apply to group
 - [ ] Define hub extended options
-
-### Cloud sync
-
-Cronjob on Cloud `Production GKE` run every 2 minutes to sync client IP addresses to private Google Cloud DNS:
-
-- DNS zone name for each customer: `<customer-code>.device`
-- Device DNS name: `<device-hostname>.<customer-code>.device`
-
-## VPN Client overview
-
-**More details** in [Client](./src/client/README.md)
-
-An automated setup and configuration for `IoT` devices using client scripts.
-
-Standard configuration:
-
-- Installation path: `/app/vpnclient`
-- Virtual network interface: `vpn_playio`
-- SoftEther VPN client account name: `playio`
-- Linux services auto start on system boot up: `playio-vpn`
-- VPN username: (follow naming convention)
-- Authentication: `client certificate` (signed certificate and corresponding private key)
-- Server certificate verification(`WIP`)

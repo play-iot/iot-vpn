@@ -1,31 +1,12 @@
 # Development
 
-## Install pipenv
-
-```bash
-# By pip/or pip3
-pip3 install pipenv
-
-# Debian Buster+:
-sudo apt install pipenv
-
-# Fedora/Redhat/centos
-sudo dnf install pipenv
-```
-
-## Install dependencies
-
-```bash
-pipenv install
-# Join pipenv in virtualenv
-pipenv shell
-```
-
 ## Develop VPN client tool
 
 ### Run in dev
 
 ```bash
+# Navigate to python source
+cd cli/python
 # After pipenv shell
 python -m src.client.cmd_client -h
 # OR

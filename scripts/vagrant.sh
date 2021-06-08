@@ -2,7 +2,7 @@
 
 cur="$PWD"
 
-COMMAND=(up halt destroy status port)
+COMMAND=(up halt destroy status port ssh)
 
 RED='\033[0;31m'
 BLUE='\033[0;34m'
