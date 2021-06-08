@@ -113,7 +113,7 @@ class AccountStorage:
 
     def create_or_update(self, account: AccountInfo, connect: bool):
         data = self._load()
-        accounts = self._accounts()
+        accounts = self._accounts(data)
         accounts = {**accounts, **account.to_json()}
         self._dump(data=data, _accounts=accounts, _current=account.account if connect else None,
                    _default=account.account if account.is_default else None)
@@ -131,7 +131,7 @@ class AccountStorage:
 
     def remove(self, accounts: Union[str, List[str]]) -> (bool, bool):
         data = self._load()
-        _accounts = self._accounts()
+        _accounts = self._accounts(data)
         _default = self.get_default(data)
         _current = self.get_current(data)
         accounts = accounts if isinstance(accounts, list) else [accounts]
