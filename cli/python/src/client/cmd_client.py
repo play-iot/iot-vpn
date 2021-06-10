@@ -338,7 +338,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         is_disable, is_stop = False, False
         for acc in accounts:
             logger.log(log_lvl, f'Delete VPN account [{acc}]...')
-            self.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], acc, silent, log_lvl)
+            self.exec_command(['AccountDisconnect', 'AccountDelete', 'NicDelete'], acc, silent, log_lvl, _keep_run=True)
             is_default, is_current = self.storage.remove(acc)
             is_stop = is_current or is_stop
             is_disable = is_default or is_disable
@@ -350,13 +350,22 @@ class VPNClientExecutor(VpnCmdExecutor):
         cur_acc = self.storage.get_current()
         for acc in accounts:
             logger.log(log_lvl, f'Disconnect VPN account [{acc}]...')
-            self.exec_command('AccountDisconnect', params=acc, log_lvl=logger.down_lvl(log_lvl), silent=silent)
+            self.exec_command('AccountDisconnect', params=acc, log_lvl=logger.down_lvl(log_lvl), silent=silent,
+                              _keep_run=True)
             self.device.ip_resolver.release_ip(acc, self.opts.account_to_nic(acc))
             self.device.ip_resolver.cleanup_zombie(f' {self.vpn_dir}.* {self.opts.account_to_nic(acc)}')
             is_stop = acc == cur_acc or is_stop
         if is_stop:
             self.storage.set_current('')
             self.shutdown_vpn(is_stop=True, is_disable=must_disable_service, log_lvl=log_lvl)
+
+    def set_default_acc(self, account: str) -> dict:
+        def_acc = self.storage.get_default()
+        if def_acc:
+            self.exec_command('AccountStartupRemove', def_acc, slient=True, _keep_run=True)
+            self.storage.set_default('')
+        self.storage.set_default(account)
+        return {'AccountStartUpSet': account}
 
     def disconnect_current_vpn(self, must_disable_service=False, log_lvl: int = logger.INFO, silent: bool = True):
         account = self.storage.get_current()
@@ -541,15 +550,17 @@ def add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, acco
     hostname = dns_prefix or executor.generate_host_name(server_opts.hub, auth_opts.user, log_lvl=logger.TRACE)
     acc = AccountInfo(server_opts.hub, account, hostname, is_default)
     logger.info(f'Setup VPN Client with VPN account [{acc.account}]...')
-    executor.exec_command(['NicCreate', 'AccountDisconnect', 'AccountDelete'], acc.account, silent=True)
-    if acc.is_default or is_connect:
-        executor.disconnect_current_vpn(log_lvl=logger.DEBUG)
+    prepare_cmd = ['NicCreate', 'AccountDisconnect', 'AccountDelete']
     setup_cmd = {
         'AccountCreate': f'{acc.account} /SERVER:{server_opts.server} /HUB:{acc.hub} /USERNAME:{auth_opts.user} /NICNAME:{acc.account}'
     }
     setup_cmd = {**setup_cmd, **auth_opts.setup(acc.account)}
     setup_cmd = setup_cmd if not is_connect else {**setup_cmd, **{'AccountConnect': acc.account}}
-    setup_cmd = setup_cmd if not acc.is_default else {**setup_cmd, **{'AccountStartupSet': acc.account}}
+    if acc.is_default or is_connect:
+        executor.disconnect_current_vpn(log_lvl=logger.DEBUG)
+    executor.exec_command(prepare_cmd, acc.account, silent=True, _keep_run=True)
+    if acc.is_default:
+        setup_cmd = {**setup_cmd, **executor.set_default_acc(account)}
     executor.exec_command(setup_cmd)
     executor.storage.create_or_update(acc, connect=is_connect)
     executor.device.ip_resolver.create_config(acc.account, {'{{HOST_NAME}}': hostname})
@@ -585,8 +596,7 @@ def set_default(vpn_opts: ClientOpts, account: str, is_connect: bool):
     logger.info(f'Set VPN account [{account}] as startup VPN connection ' +
                 f'{"then connect immediately" if is_connect else ""}...')
     executor = VPNClientExecutor(vpn_opts).require_install().probe()
-    executor.exec_command('AccountStartupSet', params=account, log_lvl=logger.INFO)
-    executor.storage.set_default(account)
+    executor.exec_command(executor.set_default_acc(account), log_lvl=logger.INFO)
     if is_connect:
         executor.disconnect_current_vpn()
         executor.storage.set_current(account)
