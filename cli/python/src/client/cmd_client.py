@@ -258,17 +258,16 @@ class VPNClientExecutor(VpnCmdExecutor):
         self._device = self.device.probe(ClientOpts.resource_dir(), self.opts.runtime_dir, log_lvl, silent)
         return self
 
-    def vpn_status(self, vpn_acc: str):
+    def get_vpn_status(self, vpn_acc: str) -> dict:
         if not vpn_acc:
-            return None
+            return {'connected': False}
         try:
             ss = self.exec_command('AccountStatusGet', params=vpn_acc, silent=True, log_lvl=logger.DEBUG)
-            return TextHelper.awk(next(iter(TextHelper.grep(ss, r'Session Status.+')), None), sep='|', pos=1).strip()
-        except:
-            return None
-
-    def is_running(self, silent=True, log_lvl=logger.DEBUG):
-        return self.is_installed(silent, log_lvl) and self.pid_handler.is_running(log_lvl)
+            ss_msg = TextHelper.awk(next(iter(TextHelper.grep(ss, r'Session Status.+')), None), sep='|', pos=1).strip()
+            return {'connected': ss_msg == 'Connection Completed (Session Established)', 'msg': ss_msg}
+        except Exception as err:
+            logger.debug(f'Something wrong when getting VPN status. Error[{err}]')
+            return {'connected': False}
 
     def do_install(self, service_opts: UnixServiceOpts, auto_startup: bool = False):
         FileHelper.mkdirs(self.opts.vpn_dir.parent)
@@ -369,7 +368,7 @@ class VPNClientExecutor(VpnCmdExecutor):
 
     def lease_vpn_ip(self, account: str, log_lvl=logger.DEBUG):
         logger.log(log_lvl, 'Wait a VPN session is established...')
-        loop_interval(lambda: self.vpn_status(account) == 'Connection Completed (Session Established)',
+        loop_interval(lambda: self.get_vpn_status(account)['connected'],
                       'Unable connect VPN. Please check log for more detail', max_retries=5, interval=2)
         logger.log(log_lvl, 'Wait a VPN IP is leased...')
         nic = self.opts.account_to_nic(account)
@@ -661,9 +660,9 @@ def status(vpn_opts: ClientOpts, is_json: bool, domains: list):
         'vpn_status': False, 'vpn_status_msg': None, 'vpn_ip': None
     }
     if vpn_acc:
-        ss['vpn_ip'] = executor.device.ip_resolver.get_vpn_ip(ClientOpts.account_to_nic(vpn_acc))
-        ss['vpn_status_msg'] = executor.vpn_status(vpn_acc)
-        ss['vpn_status'] = 'Connection Completed (Session Established)' == ss['vpn_status_msg']
+        vpn_ss = executor.get_vpn_status(vpn_acc)
+        ss = {**ss, **{'vpn_status_msg': vpn_ss.get('msg'), 'vpn_status': vpn_ss.get('connected')},
+              'vpn_ip': executor.device.ip_resolver.get_vpn_ip(ClientOpts.account_to_nic(vpn_acc))}
     if domains:
         _domains = {domain: NetworkHelper.lookup_ipv4_by_domain(domain) for domain in domains}
         dns_status = next(filter(lambda r: r[1] is False, _domains.values()), ('', True))[1]
