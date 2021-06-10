@@ -16,12 +16,10 @@ from src.executor.vpn_cmd_executor import VpnCmdExecutor
 from src.utils import about
 from src.utils.constants import ErrorCode, AppEnv
 from src.utils.downloader import download, VPNType, downloader_opt_factory, DownloaderOpt
-from src.utils.helper import FileHelper, loop_interval, JsonHelper, \
-    TextHelper, EnvHelper, NetworkHelper
+from src.utils.helper import FileHelper, loop_interval, JsonHelper, TextHelper, EnvHelper, NetworkHelper
 from src.utils.opts_shared import CLI_CTX_SETTINGS, permission, verbose_opts, UnixServiceOpts, unix_service_opts, \
     dev_mode_opts
-from src.utils.opts_vpn import AuthOpts, vpn_auth_opts, ServerOpts, vpn_server_opts, VpnDirectory, \
-    vpn_dir_opts_factory
+from src.utils.opts_vpn import AuthOpts, vpn_auth_opts, ServerOpts, vpn_server_opts, VpnDirectory, vpn_dir_opts_factory
 
 
 class ClientOpts(VpnDirectory):
@@ -738,7 +736,7 @@ def log(vpn_opts: ClientOpts, date, lines, follow, another):
 @click.option('--json', 'is_json', default=False, flag_value=True, help='Output to json')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
-def version(vpn_opts: ClientOpts, is_json: bool):
+def show_version(vpn_opts: ClientOpts, is_json: bool):
     about.show(vpn_opts, APP_VERSION, HASH_VERSION, is_json=is_json)
 
 
@@ -746,7 +744,7 @@ def version(vpn_opts: ClientOpts, is_json: bool):
 @click.option('-l', '--license', 'show_license', default=False, flag_value=True, help='Show licenses')
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
-def about(vpn_opts: ClientOpts, show_license: bool):
+def show_about(vpn_opts: ClientOpts, show_license: bool):
     about.show(vpn_opts, APP_VERSION, HASH_VERSION, True, show_license)
 
 
