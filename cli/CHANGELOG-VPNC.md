@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.9.4](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.9.4) (2021-06-10)
+
+### Changes
+
+- Resolve [#34](https://github.com/play-iot/iot-vpn/issues/34) Support `ARM64`
+- `playio-vpnc disconnect` support one or many or all VPN accounts
+
+### Bugfix
+
+- Fix [#85](https://github.com/play-iot/iot-vpn/issues/85): conflict DNS resolver between `dnsmasq` and `systemd-resolved`
+- Fix [#86](https://github.com/play-iot/iot-vpn/issues/86): make VPN stable when manage many VPN connections on same computer 
+
 ## [v0.9.3](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.9.3) (2021-05-13)
 
 ### Changes
