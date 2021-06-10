@@ -71,7 +71,7 @@ class VpnCmdExecutor(ABC):
                                           log_lvl=logger.down_lvl(log_lvl))
             o = self._optimize_command_result(o)
             logger.log(log_lvl, o)
-            logger.sep(log_lvl)
+            logger.sep(logger.down_lvl(log_lvl))
             output += o
         return output
 

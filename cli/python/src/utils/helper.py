@@ -139,7 +139,8 @@ class FileHelper:
             shutil.rmtree(_f, ignore_errors=True)
 
         files = files if isinstance(files, list) else [files]
-        [os.remove(f) if os.path.isfile(f) else rm_dir(f, recursive) for f in files if os.path.exists(f) and force]
+        [rm_dir(f, recursive) if FileHelper.is_dir(f) else os.remove(f) for f in files if
+         FileHelper.is_exists(f) and force]
 
     @staticmethod
     def chmod(paths: Union[str, Path, Sequence[str]], mode):
