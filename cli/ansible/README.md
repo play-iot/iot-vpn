@@ -5,10 +5,12 @@
 ```bash
 ansible-inventory --graph
 ```
-Run this playbook first to ensure the default python path exists on target hosts for ansible to lookup:
+
+Run this playbook first to ensure the default `python` path exists on target hosts for ansible to lookup:
 ```bash
 ansible-playbook wf-ensure-python.yml
 ```
+
 Then:
 ```bash
 ansible-playbook wf-vpnc-rollout.yml -e 'debug=1' -e '{"args_vpn_state_test_domains": ["google.com"]}'
@@ -69,7 +71,7 @@ After do `init step` and `Prepare hosts`, run:
 ```
 
 It will show output to console, then don't close it by `Ctrl+C`
-After the progress is finished, it will show something like that
+After the progress finished, it will show something like that
 
 ```bash
 vpnc-deployer_1  | PLAY RECAP *********************************************************************

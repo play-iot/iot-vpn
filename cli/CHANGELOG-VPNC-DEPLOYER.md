@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.9.4](https://github.com/play-iot/iot-vpn/tree/vpnc-deployer/v0.9.4) (2021-05-13)
+
+### Improvement
+- Add `arm64` option in `deployer-cli` to allow downloading `vpnc-armv64`
+- Sync version with `vpnc`
+
 ## [v0.9.3](https://github.com/play-iot/iot-vpn/tree/vpnc-deployer/v0.9.3) (2021-05-13)
 
 ### Improvement

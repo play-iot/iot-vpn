@@ -50,7 +50,7 @@ GHRD_URL=https://github.com/zero88/gh-release-downloader/releases/download/v$GHR
 
 VPNC_REPO=play-iot/iot-vpn
 VPNC_BINARY=playio-vpnc
-VPNC_ARCH=("amd64" "armv7")
+VPNC_ARCH=("amd64" "armv7" "arm64")
 
 DOCKER_COMPOSE_FILE="docker-compose.yml"
 DOCKER_COMPOSE_V2_TMPL=$(
