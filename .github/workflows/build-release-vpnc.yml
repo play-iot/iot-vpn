@@ -34,7 +34,7 @@ env:
   APP_IMAGE: playio-vpnc
   APP_FOLDER: cli/python/src/client
   PYTHON_VERSION: 3.7.10-slim-stretch
-  PLATFORMS: linux/amd64,linux/arm/v7
+  PLATFORMS: linux/amd64,linux/arm/v7,linux/arm64
   DOCKER_WORKDIR: cli/python
   DOCKER_FILE: cli/python/docker/vpnc.Dockerfile
   TAG_PREFIX: vpnc/v

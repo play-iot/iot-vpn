@@ -10,8 +10,7 @@ name="vpn$mode"
 image="$BRAND-$name"
 docker_workdir="$(pwd)/cli/python"
 dockerfile="$docker_workdir/docker/$name.Dockerfile"
-platform="linux/arm/v7,linux/amd64"
-
+platform="${PLATFORMS:-linux/arm/v7,linux/amd64}"
 
 function multiarch() {
     DOCKER_BUILDKIT=1 docker buildx build \
