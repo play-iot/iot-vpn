@@ -582,7 +582,7 @@ class DNSResolver(AppConvention):
         resolver.update_hook(reason, priv_root_dns, nss, self.vpn_hook_cfg)
 
     def restart(self, keep_dnsmasq=True):
-        self._resolver().restart(_all=True, keep_dnsmasq=keep_dnsmasq)
+        self._resolver().restart(_all=not keep_dnsmasq, keep_dnsmasq=keep_dnsmasq)
 
     def _resolver(self) -> DNSFlavour:
         if self.kind.is_dnsmasq():
