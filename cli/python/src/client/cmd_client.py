@@ -772,6 +772,7 @@ def __start_service(vpn_opts: ClientOpts):
     executor = VPNClientExecutor(vpn_opts).probe(silent=False, log_lvl=logger.INFO)
     vpn_acc = executor.storage.get_default()
     if vpn_acc:
+        executor.post_exec(log_lvl=logger.INFO, _keep_run=False)
         executor.storage.set_current(vpn_acc)
         executor.pre_exec(log_lvl=logger.INFO)
         executor.lease_vpn_ip(vpn_acc, log_lvl=logger.INFO)
