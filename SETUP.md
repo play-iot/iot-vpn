@@ -27,11 +27,18 @@ For example:
 
 ```bash
 # Create buildx instance
-docker buildx create --append --name multiarch --buildkitd-flags --use '--allow-insecure-entitlement security.insecure --allow-insecure-entitlement network.host'
-docker buildx ls
+$ docker buildx create --append --use --name multiarch --buildkitd-flags '--allow-insecure-entitlement security.insecure --allow-insecure-entitlement network.host'
+$ docker buildx inspect --bootstrap
+$ docker buildx ls
+
+NAME/NODE    DRIVER/ENDPOINT             STATUS  PLATFORMS
+multiarch *  docker-container                    
+  multiarch0 unix:///var/run/docker.sock running linux/amd64, linux/arm64, linux/riscv64, linux/ppc64le, linux/s390x, linux/386, linux/arm/v7, linux/arm/v6
+default      docker                              
+  default    default                     running linux/amd64, linux/arm64, linux/riscv64, linux/ppc64le, linux/s390x, linux/386, linux/arm/v7, linux/arm/v6
 
 # Create docker registry as service
-docker run -v docker-registry-data:/var/lib/registry -p 5000:5000 --privileged --network host -d --restart always
+$ docker run -v docker-registry-data:/var/lib/registry -p 5000:5000 --privileged --network host -d --restart always zero88/gh-registry:latest
 ```
 
 ## VPN server
@@ -117,20 +124,29 @@ pipenv shell
 #==========================================================
 #### USE VAGRANT ------------------------------------------
 # Build VPN Client CLI then copy to vagrant/shared
-./scripts/build.vpnc_2_vagrant.sh
+$ ./scripts/build.vpnc_2_vagrant.sh
 # go to any box in vagrant folder then up. Binary file will be synced to /vagrant/playio-vpnc
 # with ubuntu20
-./scripts/vagrant.sh up ubuntu20 && ./scripts/vagrant.sh ssh ubuntu20
+$ ./scripts/vagrant.sh up ubuntu20 && ./scripts/vagrant.sh ssh ubuntu20
 # now, it is inside vagrant guest machine, and binary already symlink to /usr/local/bin/playio-vpnc  
-playio-vpnc version
+$ playio-vpnc version
 
 #==========================================================
 #### USE DOCKER -------------------------------------------
 # build amd64 arch
-./scripts/docker.vpntool.sh c
+$ ./scripts/docker.vpntool.sh c
 
-# build multiple arch (amd64/armv7)
-./scripts/docker.vpntool.sh c true
+### Build multiple arch
+# Check your docker linux
+$ docker buildx ls
+NAME/NODE DRIVER/ENDPOINT STATUS  PLATFORMS
+multiarch *  docker-container                    
+  multiarch0 unix:///var/run/docker.sock running linux/amd64, linux/arm64, linux/riscv64, linux/ppc64le, linux/s390x, linux/386, linux/arm/v7, linux/arm/v6
+
+# default are: amd64/armv7
+$ ./scripts/docker.vpntool.sh c true
+# custom arch: armv7/arm64
+$ PLATFORMS="linux/arm/v7,linux/arm64" ./scripts/docker.vpntool.sh c true
 ```
 
 
