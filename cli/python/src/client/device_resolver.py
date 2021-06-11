@@ -704,7 +704,7 @@ class Systemd(UnixService):
 
     @property
     def standard_service_dir(self) -> str:
-        return '/lib/systemd/system'
+        return '/etc/systemd/system'
 
     def create(self, svc_opts: UnixServiceOpts, replacements: dict, auto_startup: bool = False):
         service_fqn = self.to_service_fqn(svc_opts.service_dir, svc_opts.service_name)

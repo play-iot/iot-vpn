@@ -276,7 +276,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         _, cmd = EnvHelper.build_executable_command()
         svc_opts = self._standard_service_opt(service_opts)
         self.device.unix_service.create(svc_opts, {
-            '{{WORKING_DIR}}': f'{self.opts.vpn_dir}', '{{PID_FILE}}': f'{self.opts.pid_file}',
+            '{{WORKING_DIR}}': f'{self.opts.vpn_dir}',
             '{{VPN_DESC}}': svc_opts.service_name,
             '{{START_CMD}}': f'{cmd} start --vpn-dir {self.opts.vpn_dir}',
             '{{STOP_CMD}}': f'{cmd} stop --vpn-dir {self.opts.vpn_dir}'
