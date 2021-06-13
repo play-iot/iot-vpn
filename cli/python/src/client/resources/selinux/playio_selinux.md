@@ -51,4 +51,4 @@ Some references:
 - Install and configure VPN client as usual.
 - Analyze the log and generate rules, some useful tools to help achieve this task: `ausearch`, `journalctl`, `sealert`
 
-**Contribution:** There're always room for improvemnt, we're really appreciate your contribution and suggestion in documenting and improving this custom policy module.
+**Contribution:** There're always rooms for improvement, we really appreciate your contribution and suggestion in documenting and improving this custom policy module.
