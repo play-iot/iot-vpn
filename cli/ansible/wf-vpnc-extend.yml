@@ -27,6 +27,10 @@
       vars:
         runtime_vpn_conn: "{{ resp_prepare_credential }}"
 
+    - name: Fix Connman DHClient if needed
+      include_role:
+        name: connman-dhclient
+
     - name: Validate VPNC state
       include_role:
         name: vpnc-state
