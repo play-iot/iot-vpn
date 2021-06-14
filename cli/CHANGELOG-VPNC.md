@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.9.5](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.9.5) (2021-06-14)
+
+### Changes
+
+- Resolve [#85](https://github.com/play-iot/iot-vpn/issues/85)
+- Resolve [#86](https://github.com/play-iot/iot-vpn/issues/86)
+- Resolve [#66](https://github.com/play-iot/iot-vpn/issues/66)
+
 ## [v0.9.4](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.9.4) (2021-06-10)
 
 ### Changes
