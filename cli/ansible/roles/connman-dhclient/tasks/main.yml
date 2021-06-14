@@ -1,0 +1,15 @@
+- name: Setup Connman DHCP Client
+  when:
+    - ansible_facts.services['connman'] is defined and ansible_facts.services['connman'].state == 'started'
+    - "ansible_facts.services['{{ vpn_corp }}-vpn'] is defined and ansible_facts.services['{{ vpn_corp }}-vpn'].state == 'started'"
+  block:
+    - name: Check VPN status
+      command: "{{ vpnc_cli }} status --json"
+      register: runtime_dhcp_is_status
+      ignore_errors: yes
+
+    - name: Run dhclient if needed
+      when: runtime_dhcp_is_status.rc != 0 and (runtime_dhcp_is_status.stdout | from_json)['vpn_ip'] is None
+      command: "dhclient --no-pid -v -nw vpn_{{ (runtime_dhcp_is_status.stdout | from_json)['vpn_account'] }}"
+  become: yes
+  become_method: sudo
