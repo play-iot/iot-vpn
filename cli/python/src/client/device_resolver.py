@@ -547,7 +547,9 @@ class DNSResolver(AppConvention):
         return self.kind is DNSResolverType.CONNMAN
 
     def is_enable_connman_dhcp(self) -> bool:
-        return self.is_connman() and FileHelper.read_file_by_line(self.connman_dhcp, '0').lower() in ('true', 't', '1')
+        yes_ = ('true', 't', 'yes', '1')
+        return self.is_connman() and FileHelper.read_file_by_line(self.connman_dhcp,
+                                                                  fallback_if_not_exists='0').lower() in yes_
 
     def is_dnsmasq_available(self):
         return self.kind.is_dnsmasq() or self._is_dnsmasq
