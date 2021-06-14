@@ -635,10 +635,12 @@ class IPResolver(AppConvention):
     def create_config(self, vpn_acc: str, replacements: dict):
         pass
 
-    def lease_ip(self, vpn_acc: str, vpn_nic: str, daemon=False):
+    def lease_ip(self, vpn_acc: str, vpn_nic: str, daemon=False, is_execute=True):
         logger.log(self.log_lvl, 'Lease a new VPN IP...')
-        SystemHelper.exec_command(f'{self.ip_tool} {self._lease_ip_opt(vpn_acc, vpn_nic, daemon)}',
-                                  silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
+        command = f'{self.ip_tool} {self._lease_ip_opt(vpn_acc, vpn_nic, daemon)}'
+        if is_execute:
+            SystemHelper.exec_command(command, silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
+        return command
 
     def release_ip(self, vpn_acc: str, vpn_nic: str):
         logger.log(self.log_lvl, 'Release the current VPN IP...')
