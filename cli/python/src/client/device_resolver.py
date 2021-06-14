@@ -518,6 +518,7 @@ class DNSResolver(AppConvention):
     DNS_ORIGIN_FILE = 'resolv.origin.conf'
     VPN_DNS_RESOLV_CFG = 'resolv.vpn.conf'
     VPN_NAMESERVER_HOOK_CFG = 'vpn-runtime-nameserver.conf'
+    CONNMAN_DHCP = 'connman-dhcp'
 
     def __init__(self, resource_dir: Union[str, Path], runtime_dir: Union[str, Path], unix_service: UnixService,
                  log_lvl: int = logger.DEBUG, silent: bool = True):
@@ -526,6 +527,7 @@ class DNSResolver(AppConvention):
         self.origin_resolv_cfg = DNSResolver.DNS_SYSTEM_FILE.parent.joinpath(DNSResolver.DNS_ORIGIN_FILE)
         self.vpn_resolv_cfg = DNSResolver.DNS_SYSTEM_FILE.parent.joinpath(DNSResolver.VPN_DNS_RESOLV_CFG)
         self.vpn_hook_cfg = self.runtime_dir.joinpath(self.VPN_NAMESERVER_HOOK_CFG)
+        self.connman_dhcp = self.runtime_dir.joinpath(self.CONNMAN_DHCP)
 
     def probe(self) -> 'DNSResolver':
         self.kind = next(
@@ -544,11 +546,15 @@ class DNSResolver(AppConvention):
     def is_connman(self) -> bool:
         return self.kind is DNSResolverType.CONNMAN
 
+    def is_enable_connman_dhcp(self) -> bool:
+        return self.is_connman() and FileHelper.read_file_by_line(self.connman_dhcp, '0').lower() in ('true', 't', '1')
+
     def is_dnsmasq_available(self):
         return self.kind.is_dnsmasq() or self._is_dnsmasq
 
-    def create_config(self, vpn_service: str):
+    def create_config(self, vpn_service: str, auto_connman_dhcp: bool):
         if self.is_connman():
+            FileHelper.write_file(self.connman_dhcp, str(auto_connman_dhcp))
             return
         if not FileHelper.is_readable(self.origin_resolv_cfg):
             logger.info(f'Backup System DNS config file to [{self.origin_resolv_cfg}]...')

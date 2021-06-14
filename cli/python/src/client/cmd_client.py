@@ -265,7 +265,7 @@ class VPNClientExecutor(VpnCmdExecutor):
             logger.debug(f'Something wrong when getting VPN status. Error[{err}]')
             return {'connected': False}
 
-    def do_install(self, service_opts: UnixServiceOpts, auto_startup: bool = False):
+    def do_install(self, service_opts: UnixServiceOpts, auto_startup: bool = False, auto_connman_dhcp: bool = False):
         FileHelper.mkdirs(self.opts.vpn_dir.parent)
         FileHelper.unpack_archive(ClientOpts.get_resource(ClientOpts.VPN_ZIP), self.opts.vpn_dir)
         FileHelper.mkdirs([self.opts.vpn_dir, self.opts.runtime_dir])
@@ -282,7 +282,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         self._dump_cache_service(svc_opts)
         self.device.ip_resolver.add_hook(svc_opts.service_name,
                                          {'{{WORKING_DIR}}': f'{self.opts.vpn_dir}', '{{VPN_CLIENT_CLI}}': cmd})
-        self.device.dns_resolver.create_config(svc_opts.service_name)
+        self.device.dns_resolver.create_config(svc_opts.service_name, auto_connman_dhcp)
         self.storage.empty()
         self.opts.export_env()
 
@@ -383,7 +383,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         loop_interval(lambda: self.get_vpn_status(account)['connected'],
                       'Unable connect VPN. Please check log for more detail', max_retries=3, interval=1)
         nic = self.opts.account_to_nic(account)
-        if self.device.dns_resolver.is_connman():
+        if not self.device.dns_resolver.is_enable_connman_dhcp():
             logger.log(logger.WARN, f'Please lease VPN IP manually by ' +
                        f'[{self.device.ip_resolver.lease_ip(account, nic, daemon=True, is_execute=False)}]')
             return
@@ -477,6 +477,8 @@ def __download(downloader_opts: DownloaderOpt):
 @click.option("--auto-dnsmasq", type=bool, default=False, flag_value=True, help="Give a try to install dnsmasq")
 @click.option("--dnsmasq/--no-dnsmasq", type=bool, default=True, flag_value=False,
               help="By default, dnsmasq is used as local DNS cache. Disabled it if using default System DNS resolver")
+@click.option("--auto-connman-dhcp", type=bool, flag_value=True,
+              help="Auto start DHCP Client after connecting VPN when using connman")
 @vpn_client_opts
 @dev_mode_opts(opt_name=ClientOpts.OPT_NAME)
 @unix_service_opts(ClientOpts.vpn_service_name())
@@ -485,7 +487,7 @@ def __download(downloader_opts: DownloaderOpt):
 @verbose_opts
 @permission
 def install(vpn_opts: ClientOpts, svc_opts: UnixServiceOpts, auto_startup: bool, auto_dnsmasq: bool, dnsmasq: bool,
-            force: bool):
+            auto_connman_dhcp: bool, force: bool):
     executor = VPNClientExecutor(vpn_opts).probe(log_lvl=logger.INFO)
     dns_resolver = executor.device.dns_resolver
     if not dnsmasq and not dns_resolver.is_connman():
@@ -501,7 +503,7 @@ def install(vpn_opts: ClientOpts, svc_opts: UnixServiceOpts, auto_startup: bool,
     if dnsmasq and not dns_resolver.is_dnsmasq_available() and not dns_resolver.is_connman():
         executor.device.install_dnsmasq(auto_dnsmasq)
     logger.info(f'Installing VPN client into [{vpn_opts.vpn_dir}] and register service[{svc_opts.service_name}]...')
-    executor.do_install(svc_opts, auto_startup)
+    executor.do_install(svc_opts, auto_startup, auto_connman_dhcp)
     logger.done()
 
 
@@ -544,7 +546,8 @@ def upgrade(keep_backup: bool, vpn_opts: ClientOpts):
     default_acc, current_acc, svc_opts, backup_dir = executor.backup_config()
     executor.do_uninstall(keep_vpn=False, keep_dnsmasq=True, service_opts=svc_opts)
     logger.info(f'Re-install VPN client into [{vpn_opts.vpn_dir}]...')
-    executor.do_install(service_opts=svc_opts, auto_startup=False)
+    executor.do_install(service_opts=svc_opts, auto_startup=False,
+                        auto_connman_dhcp=executor.device.dns_resolver.is_enable_connman_dhcp())
     executor.restore_config(backup_dir, keep_backup)
     _reconnect_vpn(executor, default_acc, current_acc)
     logger.done()
