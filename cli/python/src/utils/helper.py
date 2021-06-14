@@ -485,9 +485,10 @@ class NetworkHelper:
 
 
 def loop_interval(condition: Callable[[], bool], error_if_timeout: str, pre_func: Callable[[], NoReturn] = lambda: None,
-                  max_retries: int = 5, interval: float = 1, exit_if_error=False):
+                  max_retries: int = 5, interval: float = 1, throttle=0, exit_if_error=False):
     for c in range(max_retries + 1):
         pre_func()
+        time.sleep(throttle)
         if condition():
             return
         time.sleep(interval)
