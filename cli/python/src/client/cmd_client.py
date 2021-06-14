@@ -383,7 +383,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         loop_interval(lambda: self.get_vpn_status(account)['connected'],
                       'Unable connect VPN. Please check log for more detail', max_retries=3, interval=1)
         nic = self.opts.account_to_nic(account)
-        if not self.device.dns_resolver.is_enable_connman_dhcp():
+        if self.device.dns_resolver.is_connman() and not self.device.dns_resolver.is_enable_connman_dhcp():
             logger.log(logger.WARN, f'Please lease VPN IP manually by ' +
                        f'[{self.device.ip_resolver.lease_ip(account, nic, daemon=True, is_execute=False)}]')
             return
