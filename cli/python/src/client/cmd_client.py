@@ -380,8 +380,8 @@ class VPNClientExecutor(VpnCmdExecutor):
 
     def lease_vpn_ip(self, account: str, log_lvl=logger.DEBUG):
         logger.log(log_lvl, 'Wait a VPN session is established...')
-        loop_interval(lambda: self.get_vpn_status(account)['connected'],
-                      'Unable connect VPN. Please check log for more detail', max_retries=3, interval=1)
+        loop_interval(lambda: self.get_vpn_status(account)['connected'], 'Unable connect VPN', max_retries=3,
+                      interval=5)
         nic = self.opts.account_to_nic(account)
         if self.device.dns_resolver.is_connman() and not self.device.dns_resolver.is_enable_connman_dhcp():
             logger.log(logger.WARN, f'Please lease VPN IP manually by ' +
@@ -585,7 +585,7 @@ def add(vpn_opts: ClientOpts, server_opts: ServerOpts, auth_opts: AuthOpts, acco
     executor.storage.create_or_update(acc, _connect=is_connect)
     if acc.is_default:
         executor.do_switch_default_acc(acc.account)
-    executor.lease_vpn_service(account=acc.account, is_enable=acc.is_default, is_restart=acc.is_default,
+    executor.lease_vpn_service(account=acc.account, is_enable=acc.is_default, is_restart=acc.is_default and is_connect,
                                is_lease_ip=not acc.is_default and is_connect)
     logger.done()
 
