@@ -1,0 +1,22 @@
+- name: Check is Connman
+  command: "which connmanctl"
+  register: runtime_is_connmand
+  ignore_errors: yes
+
+- name: Setup Connman DHCP Client
+  when: runtime_is_connmand.rc == 0
+  block:
+    - name: Check VPN status
+      command: "{{ vpnc_cli }} status --json"
+      register: runtime_dhcp_is_status
+      ignore_errors: yes
+
+    - name: Run dhclient if needed
+      when:
+        - runtime_dhcp_is_status.rc != 0
+        - (runtime_dhcp_is_status.stdout | from_json)['vpn_account']
+        - (runtime_dhcp_is_status.stdout | from_json)['vpn_pid'] > 0
+        - not (runtime_dhcp_is_status.stdout | from_json)['vpn_ip']
+      command: "dhclient --no-pid -v -nw vpn_{{ (runtime_dhcp_is_status.stdout | from_json)['vpn_account'] }}"
+  become: yes
+  become_method: sudo
