@@ -11,7 +11,7 @@
       {{ resp_vpnc_state | combine({  'is_exec': runtime_is_exec.rc == 0,
                                       'error': None if runtime_is_exec.rc == 0 else runtime_is_exec.msg }) }}
 
-- name: Check VPNC CLI version
+- name: Query VPNC CLI version
   when: not ansible_check_mode and runtime_is_exec.rc == 0
   command: "{{ vpnc_cli }} version --json"
   register: runtime_is_ver

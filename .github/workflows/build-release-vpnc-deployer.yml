@@ -181,6 +181,7 @@ jobs:
           docker create --name ${{ env.CLI_APP_IMAGE }} localhost:5000/${{ env.CLI_APP_IMAGE }}:build
           docker cp ${{ env.CLI_APP_IMAGE }}:/app/${{ env.CLI_APP_CODE }} /tmp/${{ env.CLI_APP_CODE }}
           docker rm -f ${{ env.CLI_APP_IMAGE }}
+          chmod +x /tmp/${{ env.CLI_APP_CODE }}
 
       - name: Upload CLI tool
         uses: actions/upload-artifact@v2
