@@ -364,7 +364,7 @@ class VPNClientExecutor(VpnCmdExecutor):
         self.storage.set_current('')
         self.post_exec(log_lvl=log_lvl, _force_stop=True)
         if self.device.dns_resolver.is_connman():
-            self.device.ip_resolver.renew_all_ip()
+            self.device.ip_resolver.renew_all_ip(silent=True)
         else:
             self.device.dns_resolver.restart()
 
@@ -399,7 +399,7 @@ class VPNClientExecutor(VpnCmdExecutor):
             self.storage.set_current('')
             self._cleanup_zombie_vpn(log_lvl=log_lvl)
             if self.device.dns_resolver.is_connman():
-                self.device.ip_resolver.renew_all_ip()
+                self.device.ip_resolver.renew_all_ip(silent=True)
 
     def backup_config(self):
         backup_dir = self.opts.backup_dir()

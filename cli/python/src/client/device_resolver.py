@@ -655,10 +655,10 @@ class IPResolver(AppConvention):
         SystemHelper.exec_command(f'{self.ip_tool} {self._release_ip_opt(vpn_acc, vpn_nic)}',
                                   silent=self.silent, log_lvl=logger.down_lvl(self.log_lvl))
 
-    def renew_all_ip(self, delay=1):
+    def renew_all_ip(self, delay=1, silent=False):
         logger.log(self.log_lvl, 'Refresh all IPs...')
         time.sleep(delay)
-        SystemHelper.exec_command(f'{self._refresh_all_ip_opt()}', silent=self.silent,
+        SystemHelper.exec_command(f'{self._refresh_all_ip_opt()}', silent=silent or self.silent,
                                   log_lvl=logger.down_lvl(self.log_lvl))
 
     def cleanup_zombie(self, process):
@@ -814,7 +814,7 @@ class DHCPResolver(IPResolver):
                             service_name)
 
     def _lease_ip_opt(self, vpn_acc: str, vpn_nic: str, daemon=False) -> str:
-        opts = f' -nw' if daemon else f' -1'
+        opts = f'-nw' if daemon else f'-1'
         return f'--no-pid -v {opts} {vpn_nic}'
 
     def _release_ip_opt(self, vpn_acc: str, vpn_nic: str) -> str:
