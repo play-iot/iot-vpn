@@ -4,6 +4,7 @@ global_arch_mapping:
 
 vpn_corp: playio
 vpnc_cli: "{{ vpn_corp }}-vpnc"
+vpnc_service: "{{ vpn_corp }}-vpn"
 vpnc_artifact: playio-vpnc
 args_app_dir: /app
 args_vpnc_dir: "{{ args_app_dir }}/vpnclient"
