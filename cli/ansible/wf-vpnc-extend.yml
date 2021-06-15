@@ -28,8 +28,7 @@
         runtime_vpn_conn: "{{ resp_prepare_credential }}"
 
     - name: Fix Connman DHClient if needed
-      include_role:
-        name: connman-dhclient
+      include_tasks: tasks/connman_dhclient.yml
 
     - name: Validate VPNC state
       include_role:
