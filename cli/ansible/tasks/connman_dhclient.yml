@@ -6,7 +6,12 @@
 - name: Setup Connman DHCP Client
   when: runtime_is_connmand.rc == 0
   block:
-    - name: Check VPN status
+    - name: Restart VPN service
+      ansible.builtin.service:
+        name: "{{ vpnc_service }}"
+        state: started
+
+    - name: Query VPN status
       command: "{{ vpnc_cli }} status --json"
       register: runtime_dhcp_is_status
       ignore_errors: yes
