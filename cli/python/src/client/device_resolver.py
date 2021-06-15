@@ -596,9 +596,8 @@ class DNSResolver(AppConvention):
             return
         resolver.update_hook(reason, priv_root_dns, nss, self.vpn_hook_cfg)
 
-    def restart(self, keep_dnsmasq=True):
-        if not self.is_connman():
-            self._resolver().restart(_all=not keep_dnsmasq, keep_dnsmasq=keep_dnsmasq)
+    def restart(self):
+        self._resolver().restart(_all=self.is_connman(), keep_dnsmasq=True)
 
     def _resolver(self) -> DNSFlavour:
         if self.kind.is_dnsmasq():

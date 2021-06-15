@@ -361,12 +361,10 @@ class VPNClientExecutor(VpnCmdExecutor):
             self.lease_vpn_ip(vpn_acc, log_lvl=log_lvl)
 
     def do_force_stop(self, log_lvl=logger.INFO):
-        self.storage.set_current('')
+        if self.is_installed(silent=True):
+            self.storage.set_current('')
         self.post_exec(log_lvl=log_lvl, _force_stop=True)
-        if self.device.dns_resolver.is_connman():
-            self.device.ip_resolver.renew_all_ip(silent=True)
-        else:
-            self.device.dns_resolver.restart()
+        self.device.dns_resolver.restart()
 
     def lease_vpn_service(self, is_enable: bool = True, is_restart: bool = True, is_lease_ip: bool = False,
                           account: Optional[str] = None):
@@ -395,12 +393,10 @@ class VPNClientExecutor(VpnCmdExecutor):
         if is_disable:
             self.device.unix_service.disable(vpn_service)
         if is_stop:
-            self.device.unix_service.stop(vpn_service)
-            if self.is_installed(silent=True):
-                self.storage.set_current('')
-            self._cleanup_zombie_vpn(log_lvl=log_lvl)
-            if self.device.dns_resolver.is_connman():
-                self.device.ip_resolver.renew_all_ip(silent=True)
+            if self.device.unix_service.status(vpn_service).is_running():
+                self.device.unix_service.stop(vpn_service)
+            else:
+                self.do_force_stop(log_lvl)
 
     def backup_config(self):
         backup_dir = self.opts.backup_dir()
