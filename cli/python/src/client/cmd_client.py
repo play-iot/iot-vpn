@@ -396,7 +396,8 @@ class VPNClientExecutor(VpnCmdExecutor):
             self.device.unix_service.disable(vpn_service)
         if is_stop:
             self.device.unix_service.stop(vpn_service)
-            self.storage.set_current('')
+            if self.is_installed(silent=True):
+                self.storage.set_current('')
             self._cleanup_zombie_vpn(log_lvl=log_lvl)
             if self.device.dns_resolver.is_connman():
                 self.device.ip_resolver.renew_all_ip(silent=True)
