@@ -225,7 +225,7 @@ class VPNClientExecutor(VpnCmdExecutor):
 
     def post_exec(self, silent=False, log_lvl=logger.DEBUG, **kwargs):
         logger.log(log_lvl, 'Stop VPN Client if applicable...')
-        if not self.is_installed(silent, log_lvl):
+        if not self.is_installed(True, log_lvl):
             return
         if (self._prev_is_run or not self.adhoc_task) and not kwargs.get('_force_stop', False):
             return
@@ -357,13 +357,13 @@ class VPNClientExecutor(VpnCmdExecutor):
         vpn_acc = self.storage.get_default()
         if vpn_acc:
             self.storage.set_current(vpn_acc)
-            self.pre_exec(log_lvl=log_lvl)
+            self.pre_exec(log_lvl=logger.down_lvl(log_lvl))
             self.lease_vpn_ip(vpn_acc, log_lvl=log_lvl)
 
     def do_force_stop(self, log_lvl=logger.INFO):
         if self.is_installed(silent=True):
             self.storage.set_current('')
-        self.post_exec(log_lvl=log_lvl, _force_stop=True)
+        self.post_exec(log_lvl=logger.down_lvl(log_lvl), _force_stop=True)
         self.device.dns_resolver.restart()
 
     def lease_vpn_service(self, is_enable: bool = True, is_restart: bool = True, is_lease_ip: bool = False,
