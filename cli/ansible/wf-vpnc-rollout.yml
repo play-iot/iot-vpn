@@ -34,6 +34,9 @@
       include_role:
         name: vpnc-upgrade
 
+    - name: Fix Connman DHClient if needed
+      include_tasks: tasks/connman_dhclient.yml
+
     - name: Validate VPNC state
       when: wf_precondition_is_installed or wf_precondition_is_upgraded
       include_role:

@@ -1,4 +1,4 @@
-- name: Check VPNC service status
+- name: Query VPNC service status
   when: not ansible_check_mode and runtime_is_exec.rc == 0 and runtime_is_ver.rc == 0
   command: "{{ vpnc_cli }} status {{ args_vpn_state_test_domains | map('regex_replace', '^(.*)$', '--domain \\1') | join(' ') }} --json"
   register: runtime_is_status
