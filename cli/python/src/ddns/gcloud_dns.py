@@ -26,7 +26,11 @@ class GCloudDNSProvider(CloudDNSProvider):
         [changes.add_record_set(
             ResourceRecordSet(self.to_dns(dns, dns_name), 'A', dns.ttl, [dns.vpn_ip], zone)) for dns in
             dns_entries if dns.is_valid()]
-        logger.info(f'Purge {len(changes.deletions)} DNS records then create {len(changes.additions)} DNS records')
+        if len(changes.additions) == 0 and len(changes.deletions) == 0:
+            logger.info(f'Nothing changes in zone[{zone_name}]')
+            return
+        logger.info(f'Purge {len(changes.deletions)} DNS records then create {len(changes.additions)} DNS records ' +
+                    f'in zone[{zone_name}]')
         changes.create(self.client)
         loop_interval(lambda: changes.status != 'pending', 'Unable sync DNS', pre_func=lambda: changes.reload(),
                       max_retries=self.max_retries, interval=self.interval, exit_if_error=True)
