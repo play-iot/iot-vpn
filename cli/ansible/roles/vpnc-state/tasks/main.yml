@@ -8,6 +8,10 @@
   - name: Check VPNC CLI install
     include_tasks: 01_check_vpnc_cli.yml
 
+  - name: Fix Connman DHClient if needed
+    when: args_vpn_state_fix_connman and resp_vpnc_state['is_exec']
+    include_tasks: tasks/connman_dhclient.yml
+
   - name: Check VPNC service status
     include_tasks: 02_check_vpnc_service.yml
 

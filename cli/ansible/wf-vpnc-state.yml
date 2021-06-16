@@ -12,3 +12,4 @@
         name: vpnc-state
       vars:
         args_vpn_state_show: True
+        args_vpn_state_fix_connman: True

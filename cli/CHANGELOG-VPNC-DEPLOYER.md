@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.10.1](https://github.com/play-iot/iot-vpn/tree/vpnc-deployer/v0.10.1) (2021-06-16)
+
+### Improvement
+
+- Move `fix-connman-dhcp` into `roles/vpnc-state`
+
 ## [v0.10.0](https://github.com/play-iot/iot-vpn/tree/vpnc-deployer/v0.10.0) (2021-06-16)
 
 ### Improvement
