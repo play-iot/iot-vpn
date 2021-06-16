@@ -28,7 +28,7 @@
 - [x] `systemd-resolver`
 - [x] `resolvconf`
 - [x] `openresolv`
-- [x] `connman`
+- [x] `connman` [:warning: Manual step](https://github.com/play-iot/iot-vpn/issues/91)
 
 ### How to use
 
@@ -36,15 +36,15 @@ Please read [VPNC README](./cli/python/src/client/README.md)
 
 ## VPNC Deployer
 
-![Docker Image Version (latest semver)](https://img.shields.io/docker/v/playio/vpnc-deployer?sort=semver)
-![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/playio/vpnc-deployer?sort=semver)
+[![Docker Image Version (latest semver)](https://img.shields.io/docker/v/playio/vpnc-deployer?sort=semver)](https://hub.docker.com/r/playio/vpnc-deployer/tags?page=1&ordering=last_updated)
+[![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/playio/vpnc-deployer?sort=semver)](https://hub.docker.com/r/playio/vpnc-deployer/tags?page=1&ordering=last_updated)
 
 The `CLI` tool based on `ansible` and `docker` to mass deploy VPN client on one or many devices/computers.
 
 ## VPN DDNS
 
-![Docker Image Version (latest semver)](https://img.shields.io/docker/v/playio/vpnddns?sort=semver)
-![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/playio/vpnddns?sort=semver)
+[![Docker Image Version (latest semver)](https://img.shields.io/docker/v/playio/vpnddns?sort=semver)](https://hub.docker.com/r/playio/vpnddns/tags?page=1&ordering=last_updated)
+[![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/playio/vpnddns?sort=semver)](https://hub.docker.com/r/playio/vpnddns/tags?page=1&ordering=last_updated)
 
 The `CLI` application syncs every 2 minutes VPN client IP addresses to private Google Cloud DNS:
 
