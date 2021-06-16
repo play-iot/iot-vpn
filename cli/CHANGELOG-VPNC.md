@@ -1,12 +1,19 @@
 # Changelog
 
+## [v0.10.0](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.10.0) (2021-06-16)
+
+### Fixes
+
+- Fix some DNS resolver bug related to `BBB` and `connman`
+- Provide workaround for [#91](https://github.com/play-iot/iot-vpn/issues/91)
+
 ## [v0.9.5](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.9.5) (2021-06-14)
 
 ### Changes
 
-- Resolve [#85](https://github.com/play-iot/iot-vpn/issues/85)
-- Resolve [#86](https://github.com/play-iot/iot-vpn/issues/86)
-- Resolve [#66](https://github.com/play-iot/iot-vpn/issues/66)
+- Fixed [#85](https://github.com/play-iot/iot-vpn/issues/85)
+- Fixed [#86](https://github.com/play-iot/iot-vpn/issues/86)
+- Fixed [#66](https://github.com/play-iot/iot-vpn/issues/66)
 
 ## [v0.9.4](https://github.com/play-iot/iot-vpn/tree/vpnc/v0.9.4) (2021-06-10)
 
