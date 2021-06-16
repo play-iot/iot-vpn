@@ -206,9 +206,9 @@ class DNSFlavour(ABC):
         """
         Tweak DNS/DHCP flavour config per NIC
         :param nic:
-        :return:
+        :return: should restart service
         """
-        pass
+        return False
 
     def update_hook(self, reason: DHCPReason, priv_root_dns: str, nameservers: list, vpn_nameserver_hook_conf: Path):
         """
@@ -313,8 +313,7 @@ class ConnmanFlavour(DNSFlavour):
                     print(line.strip() + "," + nic)
                 else:
                     print(line, end='')
-        if restart:
-            self.restart()
+        return restart
 
     def adapt_dnsmasq(self, origin_resolv_conf: Path, vpn_service: str) -> Optional[Path]:
         return FileHelper.get_target_link(origin_resolv_conf) or self.config.runtime_resolv if \
@@ -374,7 +373,6 @@ class DNSMasqFlavour(DNSFlavour):
         FileHelper.write_file(vpn_resolv_conf, self.__dnsmasq_resolv(vpn_service), mode=0o0644)
         FileHelper.create_symlink(vpn_resolv_conf, DNSResolver.DNS_SYSTEM_FILE, force=True)
         self.service.enable(self.config.identity)
-        self.restart(_all=True)
 
     def adapt_dnsmasq(self, origin_resolv_conf: Path, vpn_service: str) -> Optional[Path]:
         return self._resolver.adapt_dnsmasq(origin_resolv_conf, vpn_service) if self._resolver else None
@@ -384,8 +382,7 @@ class DNSMasqFlavour(DNSFlavour):
         return {'cache_size': 1500, 'port': 53} if options is None else options
 
     def tweak_per_nic(self, nic: str):
-        if self._resolver:
-            self._resolver.tweak_per_nic(nic)
+        return self._resolver.tweak_per_nic(nic) if self._resolver else False
 
     def update_hook(self, reason: DHCPReason, priv_root_dns: str, nameservers: list, vpn_nameserver_hook_conf: Path):
         logger.info(f'Update VPN DNS config file on [{reason.name}][{priv_root_dns}] with nameservers {nameservers}...')
@@ -567,6 +564,7 @@ class DNSResolver(AppConvention):
         if not FileHelper.is_readable(self.vpn_hook_cfg):
             FileHelper.touch(self.vpn_hook_cfg, 0o0644)
         self._resolver().setup(vpn_service, self.origin_resolv_cfg, self.vpn_resolv_cfg, self.vpn_hook_cfg)
+        self._resolver().restart(_all=True)
 
     def cleanup_config(self, vpn_service: str, keep_dnsmasq=True):
         if self.is_connman():
@@ -582,11 +580,11 @@ class DNSResolver(AppConvention):
         resolver.restart(_all=not keep_dnsmasq, keep_dnsmasq=keep_dnsmasq)
 
     def tweak_on_nic(self, nic: str):
-        self._resolver().tweak_per_nic(nic)
+        if self._resolver().tweak_per_nic(nic):
+            self._resolver().restart(_all=True)
 
     def resolve(self, vpn_service: str, reason: DHCPReason, priv_root_dns: str, new_nameservers: str = None,
                 old_nameservers: str = None):
-        resolver = self._resolver()
         if reason.is_release():
             self.cleanup_config(vpn_service=vpn_service)
             return
@@ -594,7 +592,8 @@ class DNSResolver(AppConvention):
         if nss is None:
             logger.info(f'Skip generating DNS entry in [{reason.name}][{new_nameservers}][{old_nameservers}]')
             return
-        resolver.update_hook(reason, priv_root_dns, nss, self.vpn_hook_cfg)
+        self._resolver().update_hook(reason, priv_root_dns, nss, self.vpn_hook_cfg)
+        self.restart()
 
     def restart(self):
         self._resolver().restart(_all=self.is_connman(), keep_dnsmasq=True)
