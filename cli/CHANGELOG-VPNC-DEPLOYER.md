@@ -1,10 +1,10 @@
 # Changelog
 
-## [v0.9.5](https://github.com/play-iot/iot-vpn/tree/vpnc-deployer/v0.9.5) (2021-06-14)
+## [v0.10.0](https://github.com/play-iot/iot-vpn/tree/vpnc-deployer/v0.10.0) (2021-06-16)
 
 ### Improvement
 
-- Workaround for [#91](https://github.com/play-iot/iot-vpn/issues/91) Fix `dhclient` on BBB
+- Provide workaround for [#91](https://github.com/play-iot/iot-vpn/issues/91)
 
 ## [v0.9.4](https://github.com/play-iot/iot-vpn/tree/vpnc-deployer/v0.9.4) (2021-06-10)
 
