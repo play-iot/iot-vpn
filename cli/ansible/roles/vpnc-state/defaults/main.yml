@@ -1,5 +1,6 @@
 args_vpn_state_show: False
 args_vpn_state_assert_install: False
 args_vpn_state_assert_work: False
+args_vpn_state_fix_connman: False
 args_vpn_state_test_domains:
   - google.com
