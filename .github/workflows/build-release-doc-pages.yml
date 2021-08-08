@@ -2,7 +2,7 @@ name: Generate github pages
 
 on:
   push: 
-    branches: [ documentation-pages, main ]
+    branches: [ feature/documentation-pages, main ]
 
 jobs:
   build:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          ref: documentation-pages
+          ref: feature/documentation-pages
 
       - name: Install asciidoctor
         run: sudo apt-get install -y asciidoctor
