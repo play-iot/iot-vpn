@@ -1,0 +1,113 @@
+= PlayIO VPN Home Page
+
+*Play-IO* IIoT VPN solution
+
+== Overview
+
+image::./.github/vpnserver.png[softether]
+
+== Server Infrastructure
+
+Play-IO VPN solution provides secured connection to Corporate infrastructure as well as centralized user, iot device and credential management
+
+=== VPN Server
+
+Server configuration is described link:./cli/python/OVERVIEW.adoc[here]
+
+=== VPN DDNS
+
+image:https://img.shields.io/docker/v/playio/vpnddns?sort=semver[Docker Image Version (latest semver),link=https://hub.docker.com/r/playio/vpnddns/tags?page=1&ordering=last_updated] image:https://img.shields.io/docker/image-size/playio/vpnddns?sort=semver[Docker Image Size (latest semver),link=https://hub.docker.com/r/playio/vpnddns/tags?page=1&ordering=last_updated]
+
+The `CLI` application syncs every 2 minutes VPN client IP addresses to private Google Cloud DNS:
+
+* DNS zone name for each customer: `device.<customer-code>`
+* Device DNS name: `<device-hostname>.device.<customer-code>`
+
+== Client Infrastructure
+
+=== Client Tool (VPNC)
+
+==== Supported Operating system
+
+
+|===
+| Distro | Release | Architecture | Status
+
+| Raspbian
+| Stretch/Buster
+| `ARMv7`/`ARM64`
+| &#10004;
+
+| BeagleBoard
+| Stretch/Buster
+| `ARMv7`/`ARM64`
+| &#10004;
+
+| OpenWRT
+| 18.x/19.x
+| `ARMv7`/`ARM64`/`Mips`
+| &#10004;
+
+| Ubuntu
+| 16.x/18.x/20.x
+| `ARMv7`/`ARM64`/`x86_64`
+| &#10004;
+
+| Debian
+| 9/10
+| `ARMv7`/`ARM64`/`x86_64`
+| &#10004;
+
+| Fedora
+| 31/32/33
+| `ARMv7`/`ARM64`/`x86_64`
+| icon:exclamation-triangle[] https://github.com/play-iot/iot-vpn/issues/10[SELinux]
+
+| CentOS
+| 6/7/8
+| `ARMv7`/`ARM64`/`x86_64`
+| icon:exclamation-triangle[] https://github.com/play-iot/iot-vpn/issues/10[SELinux]
+
+| RHEL
+| 7.x/8.x
+| `ARMv7`/`ARM64`/`x86_64`
+| icon:exclamation-triangle[] https://github.com/play-iot/iot-vpn/issues/10[SELinux]
+
+| Windows
+| 8/10
+| `x86_64`
+| icon:exclamation-triangle[] https://www.softether.org/[SoftetherVPN]
+
+| MacOS
+| 7.x/8.x
+| `x86_64`
+| icon:square[]
+
+| Android
+| 7.x/8.x
+| `x86_64`
+| icon:square[]
+|===
+
+==== Supported DNS resolvers
+
+* +++<input type="checkbox" class="task-list-item-checkbox" disabled="disabled" checked="checked">++++++</input>+++`NetworkManager`
+* +++<input type="checkbox" class="task-list-item-checkbox" disabled="disabled" checked="checked">++++++</input>+++`systemd-resolver`
+* +++<input type="checkbox" class="task-list-item-checkbox" disabled="disabled" checked="checked">++++++</input>+++`resolvconf`
+* +++<input type="checkbox" class="task-list-item-checkbox" disabled="disabled" checked="checked">++++++</input>+++`openresolv`
+* +++<input type="checkbox" class="task-list-item-checkbox" disabled="disabled" checked="checked">++++++</input>+++`connman` https://github.com/play-iot/iot-vpn/issues/91[icon:exclamation-triangle[] Manual step]
+
+==== How to use
+
+* xref:./cli/python/src/client/VPNC_README.adoc[VPNC]
+* xref:./cli/python/src/command/README.adoc[Commands]
+
+=== Client Deployer (VPNC Deployer)
+
+image:https://img.shields.io/docker/v/playio/vpnc-deployer?sort=semver[Docker Image Version (latest semver),link=https://hub.docker.com/r/playio/vpnc-deployer/tags?page=1&ordering=last_updated] image:https://img.shields.io/docker/image-size/playio/vpnc-deployer?sort=semver[Docker Image Size (latest semver),link=https://hub.docker.com/r/playio/vpnc-deployer/tags?page=1&ordering=last_updated]
+
+The `CLI` tool based on `ansible` and `docker` to mass deploy VPN client on one or many devices/computers.
+
+== How to contribute
+
+Please read xref:SETUP.adoc[SETUP.adoc] to setup your environment.

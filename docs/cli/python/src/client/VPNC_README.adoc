@@ -1,0 +1,233 @@
+= Play-iO VPN client CLI
+
+Play-iO VPN client CLI for popular Linux distro and architecture.
+That support
+
+* Auto setup and register VPN service on `*Unix` system
+* Auto connect and lease VPN private IP
+* Auto manage `private DNS` from VPN network
+
+== Installation
+
+Download the latest version in https://github.com/play-iot/iot-vpn/releases[vpnc/releases] with tag in format `vpnc/v[semantic-version]`.
+
+* `playio-vpnc.armv7.zip` for IoT device: RaspberryPi, BeagleBone, etc...
+* `playio-vpnc.amd64.zip` for user computer: support Ubuntu 18/20, Debian 8/9/10
+
+https://thekelleys.org.uk/dnsmasq/doc.html[dnsmasq] is used as local DNS caching to resolve DNS from private VPN network.
+Currently, `dnsmasq` can be setup and auto download when installing `vpnclient` (only support `Ubuntu`/`Debian`/`Raspibian`/`Fedora`/`CentOS` in this time, if you are using another Linux distro, please install `dnsmasq` manually)
+
+=== Tips
+
+For convenient, setup download tool https://github.com/zero88/gh-release-downloader[ghrd] to quick download artifact by version on GitHub.
+
+This is setup script for Ubuntu/Debian distro
+
+[,bash]
+----
+export GHRDVER=1.1.2 && sudo curl -L https://github.com/zero88/gh-release-downloader/releases/download/v$GHRDVER/ghrd -o /usr/local/bin/ghrd \
+  && sudo chmod +x /usr/local/bin/ghrd \
+  && sudo ln -sf /usr/local/bin/ghrd /usr/bin/ghrd \
+  && sudo apt install jq -y \
+  && unset GHRDVER
+----
+
+=== Download and setup VPN client
+
+This is a script that using `ghrd`.
+You need to know VPN version and target system (to identify architecture edition) then subtitle to `VPNCVER` and `VPNCARCH` in a below script.
+
+For example: `VPNCVER=v0.9.1` and `VPNCARCH=armv7` (currently, one of `armv7` and `amd64`)
+
+[,bash]
+----
+export VPNCVER=v0.9.1 && export VPNARCH=armv7 \
+   && ghrd -a ".*$VPNARCH.*" -x -r "vpnc/$VPNCVER" -o /tmp play-iot/iot-vpn \
+   && sudo mkdir -p /app \
+   && sudo unzip -o -d /app /tmp/playio-vpnc*.zip \
+   && sudo ln -sf /app/playio-vpnc /usr/local/bin/playio-vpnc \
+   && unset VPNCVER && unset VPNARCH
+----
+
+Verify:
+
+[,bash]
+----
+$ playio-vpnc version
+INFO : VPN version : v4.29-9680-rtm
+INFO : CLI version : 0.9.1
+INFO : Hash version: 2465e648
+-------------------------------------------------------
+----
+
+== Usage
+
+* `playio-vpnc -h` for more information
++
+[,bash]
+----
+$ playio-vpnc -h
+Usage: playio-vpnc [OPTIONS] COMMAND [ARGS]...
+
+  CLI tool to install VPN Client and setup VPN connection
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  about        Show VPN software info
+  add          Add new VPN Account
+  connect      Connect to VPN connection by given VPN account
+  delete       Delete one or many VPN account
+  detail       Get detail VPN configuration and status by one or many accounts
+  disconnect   Disconnect VPN connection
+  install      Install VPN client and setup *nix service
+  list         Get all VPN Accounts
+  log          Get VPN log
+  set-default  Set VPN default connection in startup by given VPN account
+  status       Get current VPN status
+  trust        Trust VPN Server cert
+  uninstall    Stop and disable VPN client and *nix service
+  upgrade      Upgrade VPN client
+  version      VPN Version
+----
+
+* To interact with any command, please use `playio-vpnc <command> -h` to see help documentation.
+For example:
++
+[,bash]
+----
+playio-vpnc install -h
+Usage: playio-vpnc install [OPTIONS]
+
+  Install VPN client and setup *nix service
+
+Options:
+  --auto-startup            Enable auto-startup VPN service  [default: False]
+  --auto-dnsmasq            Give a try to install dnsmasq  [default: False]
+  --dnsmasq / --no-dnsmasq  By default, dnsmasq is used as local DNS cache. Disabled it if using default System DNS
+                            resolver  [default: True]
+
+  -dd, --vpn-dir TEXT       VPN installation directory  [default: ("/app/vpnclient" or from "env.VPN_HOME")]
+  -dn, --service-name TEXT  VPN Service name  [default: playio-vpn]
+  -ds, --service-dir TEXT   Linux Service directory
+  -f, --force               If force is enabled, VPN service will be removed then reinstall without backup  [default:
+                            False]
+
+  -v, --verbose             Enables verbose mode
+  -h, --help                Show this message and exit.
+----
+
+* To connect VPN server, you must provide
+ ** `VPN Host` HTTPS VPN server.
+ ** `VPN Port` Default is `443`.
+ ** `VPN Hub`  It is multi-tenant option, normally it is `customer` code.
+ ** `Authentication` A login credential to appropriate VPN host and VPN Hub.
+Credential type can be `password` or `cert`
+* After connect VPN connection (See <<vpn-workflow,#VPN workflow>>), VPN client will be registered as linux service, then you can manage it as normal linux service with some basic linux commands
++
+[,bash]
+----
+sudo systemctl status playio-vpn  # service status
+sudo systemctl restart playio-vpn # restart service
+sudo journctl -u playio-vpn
+----
+
+=== VPN workflow
+
+. Normal workflow
+
+[,bash]
+----
+  # Setup VPN client service
+  $ playio-vpnc install # pass "--auto-dnsmasq" to try installing `dnsmasq` internally
+
+  # Add VPN account then open VPN session and start VPN service
+  $ playio-vpnc add <option for VPN connection> # use "-h" for more detail
+
+  # Show VPN status
+  $ playio-vpnc status
+
+  # Disconnect VPN connection and stop VPN service
+  $ playio-vpnc disconnect # pass "--disable" to not start VPN service when startup computer
+----
+
+. For upgrade to new version, download the latest version as <<download-and-setup-vpn-client,instruction>>, then use:
+
+[,bash]
+----
+  $ playio-vpnc upgrade
+----
+
+*Note* It is hot reload regardless current state is in VPN session or not.
+Don't stop a script manually by `<Ctrl + C>` if don't want to break a network connection.
+
+. Uninstall VPN service, use:
+
+[,bash]
+----
+  # pass "-f" to remove completely vpnclient installation and data folder
+  # it still keep "dnsmasq" to resolve DNS for public domain.
+  # if want to restore computer network to origin state, pass "--no-keep-dnsmasq"
+  $ playio-vpnc uninstall
+----
+
+==== IoT device
+
+* Must use `Client Certificate Authentication`
+* Need `VPN user`, `VPN user certificated` file, `VPN user private key` file
+* 2 steps for quick install and setup:
++
+[,bash]
+----
+# Install VPN client and setup Linux service
+$ sudo playio-vpnc install
+# Add and connect to VPN account
+$ sudo playio-vpnc add -sh <vpn_server> -su <hub_name> -cd -ct cert -cu <vpn_user> -cck <user_cert> -cpk <user_privkey>
+----
+
+* After that, please verify by commands:
++
+[,bash]
+----
+$ sudo playio-vpnc status
+
+INFO : VPN Application   : Installed - /app/vpnclient
+INFO : VPN Service       : playio-vpn - active(running) - PID[4511]
+INFO : VPN Account       : cba - Connection Completed (Session Established)
+INFO : VPN IP address    : [{'addr': '10.0.0.6', 'netmask': '255.0.0.0', 'broadcast': '10.255.255.255'}]
+----
+
+==== User computer
+
+* Use `Client Password Authentication`
+* Need `VPN user`, `VPN password`, `VPN Customer hub` (a.k.a customer code, per hub per customer)
+* If you manage cross VPN customer, then it's ideally to provide `VPN account` (VPN connection name) that equals to `VPN customer code`
++
+[,bash]
+----
+$ sudo playio-vpnc install
+
+# You can check log
+$ sudo playio-vpnc log -f
+
+# You can check status
+$ sudo playio-vpnc status
+
+# Put your password in `single quotes` 'your-password'
+$ sudo playio-vpnc add -sh <vpn_server> -su <customer_code_1> -ct password -cu <vpn_user> -cp <vpn_password>
+# You can add other VPN accounts
+# pass '-cd' option is make VPN client account is default for startup computer
+$ sudo playio-vpnc add -sh <vpn_server> -su <customer_code_n> -ct password -cu <vpn_user> -cp <vpn_password> -cd
+
+# Then you can switch among account by
+$ sudo playio-vpnc connect <customer_code_n>
+
+# To uninstall vpn service
+$ sudo playio-vpnc uninstall
+----
+
+== Limitation
+
+* Not yet test in `MacOS` with `--arch macos-x64` or `--arch macos-x86`
+* Not yet supported in `Windows` but you can use https://www.softether.org/4-docs/1-manual/4._SoftEther_VPN_Client_Manual/4.2_Using_the_VPN_Client[GUI] https://www.softether-download.com/files/softether/v4.34-9745-rtm-2020.04.05-tree/Windows/SoftEther_VPN_Client/softether-vpnclient-v4.34-9745-rtm-2020.04.05-windows-x86_x64-intel.exe[here]
