@@ -1,10 +1,14 @@
 = PlayIO VPN Home Page
+:icons: font
+// :iconfont-cdn: 
+:toc: auto
 
 *Play-IO* IIoT VPN solution
 
 == Overview
 
-image::./.github/vpnserver.png[softether]
+[#img-vpnserver]
+image::images/vpnserver.png[softether,width=75%]
 
 == Server Infrastructure
 
@@ -12,7 +16,7 @@ Play-IO VPN solution provides secured connection to Corporate infrastructure as 
 
 === VPN Server
 
-Server configuration is described link:./cli/python/OVERVIEW.adoc[here]
+Server configuration is described xref:./cli/python/OVERVIEW.adoc[here]
 
 === VPN DDNS
 
