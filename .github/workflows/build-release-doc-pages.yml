@@ -14,19 +14,16 @@ jobs:
         with:
           ref: feature/documentation-pages
 
-      - name: Install asciidoctor
-        run: sudo apt-get install -y asciidoctor
+      - name: Setup Maven
+        uses: stCarolas/setup-maven@v4.1
 
-      - name: Convert asciidoc files to html
-        run: |
-            find docs/ -name *.adoc -exec asciidoctor -a toc -a icons=font {} \;
-            find docs/ -name *.adoc -exec rm -f {} \;
+      - name: Generate Maven site
+        run: cd docs && mvn site:site
 
       - name: Deploy to GitHub Pages
-        if: success()
         uses: crazy-max/ghaction-github-pages@v2
         with:
           target_branch: doc-pages-uat
-          build_dir: docs
+          build_dir: docs/target/site
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
