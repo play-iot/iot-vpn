@@ -1,0 +1,25 @@
+= VPN DDNS k8s job
+
+Query VPN client session based on `hostname`, `vpn ip address` then create DNS record in https://console.cloud.google.com/net-services/dns/zones[Cloud DNS].
+The job is setup to run on k8s cronjob
+
+* Use this https://github.com/zero-88/devops-utils/tree/master/k8s[utility]
+* Cronjob manifest:
+ ** link:https://github.com/play-iot/iot-vpn/blob/main/cli/k8s/ddns/10_create-config-secret.sh[10_create-config-secret.sh] Create config/secret
+ ** link:https://github.com/play-iot/iot-vpn/blob/main/cli/k8s/ddns/11_vpn-dns-sync-cronjob.yaml[11_vpn-dns-sync-cronjob.yaml]
+
+== Deployment steps
+
+* Prepare `google-service-account.json` with right permission to update Cloud DNS records.
+* Copy and fill information based on a customer code.
+For example: `playio` is customer code
+ ** link:https://github.com/play-iot/iot-vpn/blob/main/cli/k8s/ddns/customer.env.tmpl[customer.env.tmpl] = playio.env
+ ** link:https://github.com/play-iot/iot-vpn/blob/main/cli/k8s/ddns/customer.secret.env.tmpl[customer.secret.env.tml] = playio.secret.env
+ ** link:https://github.com/play-iot/iot-vpn/blob/main/cli/k8s/ddns/.runner.env.tmpl[.runner.env.tmpl] = .prod.env
+* Checkout https://github.com/zero-88/devops-utils/tree/master/k8s[utility]
+
+[,bash]
+----
+PROJECT_DIR=<your-path>
+python deploy.py -e prod -m gcp -d $PROJECT_DIR/cli/k8s/ddns
+----

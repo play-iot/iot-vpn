@@ -9,6 +9,7 @@
 
 [TIP]
 
+====
 For convenient, setup download tool https://github.com/zero88/gh-release-downloader[ghrd] to quick download artifact by version on GitHub.
 This is setup script for `Ubuntu`/`Debian` distro
 
@@ -20,6 +21,7 @@ export GHRDVER=1.1.2 && sudo curl -L https://github.com/zero88/gh-release-downlo
   && sudo apt install jq -y \
   && unset GHRDVER
 ----
+====
 
 ==== Download tool
 

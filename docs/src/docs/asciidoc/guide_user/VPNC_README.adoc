@@ -136,7 +136,7 @@ sudo journctl -u playio-vpn
 === VPN workflow
 
 . Normal workflow
-
++
 [,bash]
 ----
   # Setup VPN client service
@@ -153,17 +153,16 @@ sudo journctl -u playio-vpn
 ----
 
 . For upgrade to new version, download the latest version as <<download-and-setup-vpn-client,instruction>>, then use:
-
++
 [,bash]
 ----
   $ playio-vpnc upgrade
 ----
-
-*Note* It is hot reload regardless current state is in VPN session or not.
-Don't stop a script manually by `<Ctrl + C>` if don't want to break a network connection.
++
+CAUTION: It is hot reload regardless current state is in VPN session or not. Don't stop a script manually by `<Ctrl + C>` if don't want to break a network connection.
 
 . Uninstall VPN service, use:
-
++
 [,bash]
 ----
   # pass "-f" to remove completely vpnclient installation and data folder

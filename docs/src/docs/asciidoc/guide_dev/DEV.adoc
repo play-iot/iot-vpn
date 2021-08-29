@@ -133,8 +133,6 @@ Options:
   -h, --help              Show this message and exit.
 ----
 
-=== MAC Usage
-
 * Generate in random mode
 
 [,bash]
