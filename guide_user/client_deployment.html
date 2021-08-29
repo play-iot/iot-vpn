@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Asciidoctor 2.0.15">
+<title>Deploy VPN client</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
+<link rel="stylesheet" href="./asciidoctor.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="./coderay-asciidoctor.css">
+</head>
+<body class="article toc2 toc-left">
+<div id="header">
+<h1>Deploy VPN client</h1>
+<div id="toc" class="toc2">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#usage">Usage</a>
+<ul class="sectlevel2">
+<li><a href="#installation">Installation</a></li>
+<li><a href="#workflow">Workflow</a></li>
+<li><a href="#update-target-machine-hosts">Update target machine hosts</a></li>
+<li><a href="#update-target-vpn-credentials">Update target VPN credentials</a></li>
+<li><a href="#setup-vpn-client">Setup VPN client</a></li>
+</ul>
+</li>
+<li><a href="#development">Development</a>
+<ul class="sectlevel2">
+<li><a href="#docker">Docker</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div id="content">
+<div class="sect1">
+<h2 id="usage"><a class="anchor" href="#usage"></a>Usage</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="installation"><a class="anchor" href="#installation"></a>Installation</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>Download the latest version <code>vpnc-deployer-cli</code> in <a href="https://github.com/play-iot/iot-vpn/releases">playio-vpn/releases</a> and copy to anywhere in <strong>YOUR LINUX COMPUTER</strong></p>
+</li>
+<li>
+<p>Install <a href="https://docs.docker.com/engine/install"><code>docker</code></a> and <a href="https://docs.docker.com/compose/install/"><code>docker-compose</code></a></p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>For convenient, setup download tool <a href="https://github.com/zero88/gh-release-downloader">ghrd</a> to quick download artifact by version on GitHub.
+This is setup script for <code>Ubuntu</code>/<code>Debian</code> distro</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">export GHRDVER=1.1.2 &amp;&amp; sudo curl -L https://github.com/zero88/gh-release-downloader/releases/download/v$GHRDVER/ghrd -o /usr/local/bin/ghrd \
+  &amp;&amp; sudo chmod +x /usr/local/bin/ghrd \
+  &amp;&amp; sudo ln -sf /usr/local/bin/ghrd /usr/bin/ghrd \
+  &amp;&amp; sudo apt install jq -y \
+  &amp;&amp; unset GHRDVER</code></pre>
+</div>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="sect3">
+<h4 id="download-tool"><a class="anchor" href="#download-tool"></a>Download tool</h4>
+<div class="paragraph">
+<p>This is a script that using <code>ghrd</code>.
+For example: <code>VPNCVER=v0.9.4</code></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">export VPNCVER=v0.9.4 \
+   &amp;&amp; ghrd vpnc-deployer-cli -r vpnc-deployer/$VPNCVER -o /tmp play-iot/iot-vpn \
+   &amp;&amp; sudo mkdir -p /app \
+   &amp;&amp; sudo mv /tmp/vpnc-deployer-cli /app/vpnc-deployer-cli \
+   &amp;&amp; sudo ln -sf /app/vpnc-deployer-cli /usr/local/bin/vpnc-deployer-cli \
+   &amp;&amp; unset VPNCVER</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="workflow"><a class="anchor" href="#workflow"></a>Workflow</h3>
+<div class="paragraph">
+<p>Assume sample workflow inputs:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Input</th>
+<th class="tableblock halign-left valign-top">Value</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>deployer_dir</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>/app/vpnc-deployer</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A deployment dir in your computer</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>vpnc_version</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>0.9.4</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A VPNC release version</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>customer_code</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>enviro</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An sample for customer code</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>private_cloud_dns</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>proxy.cloud.enviro</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A private cloud DNS for each customer.
+If customer have not yet private cloud, use <code>google.com</code></p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Repeat this workflow for each customer with update corresponding to <code>customer_code</code> and <code>private_cloud_dns</code> If new <code>vpnc</code> version is released, need to update also.</p>
+</div>
+<div class="sect3">
+<h4 id="init-step"><a class="anchor" href="#init-step"></a>Init step</h4>
+<div class="paragraph">
+<p>This step use information above.
+Please check it carefully.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">$ cat &gt;&gt; ~/.bashrc &lt;&lt;EOL
+export VPNC_DEPLOYER=/app/vpnc-deployer
+EOL
+$ ./vpnc-deployer-cli -r 0.9.4 -p proxy.cloud.enviro -e enviro init
+Validating dependencies...
+Dependencies OK!!!
+Validating arguments...
+Arguments OK!!!
+Preparing deployment location [/app/vpnc-deployer]...
+Downloading VPNC binary for arch[amd64] to [/app/vpnc-deployer/enviro-vpnc-amd64]...
+Downloading VPNC binary for arch[armv7] to [/app/vpnc-deployer/enviro-vpnc-armv7]...
+Downloading VPNC binary for arch[arm64] to [/app/vpnc-deployer/enviro-vpnc-arm64]...
+Prepared OK!!!
+Generating Docker compose stack...
+Generated OK: /app/vpnc-deployer/enviro-docker-compose.yml
+Generated OK: /app/vpnc-deployer/inventory/enviro-hosts.yml
+Generated OK: /app/vpnc-deployer/files/enviro-credentials.json
+Please update remote device connection in '/app/vpnc-deployer/inventory/enviro-hosts.yml'
+Please update VPN credentials in '/app/vpnc-deployer/files/enviro-credentials.json'
+Then invoke './vpnc-deployer-cli &lt;command&gt;' in which command can be one of [setup,state,rollout,extend,undeploy]
+DONE!!!</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="update-target-machine-hosts"><a class="anchor" href="#update-target-machine-hosts"></a>Update target machine hosts</h3>
+<div class="paragraph">
+<p>Update <code>&lt;customer-code&gt;-hosts.yml</code> as <code>init</code> step output.
+In sample context is: <code>/app/vpnc-deployer/inventory/enviro-hosts.yml</code></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="yaml"><span class="key">all</span>:
+<span class="key">children</span>:
+  <span class="key">device</span>:
+    <span class="key">hosts</span>:
+      <span class="error">&lt;device_name_1&gt;</span>:
+        <span class="key">ansible_host</span>: <span class="string"><span class="content">&lt;device_ip_1&gt;</span></span>
+      <span class="error">&lt;device_name_2&gt;</span>:
+        <span class="key">ansible_host</span>: <span class="string"><span class="content">&lt;device_ip_2&gt;</span></span>
+        <span class="key">ansible_port</span>: <span class="string"><span class="content">&lt;device_port_2&gt;</span></span>
+        <span class="key">ansible_user</span>: <span class="string"><span class="content">&lt;device_user_2&gt;</span></span>
+        <span class="key">ansible_password</span>: <span class="string"><span class="content">&lt;device_password_2&gt;</span></span>
+    <span class="key">vars</span>:
+      <span class="key">ansible_port</span>: <span class="string"><span class="content">&lt;device_ssh_port_for_all_hosts&gt;</span></span>
+      <span class="key">ansible_user</span>: <span class="string"><span class="content">&lt;device_username_for_all_hosts&gt;</span></span>
+      <span class="key">ansible_password</span>: <span class="string"><span class="content">&lt;device_user_password_for_all_hosts&gt;</span></span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Importance</strong></p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Replace <code>device_name_*</code> to vpn user format.
+For example: <code>n000001</code>, <code>n000002</code></p>
+</li>
+<li>
+<p>Replace <code>device_ip_*</code> to host ip that corresponding to <code>vpn_user</code>.
+For example: <code>192.168.10.15</code> for <code>n000001</code>.</p>
+</li>
+<li>
+<p>Replace <code>device_port_*</code> to SSH port that corresponding to <code>vpn_user</code>.
+For example: <code>2022</code> for <code>n000001</code>.</p>
+</li>
+<li>
+<p>Replace <code>device_user_*</code> to SSH user in <code>sudo</code> role that corresponding to <code>vpn_user</code>.
+For example: <code>pi</code> for <code>n000001</code>.</p>
+</li>
+<li>
+<p>Replace <code>device_password_*</code> to SSH password that corresponding to <code>vpn_user</code>.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="update-target-vpn-credentials"><a class="anchor" href="#update-target-vpn-credentials"></a>Update target VPN credentials</h3>
+<div class="paragraph">
+<p>Update <code>&lt;customer-code&gt;-credentials.json</code> as <code>init</code> step output.
+In sample context is: <code>/app/vpnc-deployer/enviro-credentials.json</code></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="json">{
+<span class="key"><span class="delimiter">&quot;</span><span class="content">&lt;device_name&gt;</span><span class="delimiter">&quot;</span></span>: {
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">vpn_server</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">&lt;vpn_server&gt;</span><span class="delimiter">&quot;</span></span>,
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">vpn_port</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">&lt;vpn_port&gt;</span><span class="delimiter">&quot;</span></span>,
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">vpn_hub</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">&lt;customer_code&gt;</span><span class="delimiter">&quot;</span></span>,
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">vpn_account</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">&lt;customer_code&gt;</span><span class="delimiter">&quot;</span></span>,
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">vpn_auth_type</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">&lt;cert|password&gt;</span><span class="delimiter">&quot;</span></span>,
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">vpn_user</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">&lt;vpn_user&gt;</span><span class="delimiter">&quot;</span></span>,
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">vpn_password</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">&lt;vpn_password&gt;</span><span class="delimiter">&quot;</span></span>,
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">vpn_cert_key</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">&lt;vpn_cert_key&gt;</span><span class="delimiter">&quot;</span></span>,
+  <span class="key"><span class="delimiter">&quot;</span><span class="content">vpn_private_key</span><span class="delimiter">&quot;</span></span>: <span class="string"><span class="delimiter">&quot;</span><span class="content">&lt;vpn_private_key&gt;</span><span class="delimiter">&quot;</span></span>
+  }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Importance</strong></p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>You can test by your local computer with <code>user</code>/<code>password</code></p>
+</li>
+<li>
+<p>In <code>production</code>, this file will be provided by administrator per customer</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="setup-vpn-client"><a class="anchor" href="#setup-vpn-client"></a>Setup VPN client</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">./vpnc-deployer.sh -e enviro setup</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>It will show output to console, then don&#8217;t close it by <code>Ctrl+C</code> After the progress finished, it will show something like that</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">vpnc-deployer_1  | PLAY RECAP *********************************************************************
+vpnc-deployer_1  | n000002                    : ok=14   changed=3    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+vpnc-deployer_1  | n000003                    : ok=14   changed=3    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0</code></pre>
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>If output show <code>unreachable=1</code>, please check your connection to target devices (<code>ip</code>/<code>port</code>/<code>username</code>/<code>password</code>)</p>
+</li>
+<li>
+<p>If output show <code>failed=1</code>, please copy a log file in <code>/tmp/out/ansible.log</code> then send to @zero88`</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="development"><a class="anchor" href="#development"></a>Development</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">ansible-inventory --graph</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Run this playbook first to ensure the default <code>python</code> path exists on target hosts for ansible to lookup:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">ansible-playbook wf-ensure-python.yml</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Then:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">ansible-playbook wf-vpnc-rollout.yml -e 'debug=1' -e '{&quot;args_vpn_state_test_domains&quot;: [&quot;google.com&quot;]}'</code></pre>
+</div>
+</div>
+<div class="sect2">
+<h3 id="docker"><a class="anchor" href="#docker"></a>Docker</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>See <code>docker-compose</code> dev version <a href="https://github.com/play-iot/iot-vpn/blob/main/docker/vpnc-deployer-dkc.yml">here</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="footer">
+<div id="footer-text">
+Last updated 2021-08-29 08:57:06 UTC
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Asciidoctor 2.0.15">
+<title>Secret utility</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
+<link rel="stylesheet" href="./asciidoctor.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="./coderay-asciidoctor.css">
+</head>
+<body class="article toc2 toc-left">
+<div id="header">
+<h1>Secret utility</h1>
+<div id="toc" class="toc2">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#gen-ssh-command"><strong>gen-ssh</strong> command</a></li>
+<li><a href="#encrypt-command"><strong>encrypt</strong> command</a></li>
+<li><a href="#gen-root-cert-command"><strong>gen-root-cert</strong> command</a></li>
+<li><a href="#gen-signed-cert-command"><strong>gen-signed-cert</strong> command</a></li>
+</ul>
+</div>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>This is a <code>python</code> utility to perform "secret" features:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Encryption</p>
+</li>
+<li>
+<p>SSH key pairs generating</p>
+</li>
+<li>
+<p>Certification Authority (CA):</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Generate root Certificate</p>
+</li>
+<li>
+<p>Generate and sign Intermediate Certificate</p>
+</li>
+<li>
+<p>Generate and sign Certificate</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="console">$ python index.py secret
+Usage: index.py secret [OPTIONS] COMMAND [ARGS]...
+
+  Secret utils
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  encrypt
+  gen-root-cert
+  gen-signed-cert
+  gen-ssh</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="gen-ssh-command"><a class="anchor" href="#gen-ssh-command"></a><strong>gen-ssh</strong> command</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This command generates ssh key pairs which is then imported to <code>playio</code> device in order to perform passwordless ssh login inside VPN network.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="console">$ python index.py secret gen-ssh -h
+Usage: index.py secret gen-ssh [OPTIONS]
+
+Options:
+  -u, --users TEXT             List users  [required]
+  -of, --output-file TEXT      Output file  [default: ssh]
+  -od, --output-dir DIRECTORY  Output directory  [default: &lt;omited&gt;/output]
+  -h, --help                   Show this message and exit.</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="encrypt-command"><a class="anchor" href="#encrypt-command"></a><strong>encrypt</strong> command</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This command perform encryption based on some well-known and supported alogrithm.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="console">$ python index.py secret encrypt -h
+Usage: index.py secret encrypt [OPTIONS]
+
+Options:
+  -i, --input TEXT                Value  [required]
+  -a, --algorithm [md5|sha1|sha256]
+                                  Algorithm to encrypt  [required]
+  -b64, --base64
+  -h, --help                      Show this message and exit.</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="gen-root-cert-command"><a class="anchor" href="#gen-root-cert-command"></a><strong>gen-root-cert</strong> command</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This command generates a root certificate and corresponding private key.
+This bundles then are used to sign new certificate and intermediate certificate.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="console">$ python3 index.py secret gen-root-cert -h
+Usage: index.py secret gen-root-cert [OPTIONS]
+
+Options:
+  -ced, --cert-valid-days INTEGER RANGE
+                                  Certificate valid days [1 - 365]  [default: 365; required]
+  -con, --cert-organziation TEXT  Certificate Organziation  [default: Nube iO Operations Pty Ltd; required]
+  -ccu, --cert-country TEXT       Certificate Country name  [default: AU; required]
+  -csn, --cert-state TEXT         Certificate State name  [default: New South Wales; required]
+  -cln, --cert-locality TEXT      Certificate Locality name  [default: Sydney; required]
+  -ccn, --cert-common-name TEXT   Certificate Common Name  [default: nube-io.com; required]
+  -of, --output-file TEXT         Output file  [default: root-certs]
+  -od, --output-dir DIRECTORY     Output directory  [default:
+                                  &lt;omited&gt;/output]
+  -h, --help                      Show this message and exit.</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="gen-signed-cert-command"><a class="anchor" href="#gen-signed-cert-command"></a><strong>gen-signed-cert</strong> command</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This command generate and sign new certificate from existing root/intermediate certificate.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="console">$ python3 index.py secret gen-signed-cert -h
+Usage: index.py secret gen-signed-cert [OPTIONS]
+
+Options:
+  --intermediate                  Marks generating an Intermediate CA
+  -ii, --intermediate-item TEXT   Declares list of signed certification name  [required]
+  -ic, --intermediate-code TEXT   Defines an Intermediate CA code
+  -cck, --cert-key PATH           Path to root certificate key  [required]
+  -cpk, --private-key PATH        Path to root certificate private key  [required]
+  -ced, --cert-valid-days INTEGER RANGE
+                                  Certificate valid days [1 - 365]  [default: 365; required]
+  -con, --cert-organziation TEXT  Certificate Organziation
+  -ccu, --cert-country TEXT       Certificate Country name
+  -csn, --cert-state TEXT         Certificate State name
+  -cln, --cert-locality TEXT      Certificate Locality name
+  -ccn, --cert-common-name TEXT   Certificate Common Name
+  -of, --output-file TEXT         Output file  [default: signed-certs]
+  -od, --output-dir DIRECTORY     Output directory  [default:
+                                  &lt;omited&gt;/output]
+  -h, --help                      Show this message and exit.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>To generate and sign new Intermediate CA from existing root CA:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>python index.py secret gen-signed-cert --intermediate -ii &lt;customer01-code&gt; -ii &lt;customer02-code&gt; -cck output/root-certs.crt -cpk output/root-certs.key</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>To generate and sign new Certificate for <code>playio</code> device:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>python index.py secret gen-signed-cert -ic &lt;customer01&gt; -cck output/&lt;customer01-intermediate-cert&gt;.crt -cpk output/&lt;customer01-intermediate-privatep-key&gt;.key -ii &lt;device-name&gt;</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="footer">
+<div id="footer-text">
+Last updated 2021-08-29 08:57:06 UTC
+</div>
+</div>
+</body>
+</html>

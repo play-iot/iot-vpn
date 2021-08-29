@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Asciidoctor 2.0.15">
+<title>Play-iO VPN client CLI</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
+<link rel="stylesheet" href="./asciidoctor.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="./coderay-asciidoctor.css">
+</head>
+<body class="article toc2 toc-left">
+<div id="header">
+<h1>Play-iO VPN client CLI</h1>
+<div id="toc" class="toc2">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#installation">Installation</a>
+<ul class="sectlevel2">
+<li><a href="#tips">Tips</a></li>
+<li><a href="#download-and-setup-vpn-client">Download and setup VPN client</a></li>
+</ul>
+</li>
+<li><a href="#usage">Usage</a>
+<ul class="sectlevel2">
+<li><a href="#vpn-workflow">VPN workflow</a></li>
+</ul>
+</li>
+<li><a href="#limitation">Limitation</a></li>
+</ul>
+</div>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>Play-iO VPN client CLI for popular Linux distro and architecture.
+That support</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Auto setup and register VPN service on <code>*Unix</code> system</p>
+</li>
+<li>
+<p>Auto connect and lease VPN private IP</p>
+</li>
+<li>
+<p>Auto manage <code>private DNS</code> from VPN network</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="installation"><a class="anchor" href="#installation"></a>Installation</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Download the latest version in <a href="https://github.com/play-iot/iot-vpn/releases">vpnc/releases</a> with tag in format <code>vpnc/v[semantic-version]</code>.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>playio-vpnc.armv7.zip</code> for IoT device: RaspberryPi, BeagleBone, etc&#8230;&#8203;</p>
+</li>
+<li>
+<p><code>playio-vpnc.amd64.zip</code> for user computer: support Ubuntu 18/20, Debian 8/9/10</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><a href="https://thekelleys.org.uk/dnsmasq/doc.html">dnsmasq</a> is used as local DNS caching to resolve DNS from private VPN network.
+Currently, <code>dnsmasq</code> can be setup and auto download when installing <code>vpnclient</code> (only support <code>Ubuntu</code>/<code>Debian</code>/<code>Raspibian</code>/<code>Fedora</code>/<code>CentOS</code> in this time, if you are using another Linux distro, please install <code>dnsmasq</code> manually)</p>
+</div>
+<div class="sect2">
+<h3 id="tips"><a class="anchor" href="#tips"></a>Tips</h3>
+<div class="paragraph">
+<p>For convenient, setup download tool <a href="https://github.com/zero88/gh-release-downloader">ghrd</a> to quick download artifact by version on GitHub.</p>
+</div>
+<div class="paragraph">
+<p>This is setup script for Ubuntu/Debian distro</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">export GHRDVER=1.1.2 &amp;&amp; sudo curl -L https://github.com/zero88/gh-release-downloader/releases/download/v$GHRDVER/ghrd -o /usr/local/bin/ghrd \
+  &amp;&amp; sudo chmod +x /usr/local/bin/ghrd \
+  &amp;&amp; sudo ln -sf /usr/local/bin/ghrd /usr/bin/ghrd \
+  &amp;&amp; sudo apt install jq -y \
+  &amp;&amp; unset GHRDVER</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="download-and-setup-vpn-client"><a class="anchor" href="#download-and-setup-vpn-client"></a>Download and setup VPN client</h3>
+<div class="paragraph">
+<p>This is a script that using <code>ghrd</code>.
+You need to know VPN version and target system (to identify architecture edition) then subtitle to <code>VPNCVER</code> and <code>VPNCARCH</code> in a below script.</p>
+</div>
+<div class="paragraph">
+<p>For example: <code>VPNCVER=v0.9.1</code> and <code>VPNCARCH=armv7</code> (currently, one of <code>armv7</code> and <code>amd64</code>)</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">export VPNCVER=v0.9.1 &amp;&amp; export VPNARCH=armv7 \
+   &amp;&amp; ghrd -a &quot;.*$VPNARCH.*&quot; -x -r &quot;vpnc/$VPNCVER&quot; -o /tmp play-iot/iot-vpn \
+   &amp;&amp; sudo mkdir -p /app \
+   &amp;&amp; sudo unzip -o -d /app /tmp/playio-vpnc*.zip \
+   &amp;&amp; sudo ln -sf /app/playio-vpnc /usr/local/bin/playio-vpnc \
+   &amp;&amp; unset VPNCVER &amp;&amp; unset VPNARCH</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Verify:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">$ playio-vpnc version
+INFO : VPN version : v4.29-9680-rtm
+INFO : CLI version : 0.9.1
+INFO : Hash version: 2465e648
+-------------------------------------------------------</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="usage"><a class="anchor" href="#usage"></a>Usage</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><code>playio-vpnc -h</code> for more information</p>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">$ playio-vpnc -h
+Usage: playio-vpnc [OPTIONS] COMMAND [ARGS]...
+
+  CLI tool to install VPN Client and setup VPN connection
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  about        Show VPN software info
+  add          Add new VPN Account
+  connect      Connect to VPN connection by given VPN account
+  delete       Delete one or many VPN account
+  detail       Get detail VPN configuration and status by one or many accounts
+  disconnect   Disconnect VPN connection
+  install      Install VPN client and setup *nix service
+  list         Get all VPN Accounts
+  log          Get VPN log
+  set-default  Set VPN default connection in startup by given VPN account
+  status       Get current VPN status
+  trust        Trust VPN Server cert
+  uninstall    Stop and disable VPN client and *nix service
+  upgrade      Upgrade VPN client
+  version      VPN Version</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>To interact with any command, please use <code>playio-vpnc &lt;command&gt; -h</code> to see help documentation.
+For example:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">playio-vpnc install -h
+Usage: playio-vpnc install [OPTIONS]
+
+  Install VPN client and setup *nix service
+
+Options:
+  --auto-startup            Enable auto-startup VPN service  [default: False]
+  --auto-dnsmasq            Give a try to install dnsmasq  [default: False]
+  --dnsmasq / --no-dnsmasq  By default, dnsmasq is used as local DNS cache. Disabled it if using default System DNS
+                            resolver  [default: True]
+
+  -dd, --vpn-dir TEXT       VPN installation directory  [default: (&quot;/app/vpnclient&quot; or from &quot;env.VPN_HOME&quot;)]
+  -dn, --service-name TEXT  VPN Service name  [default: playio-vpn]
+  -ds, --service-dir TEXT   Linux Service directory
+  -f, --force               If force is enabled, VPN service will be removed then reinstall without backup  [default:
+                            False]
+
+  -v, --verbose             Enables verbose mode
+  -h, --help                Show this message and exit.</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>To connect VPN server, you must provide</p>
+<div class="ulist">
+<ul>
+<li>
+<p><code>VPN Host</code> HTTPS VPN server.</p>
+</li>
+<li>
+<p><code>VPN Port</code> Default is <code>443</code>.</p>
+</li>
+<li>
+<p><code>VPN Hub</code>  It is multi-tenant option, normally it is <code>customer</code> code.</p>
+</li>
+<li>
+<p><code>Authentication</code> A login credential to appropriate VPN host and VPN Hub.
+Credential type can be <code>password</code> or <code>cert</code></p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>After connect VPN connection (See <a href="#vpn-workflow">#VPN workflow</a>), VPN client will be registered as linux service, then you can manage it as normal linux service with some basic linux commands</p>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">sudo systemctl status playio-vpn  # service status
+sudo systemctl restart playio-vpn # restart service
+sudo journctl -u playio-vpn</code></pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
+<div class="sect2">
+<h3 id="vpn-workflow"><a class="anchor" href="#vpn-workflow"></a>VPN workflow</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Normal workflow</p>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">  # Setup VPN client service
+  $ playio-vpnc install # pass &quot;--auto-dnsmasq&quot; to try installing `dnsmasq` internally
+
+  # Add VPN account then open VPN session and start VPN service
+  $ playio-vpnc add &lt;option for VPN connection&gt; # use &quot;-h&quot; for more detail
+
+  # Show VPN status
+  $ playio-vpnc status
+
+  # Disconnect VPN connection and stop VPN service
+  $ playio-vpnc disconnect # pass &quot;--disable&quot; to not start VPN service when startup computer</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>For upgrade to new version, download the latest version as <a href="#download-and-setup-vpn-client">instruction</a>, then use:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">  $ playio-vpnc upgrade</code></pre>
+</div>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+It is hot reload regardless current state is in VPN session or not. Don&#8217;t stop a script manually by <code>&lt;Ctrl + C&gt;</code> if don&#8217;t want to break a network connection.
+</td>
+</tr>
+</table>
+</div>
+</li>
+<li>
+<p>Uninstall VPN service, use:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">  # pass &quot;-f&quot; to remove completely vpnclient installation and data folder
+  # it still keep &quot;dnsmasq&quot; to resolve DNS for public domain.
+  # if want to restore computer network to origin state, pass &quot;--no-keep-dnsmasq&quot;
+  $ playio-vpnc uninstall</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div class="sect3">
+<h4 id="iot-device"><a class="anchor" href="#iot-device"></a>IoT device</h4>
+<div class="ulist">
+<ul>
+<li>
+<p>Must use <code>Client Certificate Authentication</code></p>
+</li>
+<li>
+<p>Need <code>VPN user</code>, <code>VPN user certificated</code> file, <code>VPN user private key</code> file</p>
+</li>
+<li>
+<p>2 steps for quick install and setup:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash"># Install VPN client and setup Linux service
+$ sudo playio-vpnc install
+# Add and connect to VPN account
+$ sudo playio-vpnc add -sh &lt;vpn_server&gt; -su &lt;hub_name&gt; -cd -ct cert -cu &lt;vpn_user&gt; -cck &lt;user_cert&gt; -cpk &lt;user_privkey&gt;</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>After that, please verify by commands:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">$ sudo playio-vpnc status
+
+INFO : VPN Application   : Installed - /app/vpnclient
+INFO : VPN Service       : playio-vpn - active(running) - PID[4511]
+INFO : VPN Account       : cba - Connection Completed (Session Established)
+INFO : VPN IP address    : [{'addr': '10.0.0.6', 'netmask': '255.0.0.0', 'broadcast': '10.255.255.255'}]</code></pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="user-computer"><a class="anchor" href="#user-computer"></a>User computer</h4>
+<div class="ulist">
+<ul>
+<li>
+<p>Use <code>Client Password Authentication</code></p>
+</li>
+<li>
+<p>Need <code>VPN user</code>, <code>VPN password</code>, <code>VPN Customer hub</code> (a.k.a customer code, per hub per customer)</p>
+</li>
+<li>
+<p>If you manage cross VPN customer, then it&#8217;s ideally to provide <code>VPN account</code> (VPN connection name) that equals to <code>VPN customer code</code></p>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">$ sudo playio-vpnc install
+
+# You can check log
+$ sudo playio-vpnc log -f
+
+# You can check status
+$ sudo playio-vpnc status
+
+# Put your password in `single quotes` 'your-password'
+$ sudo playio-vpnc add -sh &lt;vpn_server&gt; -su &lt;customer_code_1&gt; -ct password -cu &lt;vpn_user&gt; -cp &lt;vpn_password&gt;
+# You can add other VPN accounts
+# pass '-cd' option is make VPN client account is default for startup computer
+$ sudo playio-vpnc add -sh &lt;vpn_server&gt; -su &lt;customer_code_n&gt; -ct password -cu &lt;vpn_user&gt; -cp &lt;vpn_password&gt; -cd
+
+# Then you can switch among account by
+$ sudo playio-vpnc connect &lt;customer_code_n&gt;
+
+# To uninstall vpn service
+$ sudo playio-vpnc uninstall</code></pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="limitation"><a class="anchor" href="#limitation"></a>Limitation</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Not yet test in <code>MacOS</code> with <code>--arch macos-x64</code> or <code>--arch macos-x86</code></p>
+</li>
+<li>
+<p>Not yet supported in <code>Windows</code> but you can use <a href="https://www.softether.org/4-docs/1-manual/4._SoftEther_VPN_Client_Manual/4.2_Using_the_VPN_Client">GUI</a> <a href="https://www.softether-download.com/files/softether/v4.34-9745-rtm-2020.04.05-tree/Windows/SoftEther_VPN_Client/softether-vpnclient-v4.34-9745-rtm-2020.04.05-windows-x86_x64-intel.exe">here</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div id="footer">
+<div id="footer-text">
+Last updated 2021-08-29 08:57:06 UTC
+</div>
+</div>
+</body>
+</html>

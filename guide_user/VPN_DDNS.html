@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Asciidoctor 2.0.15">
+<title>VPN DDNS k8s job</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
+<link rel="stylesheet" href="./asciidoctor.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="./coderay-asciidoctor.css">
+</head>
+<body class="article toc2 toc-left">
+<div id="header">
+<h1>VPN DDNS k8s job</h1>
+<div id="toc" class="toc2">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#deployment-steps">Deployment steps</a></li>
+</ul>
+</div>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>Query VPN client session based on <code>hostname</code>, <code>vpn ip address</code> then create DNS record in <a href="https://console.cloud.google.com/net-services/dns/zones">Cloud DNS</a>.
+The job is setup to run on k8s cronjob</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Use this <a href="https://github.com/zero-88/devops-utils/tree/master/k8s">utility</a></p>
+</li>
+<li>
+<p>Cronjob manifest:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://github.com/play-iot/iot-vpn/blob/main/cli/k8s/ddns/10_create-config-secret.sh">10_create-config-secret.sh</a> Create config/secret</p>
+</li>
+<li>
+<p><a href="https://github.com/play-iot/iot-vpn/blob/main/cli/k8s/ddns/11_vpn-dns-sync-cronjob.yaml">11_vpn-dns-sync-cronjob.yaml</a></p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="deployment-steps"><a class="anchor" href="#deployment-steps"></a>Deployment steps</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Prepare <code>google-service-account.json</code> with right permission to update Cloud DNS records.</p>
+</li>
+<li>
+<p>Copy and fill information based on a customer code.
+For example: <code>playio</code> is customer code</p>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://github.com/play-iot/iot-vpn/blob/main/cli/k8s/ddns/customer.env.tmpl">customer.env.tmpl</a> = playio.env</p>
+</li>
+<li>
+<p><a href="https://github.com/play-iot/iot-vpn/blob/main/cli/k8s/ddns/customer.secret.env.tmpl">customer.secret.env.tml</a> = playio.secret.env</p>
+</li>
+<li>
+<p><a href="https://github.com/play-iot/iot-vpn/blob/main/cli/k8s/ddns/.runner.env.tmpl">.runner.env.tmpl</a> = .prod.env</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Checkout <a href="https://github.com/zero-88/devops-utils/tree/master/k8s">utility</a></p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">PROJECT_DIR=&lt;your-path&gt;
+python deploy.py -e prod -m gcp -d $PROJECT_DIR/cli/k8s/ddns</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="footer">
+<div id="footer-text">
+Last updated 2021-08-29 08:57:06 UTC
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Asciidoctor 2.0.15">
+<title>Development</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
+<link rel="stylesheet" href="./asciidoctor.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="./coderay-asciidoctor.css">
+</head>
+<body class="article toc2 toc-left">
+<div id="header">
+<h1>Development</h1>
+<div id="toc" class="toc2">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#develop-vpn-client-tool">Develop VPN client tool</a>
+<ul class="sectlevel2">
+<li><a href="#run-in-dev">Run in dev</a></li>
+<li><a href="#build-client-tool-to-binary">Build client tool to binary</a></li>
+</ul>
+</li>
+<li><a href="#develop-vpn-tool">Develop VPN tool</a>
+<ul class="sectlevel2">
+<li><a href="#run-in-dev-2">Run in dev</a></li>
+<li><a href="#build-vpn-client-tool-to-binary">Build VPN client tool to binary</a></li>
+</ul>
+</li>
+<li><a href="#develop-mac-tool">Develop MAC tool</a>
+<ul class="sectlevel2">
+<li><a href="#build-client-tool-to-binary-2">Build client tool to binary</a></li>
+<li><a href="#mac-usage">MAC Usage</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div id="content">
+<div class="sect1">
+<h2 id="develop-vpn-client-tool"><a class="anchor" href="#develop-vpn-client-tool"></a>Develop VPN client tool</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="run-in-dev"><a class="anchor" href="#run-in-dev"></a>Run in dev</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash"># Navigate to python source
+cd cli/python
+# After pipenv shell
+python -m src.client.cmd_client -h
+# OR
+python index.py client -h
+Usage: cmd_client.py [OPTIONS] COMMAND [ARGS]...
+
+VPN Client tool to install Softether VPN Client and setup VPN connection
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  add         Add new VPN Account
+  command     Execute Ad-hoc VPN command
+  connect     Connect to VPN connection with VPN account
+  detail      Get detail VPN Account configuration
+  disconnect  Disconnect VPN connection with VPN account
+  install     Install VPN client and setup *nix service
+  list        Get all VPN Accounts
+  log         Get VPN log
+  status      Get current VPN status
+  trust       Trust VPN Server cert
+  uninstall   Stop and disable VPN client and *nix service
+  version     VPN Version</code></pre>
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Using <code>download -h</code> (it is invisible for end-user) to download binary in <code>src/client/resources/debug</code> folder, then every <code>command</code>, it is mandatory to add <code>--dev</code> for using VPN binary in <code>src/client/resources/debug</code> folder.</p>
+</li>
+<li>
+<p><code>start</code>/<code>stop</code> command also invisible because it is system command, that avoids confusing to end-user</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="build-client-tool-to-binary"><a class="anchor" href="#build-client-tool-to-binary"></a>Build client tool to binary</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash"># After pipenv shell
+# Download and compile VPN client binary. Default is `linux-x64`
+python -m src.client.cmd_client download
+# Build to CLI binary
+pyinstaller src/client/cmd_client.py -n playio-vpnc --clean --onefile --add-data src/client/resources/*:resources/</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="develop-vpn-tool"><a class="anchor" href="#develop-vpn-tool"></a>Develop VPN tool</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>VPN Tool covers all aspect of VPN from <code>server</code>/<code>hub</code>/<code>client</code>/<code>secret</code></p>
+</div>
+<div class="sect2">
+<h3 id="run-in-dev-2"><a class="anchor" href="#run-in-dev-2"></a>Run in dev</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash"># After pipenv shell
+python index.py -h
+Usage: index.py [OPTIONS] COMMAND [ARGS]...
+
+  VPN Helper
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  client  VPN Client tool to install Softether VPN Client and setup VPN connection
+  hub     VPN Hub Tool to add/modify SoftEther VPN users and groups.
+  secret  Secret utils
+  server  VPN Server tool
+  vpn     Tool to add/modify SoftEther VPN users and groups.</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="build-vpn-client-tool-to-binary"><a class="anchor" href="#build-vpn-client-tool-to-binary"></a>Build VPN client tool to binary</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash"># After pipenv shell
+pyinstaller src/client/cmd_client.py -n playio-vpnc --clean --onefile \
+    --add-data src/client/resources/*:resources/</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="develop-mac-tool"><a class="anchor" href="#develop-mac-tool"></a>Develop MAC tool</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">python -m src.command.cmd_mac -h
+
+Usage: cmd_mac.py [OPTIONS] COMMAND [ARGS]...
+
+  MAC generator
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  generate  Generate MAC
+  last      Get last MAC sequence in given file
+  validate  Validate MAC duplication in given file</code></pre>
+</div>
+</div>
+<div class="sect2">
+<h3 id="build-client-tool-to-binary-2"><a class="anchor" href="#build-client-tool-to-binary-2"></a>Build client tool to binary</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash"># After pipenv shell
+pyinstaller src/command/cmd_mac.py -n playio-mac --clean --onefile</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="mac-usage"><a class="anchor" href="#mac-usage"></a>MAC Usage</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">playio-mac generate -h
+Usage: playio-mac generate [OPTIONS] [OUTPUT]
+
+  Generate MAC
+
+Options:
+  -n, --quantity INTEGER  The quantity that you need  [default: 1]
+  -o, --overwrite         Append to file  [default: False]
+  --asix1                 First ASIX: &quot;F8:E4:3B&quot;
+  --asix2                 Second ASIX: &quot;00:0E:C6&quot;
+  --oui TEXT              Enforces a specific an organization unique identifier (like F8:E4:3B for ASIX)
+  --seq TEXT              From last sequence. Use with --asix1/--asix2/--oui
+  --rand                  Random MAC instead of sequence  [default: False]
+  --uaa                   Generates a universally administered address (instead of LAA otherwise)  [default: False]
+  --multicast             Generates a multicast MAC (instead of unicast otherwise)  [default: False]
+  --byte-fmt TEXT         The byte format. Set to %02X for uppercase hex formatting.  [default: %02x]
+  --sep TEXT              The byte separator character  [default: :]
+  -h, --help              Show this message and exit.</code></pre>
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Generate in random mode</p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash"># Print to console
+&gt; playio-mac generate --rand -n 10
+
+# Write to file
+&gt; playio-mac generate --rand -n 10 playio.mac
+
+# Overwrite file
+&gt; playio-mac generate --rand -n 5 -o playio.mac
+
+# Generate random MAC with organization unique identifier
+&gt; playio-mac generate --rand -n 10000 --oui 00:0E:C6 playio.mac
+
+# Validate MAC collision
+&gt; playio-mac validate playio.mac
+Duplicated key: 02:0e:c6:91:14:42 in lines [1229, 2793]
+Duplicated key: 02:0e:c6:82:19:5c in lines [2073, 5991]
+Duplicated key: 02:0e:c6:d2:fa:20 in lines [3285, 4060]
+Duplicated key: 02:0e:c6:ec:8f:49 in lines [4162, 5469]
+Duplicated 4 keys</code></pre>
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Generate in with <code>organization unique identifier</code> and <code>sequence</code></p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash"># Write based on ASIX
+&gt; playio-mac generate --asix1 -n 5
+f8:e4:3b:00:00:00
+f8:e4:3b:00:00:01
+f8:e4:3b:00:00:02
+f8:e4:3b:00:00:03
+f8:e4:3b:00:00:04
+
+# Write to file then keep it for generate MAC sequently
+&gt; playio-mac generate --asix1 -n 5 playio.mac
+## Check last MAC
+&gt; playio-mac last playio.mac
+f8:e4:3b:00:00:04
+## Generate next 5 from last sequence
+&gt; playio-mac generate --asix1 -n 5 --seq $(playio-mac last playio.mac) playio.mac
+&gt; cat playio.mac
+f8:e4:3b:00:00:00
+f8:e4:3b:00:00:01
+f8:e4:3b:00:00:02
+f8:e4:3b:00:00:03
+f8:e4:3b:00:00:04
+f8:e4:3b:00:00:05
+f8:e4:3b:00:00:06
+f8:e4:3b:00:00:07
+f8:e4:3b:00:00:08
+f8:e4:3b:00:00:09</code></pre>
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Copy <code>MAC</code> from current NIC with override option from <code>OUI</code></p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="CodeRay highlight"><code data-lang="bash">&gt; playio-mac copy -h
+Usage: playio-mac mac copy [OPTIONS] [NIC]
+  Copy MAC with override OUI
+
+Options:
+  --asix1          First ASIX: &quot;F8:E4:3B&quot;
+  --asix2          Second ASIX: &quot;00:0E:C6&quot;
+  --oui TEXT       Enforces a specific an organization unique identifier (like F8:E4:3B for ASIX)
+  --byte-fmt TEXT  The byte format. Set to %02X for uppercase hex formatting.  [default: %02x]
+  --sep TEXT       The byte separator character  [default: :]
+  -h, --help       Show this message and exit.
+
+## Default NIC is `eth0`
+&gt; playio-mac copy --asix1
+f8:e4:3b:86:71:1c
+
+&gt; playio-mac copy --asix2 wlp4s0
+00:0e:c6:86:71:1c</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Reference</strong>: <a href="http://standards-oui.ieee.org/oui/oui.txt" class="bare">http://standards-oui.ieee.org/oui/oui.txt</a></p>
+</div>
+<div class="paragraph">
+<p><strong>Note</strong>:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Have 2 <code>asix</code> so we have 2 options <code>--asix1</code> and <code>--asix2</code></p>
+</li>
+<li>
+<p>Because generate with <code>organization unique identifier</code> and <code>random</code> mode still having collision so should use <code>MAC sequence</code> and keep <code>playio.mac</code> in repository to reference later</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="footer">
+<div id="footer-text">
+Last updated 2021-08-29 08:57:06 UTC
+</div>
+</div>
+</body>
+</html>
