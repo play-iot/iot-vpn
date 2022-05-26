@@ -1,0 +1,203 @@
+= Deploy VPN client
+
+== Usage
+
+=== Installation
+
+* Download the latest version `vpnc-deployer-cli` in https://github.com/play-iot/iot-vpn/releases[playio-vpn/releases] and copy to anywhere in *YOUR LINUX COMPUTER*
+* Install https://docs.docker.com/engine/install[`docker`] and https://docs.docker.com/compose/install/[`docker-compose`]
+
+[TIP]
+
+====
+For convenient, setup download tool https://github.com/zero88/gh-release-downloader[ghrd] to quick download artifact by version on GitHub.
+This is setup script for `Ubuntu`/`Debian` distro
+
+[,bash]
+----
+export GHRDVER=1.1.2 && sudo curl -L https://github.com/zero88/gh-release-downloader/releases/download/v$GHRDVER/ghrd -o /usr/local/bin/ghrd \
+  && sudo chmod +x /usr/local/bin/ghrd \
+  && sudo ln -sf /usr/local/bin/ghrd /usr/bin/ghrd \
+  && sudo apt install jq -y \
+  && unset GHRDVER
+----
+====
+
+==== Download tool
+
+This is a script that using `ghrd`.
+For example: `VPNCVER=v0.9.4`
+
+[,bash]
+----
+export VPNCVER=v0.9.4 \
+   && ghrd vpnc-deployer-cli -r vpnc-deployer/$VPNCVER -o /tmp play-iot/iot-vpn \
+   && sudo mkdir -p /app \
+   && sudo mv /tmp/vpnc-deployer-cli /app/vpnc-deployer-cli \
+   && sudo ln -sf /app/vpnc-deployer-cli /usr/local/bin/vpnc-deployer-cli \
+   && unset VPNCVER
+----
+
+=== Workflow
+
+Assume sample workflow inputs:
+
+|===
+| Input | Value | Description
+
+| `deployer_dir`
+| `/app/vpnc-deployer`
+| A deployment dir in your computer
+
+| `vpnc_version`
+| `0.9.4`
+| A VPNC release version
+
+| `customer_code`
+| `enviro`
+| An sample for customer code
+
+| `private_cloud_dns`
+| `proxy.cloud.enviro`
+| A private cloud DNS for each customer.
+If customer have not yet private cloud, use `google.com`
+|===
+
+Repeat this workflow for each customer with update corresponding to `customer_code` and `private_cloud_dns` If new `vpnc` version is released, need to update also.
+
+==== Init step
+
+This step use information above.
+Please check it carefully.
+
+[,bash]
+----
+$ cat >> ~/.bashrc <<EOL
+export VPNC_DEPLOYER=/app/vpnc-deployer
+EOL
+$ ./vpnc-deployer-cli -r 0.9.4 -p proxy.cloud.enviro -e enviro init
+Validating dependencies...
+Dependencies OK!!!
+Validating arguments...
+Arguments OK!!!
+Preparing deployment location [/app/vpnc-deployer]...
+Downloading VPNC binary for arch[amd64] to [/app/vpnc-deployer/enviro-vpnc-amd64]...
+Downloading VPNC binary for arch[armv7] to [/app/vpnc-deployer/enviro-vpnc-armv7]...
+Downloading VPNC binary for arch[arm64] to [/app/vpnc-deployer/enviro-vpnc-arm64]...
+Prepared OK!!!
+Generating Docker compose stack...
+Generated OK: /app/vpnc-deployer/enviro-docker-compose.yml
+Generated OK: /app/vpnc-deployer/inventory/enviro-hosts.yml
+Generated OK: /app/vpnc-deployer/files/enviro-credentials.json
+Please update remote device connection in '/app/vpnc-deployer/inventory/enviro-hosts.yml'
+Please update VPN credentials in '/app/vpnc-deployer/files/enviro-credentials.json'
+Then invoke './vpnc-deployer-cli <command>' in which command can be one of [setup,state,rollout,extend,undeploy]
+DONE!!!
+----
+
+=== Update target machine hosts
+
+Update `<customer-code>-hosts.yml` as `init` step output.
+In sample context is: `/app/vpnc-deployer/inventory/enviro-hosts.yml`
+
+[,yaml]
+----
+all:
+children:
+  device:
+    hosts:
+      <device_name_1>:
+        ansible_host: <device_ip_1>
+      <device_name_2>:
+        ansible_host: <device_ip_2>
+        ansible_port: <device_port_2>
+        ansible_user: <device_user_2>
+        ansible_password: <device_password_2>
+    vars:
+      ansible_port: <device_ssh_port_for_all_hosts>
+      ansible_user: <device_username_for_all_hosts>
+      ansible_password: <device_user_password_for_all_hosts>
+----
+
+*Importance*
+
+* Replace `device_name_*` to vpn user format.
+For example: `n000001`, `n000002`
+* Replace `device_ip_*` to host ip that corresponding to `vpn_user`.
+For example: `192.168.10.15` for `n000001`.
+* Replace `device_port_*` to SSH port that corresponding to `vpn_user`.
+For example: `2022` for `n000001`.
+* Replace `device_user_*` to SSH user in `sudo` role that corresponding to `vpn_user`.
+For example: `pi` for `n000001`.
+* Replace `device_password_*` to SSH password that corresponding to `vpn_user`.
+
+=== Update target VPN credentials
+
+Update `<customer-code>-credentials.json` as `init` step output.
+In sample context is: `/app/vpnc-deployer/enviro-credentials.json`
+
+[,json]
+----
+{
+"<device_name>": {
+  "vpn_server": "<vpn_server>",
+  "vpn_port": "<vpn_port>",
+  "vpn_hub": "<customer_code>",
+  "vpn_account": "<customer_code>",
+  "vpn_auth_type": "<cert|password>",
+  "vpn_user": "<vpn_user>",
+  "vpn_password": "<vpn_password>",
+  "vpn_cert_key": "<vpn_cert_key>",
+  "vpn_private_key": "<vpn_private_key>"
+  }
+}
+----
+
+*Importance*
+
+* You can test by your local computer with `user`/`password`
+* In `production`, this file will be provided by administrator per customer
+
+=== Setup VPN client
+
+[,bash]
+----
+./vpnc-deployer.sh -e enviro setup
+----
+
+It will show output to console, then don't close it by `Ctrl+C` After the progress finished, it will show something like that
+
+[,bash]
+----
+vpnc-deployer_1  | PLAY RECAP *********************************************************************
+vpnc-deployer_1  | n000002                    : ok=14   changed=3    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+vpnc-deployer_1  | n000003                    : ok=14   changed=3    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+----
+
+* If output show `unreachable=1`, please check your connection to target devices (`ip`/`port`/`username`/`password`)
+* If output show `failed=1`, please copy a log file in `/tmp/out/ansible.log` then send to @zero88`
+
+== Development
+
+[,bash]
+----
+ansible-inventory --graph
+----
+
+Run this playbook first to ensure the default `python` path exists on target hosts for ansible to lookup:
+
+[,bash]
+----
+ansible-playbook wf-ensure-python.yml
+----
+
+Then:
+
+[,bash]
+----
+ansible-playbook wf-vpnc-rollout.yml -e 'debug=1' -e '{"args_vpn_state_test_domains": ["google.com"]}'
+----
+
+=== Docker
+
+* See `docker-compose` dev version link:https://github.com/play-iot/iot-vpn/blob/main/docker/vpnc-deployer-dkc.yml[here]

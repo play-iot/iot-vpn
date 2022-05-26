@@ -1,0 +1,124 @@
+= Secret utility
+
+This is a `python` utility to perform "secret" features:
+
+* Encryption
+* SSH key pairs generating
+* Certification Authority (CA):
+ ** Generate root Certificate
+ ** Generate and sign Intermediate Certificate
+ ** Generate and sign Certificate
+
+[,console]
+----
+$ python index.py secret
+Usage: index.py secret [OPTIONS] COMMAND [ARGS]...
+
+  Secret utils
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  encrypt
+  gen-root-cert
+  gen-signed-cert
+  gen-ssh
+----
+
+== *gen-ssh* command
+
+This command generates ssh key pairs which is then imported to `playio` device in order to perform passwordless ssh login inside VPN network.
+
+[,console]
+----
+$ python index.py secret gen-ssh -h
+Usage: index.py secret gen-ssh [OPTIONS]
+
+Options:
+  -u, --users TEXT             List users  [required]
+  -of, --output-file TEXT      Output file  [default: ssh]
+  -od, --output-dir DIRECTORY  Output directory  [default: <omited>/output]
+  -h, --help                   Show this message and exit.
+----
+
+== *encrypt* command
+
+This command perform encryption based on some well-known and supported alogrithm.
+
+[,console]
+----
+$ python index.py secret encrypt -h
+Usage: index.py secret encrypt [OPTIONS]
+
+Options:
+  -i, --input TEXT                Value  [required]
+  -a, --algorithm [md5|sha1|sha256]
+                                  Algorithm to encrypt  [required]
+  -b64, --base64
+  -h, --help                      Show this message and exit.
+----
+
+== *gen-root-cert* command
+
+This command generates a root certificate and corresponding private key.
+This bundles then are used to sign new certificate and intermediate certificate.
+
+[,console]
+----
+$ python3 index.py secret gen-root-cert -h
+Usage: index.py secret gen-root-cert [OPTIONS]
+
+Options:
+  -ced, --cert-valid-days INTEGER RANGE
+                                  Certificate valid days [1 - 365]  [default: 365; required]
+  -con, --cert-organziation TEXT  Certificate Organziation  [default: Nube iO Operations Pty Ltd; required]
+  -ccu, --cert-country TEXT       Certificate Country name  [default: AU; required]
+  -csn, --cert-state TEXT         Certificate State name  [default: New South Wales; required]
+  -cln, --cert-locality TEXT      Certificate Locality name  [default: Sydney; required]
+  -ccn, --cert-common-name TEXT   Certificate Common Name  [default: nube-io.com; required]
+  -of, --output-file TEXT         Output file  [default: root-certs]
+  -od, --output-dir DIRECTORY     Output directory  [default:
+                                  <omited>/output]
+  -h, --help                      Show this message and exit.
+----
+
+== *gen-signed-cert* command
+
+This command generate and sign new certificate from existing root/intermediate certificate.
+
+[,console]
+----
+$ python3 index.py secret gen-signed-cert -h
+Usage: index.py secret gen-signed-cert [OPTIONS]
+
+Options:
+  --intermediate                  Marks generating an Intermediate CA
+  -ii, --intermediate-item TEXT   Declares list of signed certification name  [required]
+  -ic, --intermediate-code TEXT   Defines an Intermediate CA code
+  -cck, --cert-key PATH           Path to root certificate key  [required]
+  -cpk, --private-key PATH        Path to root certificate private key  [required]
+  -ced, --cert-valid-days INTEGER RANGE
+                                  Certificate valid days [1 - 365]  [default: 365; required]
+  -con, --cert-organziation TEXT  Certificate Organziation
+  -ccu, --cert-country TEXT       Certificate Country name
+  -csn, --cert-state TEXT         Certificate State name
+  -cln, --cert-locality TEXT      Certificate Locality name
+  -ccn, --cert-common-name TEXT   Certificate Common Name
+  -of, --output-file TEXT         Output file  [default: signed-certs]
+  -od, --output-dir DIRECTORY     Output directory  [default:
+                                  <omited>/output]
+  -h, --help                      Show this message and exit.
+----
+
+To generate and sign new Intermediate CA from existing root CA:
+
+----
+python index.py secret gen-signed-cert --intermediate -ii <customer01-code> -ii <customer02-code> -cck output/root-certs.crt -cpk output/root-certs.key
+----
+
+To generate and sign new Certificate for `playio` device:
+
+----
+python index.py secret gen-signed-cert -ic <customer01> -cck output/<customer01-intermediate-cert>.crt -cpk output/<customer01-intermediate-privatep-key>.key -ii <device-name>
+----

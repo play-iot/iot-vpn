@@ -1,0 +1,32 @@
+name: Generate github pages
+
+on:
+  push: 
+    branches: [ feature/documentation-pages, main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: feature/documentation-pages
+
+      - name: Setup JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: "11"
+          distribution: "temurin"
+
+      - name: Generate HTML files and resources
+        run: cd docs && mvn
+
+      - name: Deploy to GitHub Pages
+        uses: crazy-max/ghaction-github-pages@v2
+        with:
+          target_branch: doc-pages-uat
+          build_dir: docs/target/generated-docs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
