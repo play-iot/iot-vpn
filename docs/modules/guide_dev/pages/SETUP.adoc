@@ -164,7 +164,7 @@ link:https://github.com/play-iot/iot-vpn/blob/main/cli/ansible/docker/vpnc-deplo
 ./scripts/docker.vpntool.sh ddns
 ----
 
-Please read xref:../guide_user/client_deployment.adoc[VPNC Deployer] to see how it works based on `ansible` and `docker`
+Please read xref:guide_user:client_deployment.adoc[VPNC Deployer] to see how it works based on `ansible` and `docker`
 
 === VPN DDNS
 
@@ -175,7 +175,7 @@ link:https://github.com/play-iot/iot-vpn/blob/main/cli/python/docker/vpnddns.Doc
 ./scripts/docker.vpntool.sh ddns
 ----
 
-Please read xref:../guide_user/VPN_DDNS.adoc[VPN DDNS k8s] to see sample `k8s` deployment
+Please read xref:guide_user:VPN_DDNS.adoc[VPN DDNS k8s] to see sample `k8s` deployment
 
 === Implementation
 

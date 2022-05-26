@@ -1,0 +1,5 @@
+* User Guide
+** xref:VPNC_README.adoc[Client CLI]
+*** xref:cmd.adoc[Secret Tool]
+** xref:client_deployment.adoc[Deploying]
+** xref:VPN_DDNS.adoc[Dynamic Client Name Resolving]

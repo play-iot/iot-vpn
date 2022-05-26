@@ -124,7 +124,7 @@ Options:
  ** `VPN Hub`  It is multi-tenant option, normally it is `customer` code.
  ** `Authentication` A login credential to appropriate VPN host and VPN Hub.
 Credential type can be `password` or `cert`
-* After connect VPN connection (See <<vpn-workflow,#VPN workflow>>), VPN client will be registered as linux service, then you can manage it as normal linux service with some basic linux commands
+* After connect VPN connection (See <<_vpn_workflow,VPN workflow>>), VPN client will be registered as linux service, then you can manage it as normal linux service with some basic linux commands
 +
 [,bash]
 ----
@@ -152,7 +152,7 @@ sudo journctl -u playio-vpn
   $ playio-vpnc disconnect # pass "--disable" to not start VPN service when startup computer
 ----
 
-. For upgrade to new version, download the latest version as <<download-and-setup-vpn-client,instruction>>, then use:
+. For upgrade to new version, download the latest version as <<_download_and_setup_vpn_client,instruction>>, then use:
 +
 [,bash]
 ----
@@ -173,7 +173,7 @@ CAUTION: It is hot reload regardless current state is in VPN session or not. Don
 
 ==== IoT device
 
-* Must use `Client Certificate Authentication`
+* Must use `xref:cmd.adoc[Client Certificate Authentication]`
 * Need `VPN user`, `VPN user certificated` file, `VPN user private key` file
 * 2 steps for quick install and setup:
 +

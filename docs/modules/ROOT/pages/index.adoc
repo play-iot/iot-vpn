@@ -1,4 +1,4 @@
-= PlayIO VPN Home Page
+= PlayIO VPN
 
 *Play-IO* IIoT VPN solution
 
@@ -6,7 +6,6 @@
 
 [#img-vpnserver]
 image::vpnserver.png[softether,width=75%]
-// image::images/vpnserver.png[softether,width=75%]
 
 == Server Infrastructure
 
@@ -101,8 +100,8 @@ The `CLI` application syncs every 2 minutes VPN client IP addresses to private G
 
 ==== How to use
 
-* xref:guide_user/VPNC_README.adoc[VPNC Client tool]
-* xref:guide_user/cmd.adoc[Secret Utilities]
+* xref:guide_user:VPNC_README.adoc[VPNC Client tool]
+* xref:guide_user:cmd.adoc[Secret Utilities]
 
 === Client Deployer (VPNC Deployer)
 
@@ -112,4 +111,4 @@ The `CLI` tool based on `ansible` and `docker` to mass deploy VPN client on one 
 
 == How to contribute
 
-Please read xref:guide_dev/SETUP.adoc[Development Setup Guide] to setup your environment.
+Please read xref:guide_dev:SETUP.adoc[Development Setup Guide] to setup your environment.

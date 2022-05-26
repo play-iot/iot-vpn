@@ -1,0 +1,7 @@
+name: playio-vpn-docs
+title: PlayIO VPN Docs
+version: 1.0
+nav:
+  - modules/ROOT/nav.adoc
+  - modules/guide_dev/nav.adoc
+  - modules/guide_user/nav.adoc
