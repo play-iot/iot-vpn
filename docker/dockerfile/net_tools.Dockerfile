@@ -1,5 +1,6 @@
-FROM alpine
+FROM debian:10-slim
 
-RUN apk add --no-cache curl dhclient
+RUN apt-get update && \
+    apt-get install -y isc-dhcp-client iputils-ping dnsutils
 
-CMD [ "/bin/sh" ]
+CMD [ "/bin/bash" ]

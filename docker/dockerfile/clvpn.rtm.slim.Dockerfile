@@ -22,14 +22,11 @@ FROM debian:10-slim
 
 WORKDIR /app/vpnclient
 
-# ARG VPN_VERSION="5.01.9674"
 ENV TINI_VERSION v0.19.0
 ENV SE_SERVER playiot
 ENV SE_NICNAME playiot
 ENV SE_ACCOUNT_NAME playiot
 ENV SE_TYPE standard
-# LABEL VPN_VERSION=$VPN_VERSION
-# LABEL maintainer="sontt246@gmail.com"
 
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
 
@@ -42,8 +39,10 @@ RUN apt-get update -y && apt-get install -y isc-dhcp-client \
 COPY --from=stage2 /app/vpnclient ./
 
 COPY ./entrypoint_cl.sh /app/entrypoint.sh
+COPY ./cmd.sh /app/cmd.sh
 
 RUN chmod +x /app/entrypoint.sh
+RUN chmod +x /app/cmd.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["/usr/bin/tini", "--", "/app/vpnclient/vpnclient", "execsvc"]
+CMD ["/usr/bin/tini", "--", "/app/cmd.sh"]
