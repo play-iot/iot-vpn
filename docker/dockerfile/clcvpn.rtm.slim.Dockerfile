@@ -24,21 +24,18 @@ WORKDIR /app/vpnclient
 
 ENV TINI_VERSION v0.19.0
 ENV SE_SERVER playiot
+ENV SE_PORT 443
 ENV SE_NICNAME playiot
 ENV SE_ACCOUNT_NAME playiot
-ENV SE_TYPE standard
 
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
 
 RUN apt-get update -y && apt-get install -y isc-dhcp-client \
-    && mkdir -p /etc/vpnclient \
-    && touch /etc/vpnclient/vpn_client.conf \
-    && ln -sf /etc/vpnclient/vpn_client.config /app/vpnclient/vpn_client.config \
     && chmod +x /usr/bin/tini
 
 COPY --from=stage2 /app/vpnclient ./
 
-COPY ./entrypoint_cl.sh /app/entrypoint.sh
+COPY ./entrypoint_cl_certauth.sh /app/entrypoint.sh
 COPY ./cmd.sh /app/cmd.sh
 
 RUN chmod +x /app/entrypoint.sh
